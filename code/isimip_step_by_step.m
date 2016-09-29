@@ -24,6 +24,7 @@
 %       comand line, obviously)
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20160929, initial
+% David N. Bresch, david.bresch@gmail.com, 20160929, hazard_dummy_std_file added
 %-
 
 global climada_global
@@ -32,13 +33,14 @@ if ~climada_init_vars,return;end % init/import global variables
 % PARAMETERS
 %
 % define the assets file (constructed if not existing)
-entity_file      ='USA_UnitedStates_Florida';
+entity_file           ='USA_UnitedStates_Florida';
 %
 % define default climada tropical cyclone (TC) hazard set
-hazard_std_file  ='USA_UnitedStates_atl_TC';
+hazard_std_file       ='USA_UnitedStates_atl_TC';
+hazard_dummy_std_file ='TCNA_today_small'; % if hazard_std_file does not exist
 %
-hazard_20th_file ='USA_UnitedStates_Florida_temp_mpi20thcal';
-hazard_rcp85_file='USA_UnitedStates_Florida_temp_mpircp85cal';
+hazard_20th_file      ='USA_UnitedStates_Florida_temp_mpi20thcal';
+hazard_rcp85_file     ='USA_UnitedStates_Florida_temp_mpircp85cal';
 %
 % switch to FULL RESOLUTION OUTPUT, i.e. event damage at each centroid
 climada_global.EDS_at_centroid=1;
@@ -63,6 +65,11 @@ if isempty(entity)
 end
 
 hazard_std=climada_hazard_load(hazard_std_file); % load default hazard
+if isempty(hazard_std)
+    fprintf('Warning: using DUMMY standard hazard\n');
+    hazard_std=climada_hazard_load(hazard_dummy_std_file); % load default hazard
+end
+
 EDS(1)=climada_EDS_calc(entity,hazard_std); % the default damage calculation for comparison (0.5 sec)
 EDS(2)=climada_EDS_calc(entity,hazard_20th); % the damage calculation with Kerry?s tracks (0.5 sec)
 figure;climada_EDS_DFC(EDS); % plot climada std and 20th century DFCs
