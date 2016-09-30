@@ -51,8 +51,7 @@ tc_track_20th_file    ='temp_mpi20thcal'; % the file with Kerry's tracks
 tc_track_rcp85_file   ='temp_mpircp85cal_full'; % the file with Kerry's tracks
 %
 % for flood (FL): define isimip input data (in folder ../climada_data/isimip)
-flood_fraction_filename='fldfrc_max.nc';
-flood_depth_filename   ='flddph_max.nc';
+flood_filename        ='USA_UnitedStates_Florida.nc';
 %
 % switch to FULL RESOLUTION OUTPUT, i.e. event damage at each centroid
 climada_global.EDS_at_centroid=1; % climada default=0, set =1 specifically
@@ -114,9 +113,9 @@ fprintf('\n*** NOTE: all basic tests for TC done ***\n');
 
 hazard_FL=climada_hazard_load(hazard_FL_file);
 if isempty(hazard_FL)
-    fprintf('*** NOTE: generating FL hazard from %s and %s\n\n',flood_fraction_filename,flood_depth_filename);
+    fprintf('*** NOTE: generating FL hazard from %s\n\n',flood_filename);
     figure % new figure for the check_plot of isimip_flood_load
-    hazard=isimip_flood_load(flood_fraction_filename,flood_depth_filename,'auto',entity,1);
+    hazard=isimip_flood_load(flood_filename,'auto',entity,1);
 end
 
 % calculate the from ground up damage for each event at each centroid

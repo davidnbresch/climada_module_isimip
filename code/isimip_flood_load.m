@@ -1,4 +1,4 @@
-function hazard=isimip_flood_load(flood_fraction_filename,flood_depth_filename,hazard_filename,entity,check_plot)
+function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_plot)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -18,19 +18,16 @@ function hazard=isimip_flood_load(flood_fraction_filename,flood_depth_filename,h
 %
 %   next call: climada_EDS_calc
 % CALLING SEQUENCE:
-%   hazard=isimip_flood_load(flood_fraction_filename,flood_depth_filename,hazard_filename,entity,check_plot)
+%   hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_plot)
 % EXAMPLE:
 %   entity=climada_entity_load('USA_UnitedStates_Florida');
-%   hazard=isimip_flood_load('fldfrc_max.nc','flddph_max.nc','auto',entity);
+%   hazard=isimip_flood_load('USA_UnitedStates_Florida_FL.nc','auto',entity);
 % INPUTS:
-%   flood_fraction_filename: filename of the .nc file with the flood
-%       fraction footprints, default folder is ..climada_data/isimip
+%   flood_filename: filename of the .nc file with the flood
+%       footprints, default folder is ..climada_data/isimip
 %       > promted for if not given
-%       fraction is in the range 0..1
-%   flood_depth_filename: filename of the .nc file with the flood
-%       depth footprints, default folder is ..climada_data/isimip
-%       > promted for if not given
-%       depth in units of meters [m]
+%       fraction (variable name 'fldfrc') is in the range 0..1
+%       depth (variable name 'flddph') in units of meters [m]
 %   hazard_filename: the filename (with or without path) the generated
 %       hazard set is stored to. If='auto', the name is autmatically
 %       generated, by appendign _FL to the entity name (still stored into
@@ -51,6 +48,7 @@ function hazard=isimip_flood_load(flood_fraction_filename,flood_depth_filename,h
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20160929, initial
 % David N. Bresch, david.bresch@gmail.com, 20160930, generalized, hazard.fraction added
+% Sven Willner, sven.willner@pik-potsdam.de, 20160930, reduced to one flood file
 %-
 
 hazard=[];
@@ -60,8 +58,7 @@ if ~climada_init_vars,return;end % init/import global variables
 
 % poor man's version to check arguments
 % and to set default value where  appropriate
-if ~exist('flood_fraction_filename','var'),flood_fraction_filename='';end
-if ~exist('flood_depth_filename','var'),   flood_depth_filename=   '';end
+if ~exist('flood_filename','var'),         flood_filename=         '';end
 if ~exist('hazard_filename','var'),        hazard_filename=        '';end
 if ~exist('entity','var'),                 entity=                 '';end
 if ~exist('check_plot','var'),             check_plot=              1;end
@@ -87,24 +84,13 @@ sparse_density=.01; % density of hazard.intensity (sparse, guess to allocate)
 interpn_method='linear'; % default 'linear', also: 'nearest','spline','cubic'
 
 % prompt for flood_fraction_filename if not given
-if isempty(flood_fraction_filename) % local GUI
-    flood_fraction_filename=[isimip_data_dir filesep '*.nc'];
-    [filename, pathname] = uigetfile(flood_fraction_filename, 'Select flood fraction file:');
+if isempty(flood_filename) % local GUI
+    flood_filename=[isimip_data_dir filesep '*.nc'];
+    [filename, pathname] = uigetfile(flood_filename, 'Select flood file:');
     if isequal(filename,0) || isequal(pathname,0)
         return; % cancel
     else
-        flood_fraction_filename=fullfile(pathname,filename);
-    end
-end
-
-% prompt for flood_depth_filename if not given
-if isempty(flood_depth_filename) % local GUI
-    flood_depth_filename=[isimip_data_dir filesep '*.nc'];
-    [filename, pathname] = uigetfile(flood_depth_filename, 'Select flood depth file:');
-    if isequal(filename,0) || isequal(pathname,0)
-        return; % cancel
-    else
-        flood_depth_filename=fullfile(pathname,filename);
+        flood_filename=fullfile(pathname,filename);
     end
 end
 
@@ -119,22 +105,13 @@ if isempty(hazard_filename) % local GUI
     end
 end
 
-% flood_fraction_filename: complete path, if missing
-[fP,fN,fE]=fileparts(flood_fraction_filename);
+% flood_filename: complete path, if missing
+[fP,fN,fE]=fileparts(flood_filename);
 if isempty(fP),fP=isimip_data_dir;end
 if isempty(fE),fE='.mat';end
-flood_fraction_filename=[fP filesep fN fE];
-if ~exist(flood_fraction_filename,'file')
-    fprintf('Error: %s not found\n',flood_fraction_filename);
-end
-
-% flood_depth_filename: complete path, if missing
-[fP,fN,fE]=fileparts(flood_depth_filename);
-if isempty(fP),fP=isimip_data_dir;end
-if isempty(fE),fE='.mat';end
-flood_depth_filename=[fP filesep fN fE];
-if ~exist(flood_depth_filename,'file')
-    fprintf('Error: %s not found\n',flood_depth_filename);
+flood_filename=[fP filesep fN fE];
+if ~exist(flood_filename,'file')
+    fprintf('Error: %s not found\n',flood_filename);
 end
 
 if strcmpi(hazard_filename,'auto') % assign automatically
@@ -152,11 +129,11 @@ hazard_filename=[fP filesep fN fE];
 % load entity to obtsin centroids
 entity=climada_entity_load(entity);
 
-fprintf('reading lon, lat and time from %s and \n  %s ...',flood_fraction_filename,flood_depth_filename);
+fprintf('reading lon, lat and time from ...',flood_filename);
 % if troubles, use ncinfo(flood_fraction_filename,'var') ...
-nc.lon      = ncread(flood_fraction_filename,'lon');
-nc.lat      = ncread(flood_fraction_filename,'lat');
-nc.time     = ncread(flood_fraction_filename,'time');
+nc.lon      = ncread(flood_filename,'lon');
+nc.lat      = ncread(flood_filename,'lat');
+nc.time     = ncread(flood_filename,'time');
 fprintf(' done\n');
 
 % find the bounding box around the assets
@@ -173,6 +150,7 @@ dlon=abs(max(diff(nc.lon)));dlat=abs(max(diff(nc.lat)));
 [~,lat_index_max]=min(abs(nc.lat-(latmax+2*dlat)));
 
 fprintf('reading lon/lat %2.2f .. %2.2f/%2.2f .. %2.2f\n',nc.lon(lon_index_min),nc.lon(lon_index_max),nc.lat(lat_index_min),nc.lat(lat_index_max));
+fprintf('       (indices %d .. %d/%d .. %d)\n',lon_index_min,lon_index_max,lat_index_min,lat_index_max);
 
 lon_index_temp=lon_index_min; % can be ordered descending
 lon_index_min=min(lon_index_min,lon_index_max);
@@ -209,7 +187,7 @@ hazard.yyyy=(1:n_events)+hazard.reference_year-nc.time(end)-1;
 hazard.mm=ones(1,n_events);
 hazard.dd=ones(1,n_events);
 hazard.datenum=datenum(hazard.yyyy,hazard.mm,hazard.dd);
-hazard.scenario='no clima;te change';
+hazard.scenario='no climate change';
 hazard.name=cellstr(num2str(hazard.event_ID'))';
 hazard.frequency=ones(1,n_events)/n_events;
 hazard.filename=hazard_filename;
@@ -228,8 +206,8 @@ format_str='%s';
 for event_i=1:n_events
     
     % get single timestep and reduced 'tile'
-    nc.fraction = ncread(flood_fraction_filename,'var',[lon_index_min lat_index_min event_i],[index_dlon+1 index_dlat+1 1]); % lon, lat, time
-    nc.depth    = ncread(flood_depth_filename,   'var',[lon_index_min lat_index_min event_i],[index_dlon+1 index_dlat+1 1]); % lon, lat, time
+    nc.fraction = ncread(flood_filename,'fldfrc',[lon_index_min lat_index_min event_i],[index_dlon+1 index_dlat+1 1]); % lon, lat, time
+    nc.depth    = ncread(flood_filename,'flddph',[lon_index_min lat_index_min event_i],[index_dlon+1 index_dlat+1 1]); % lon, lat, time
     
     % interpolate to centroids
     depth_tile   =interpn(tile_lon,tile_lat,nc.depth,hazard.lon,hazard.lat,interpn_method);
