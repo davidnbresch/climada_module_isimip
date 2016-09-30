@@ -10,3 +10,12 @@ and
 
 ../climada_modules/isimip/data/hazards/USA_UnitedStates_Florida_temp_mpi20thcal.mat to
 ../climada_data/hazards/USA_UnitedStates_Florida_temp_mpi20thcal.mat
+
+and
+
+just copy the whole folder ../climada_modules/isimip/data/isimip to
+../climada_data/isimip
+
+see code isimip_step_by_step to get started
+
+david.bresch@gmail.com, 2016

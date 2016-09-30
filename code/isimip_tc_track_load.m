@@ -1,24 +1,28 @@
-function [tc_track,tc_track_raw]=isimip_load_tc_tracks(track_filename,check_plot)
+function [tc_track,tc_track_raw]=isimip_tc_track_load(track_filename,check_plot)
 % climada template
 % MODULE:
 %   module name
 % NAME:
-%   isimip_load_tc_tracks
+%   isimip_tc_track_load
 % PURPOSE:
-%   load .mat file with (Kerry Emanuel) tracks
+%   load .mat file with (Kerry Emanuel) tracks and convert to climada
+%   tc_track strcuture for use in all climada TC functions
+%
+%   data reference: tobias.geiger@pik-potsdam.de
 %
 %   next call: climada_tc_hazard_set (or climada_tc_hazard_set_for)
 %   possibly also: climada_tc_random_walk...
 % CALLING SEQUENCE:
-%   tc_track=isimip_load_tc_tracks(track_filename)
+%   tc_track=isimip_tc_track_load(track_filename,check_plot)
 % EXAMPLE:
-%   tc_track=isimip_load_tc_tracks('temp_mpi20thcal')
+%   tc_track=isimip_tc_track_load('temp_mpi20thcal',0)
+%   tc_track=isimip_tc_track_load('temp_mpircp85cal',0)
 % INPUTS:
 %   track_filename: filename of the .mat file with the (Kerry Emanuel)
-%       tracks, default folder is ..climada_data/tc_tracks/isimip
+%       tracks, default folder is ../climada_data/isimip
 %       > promted for if not given
 % OPTIONAL INPUT PARAMETERS:
-%   check_plot: whether show a check plot (=1, default), or not (=0)
+%   check_plot: whether show a check plot (=1), or not (=0, default)
 %       Note that plotting might often take longer than the full
 %       conversion...
 % OUTPUTS:
@@ -26,6 +30,7 @@ function [tc_track,tc_track_raw]=isimip_load_tc_tracks(track_filename,check_plot
 %   tc_track_raw: the raw data, inspect the structure
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20160928, initial
+% David N. Bresch, david.bresch@gmail.com, 20160929, renamed to isimip_tc_track_load (from isimip_load_tc_tracks)
 %-
 
 tc_track=[];tc_track_raw=[]; % init output
@@ -36,7 +41,7 @@ if ~climada_init_vars,return;end % init/import global variables
 % poor man's version to check arguments
 % and to set default value where  appropriate
 if ~exist('track_filename','var'),track_filename='';end
-if ~exist('check_plot','var'),check_plot=1;end
+if ~exist('check_plot','var'),check_plot=0;end
 
 % locate the module's (or this code's) data folder (usually  a folder
 % 'parallel' to the code folder, i.e. in the same level as code folder)
@@ -44,10 +49,13 @@ if ~exist('check_plot','var'),check_plot=1;end
 
 % PARAMETERS
 %
-% define the timestep of the original data in hours
-node_timestep=2; % default=2h
 % define the defaut folder for isimip TC track data
-isimip_data_dir=[climada_global.data_dir filesep 'tc_tracks' filesep 'isimip'];
+isimip_data_dir=[climada_global.data_dir filesep 'isimip'];
+if ~isdir(isimip_data_dir)
+    mkdir(climada_global.data_dir,'isimip'); % create it
+    fprintf('NOTE: store your isimip input data in %s\n',isimip_data_dir);
+end 
+
 
 % template to prompt for track_filename if not given
 if isempty(track_filename) % local GUI
@@ -66,7 +74,7 @@ if isempty(fP),fP=isimip_data_dir;end
 if isempty(fE),fE='.mat';end
 track_filename=[fP filesep fN fE];
 if ~exist(track_filename,'file')
-    fprintf('Error: %s nt found\n',track_filename);
+    fprintf('Error: %s not found\n',track_filename);
 end
 
 % the filanem to save the climada-style tc track to
@@ -205,4 +213,4 @@ end % check_plot
 fprintf('saving tc_track as %s\n',save_filename)
 save(save_filename,'tc_track');
 
-end % isimip_load_tc_tracks
+end % isimip_tc_track_load
