@@ -6,7 +6,7 @@
 %   isimip_step_by_step
 % PURPOSE:
 %   batch script to run isimip input into climada and core climada
-%   calculations. 
+%   calculations.
 %
 %   Mainly demonstrates the use of isimip_tc_track_load and isimip_flood_load
 %
@@ -39,13 +39,24 @@ if ~climada_init_vars,return;end % init/import global variables
 % PARAMETERS
 %
 % define the assets file (constructed if not existing)
-entity_file           ='USA_UnitedStates_Florida';
-nightlight_params.resolution_km=10; % set 10 km asset resolution (10x10km), other option=1
+country_ISO3='USA';country_name='UnitedStates';admin1_name='Florida'; % admin1 default='', whole country, but useful for e.g US states
+%country_ISO3='JPN';country_name='Japan';admin1_name=''; % default='', whole country, but useful for e.g US states
+%entity_file           ='USA_UnitedStates_Florida'; % one can also specify direcly
+if isempty(admin1_name)
+    entity_file           =[country_ISO3 '_' strrep(country_name,' ','')];
+else
+    entity_file           =[country_ISO3 '_' strrep(country_name,' ','') '_' admin1_name];
+end
+%
+nightlight_params.resolution_km=10; % 10x10km resolution
 %
 % define default climada tropical cyclone (TC) hazard set
 hazard_std_file       ='USA_UnitedStates_atl_TC';
+%hazard_std_file       ='JPN_Japan_wpa_TC';
 hazard_dummy_std_file ='TCNA_today_small'; % if hazard_std_file does not exist
 %
+% isimip data files
+% -----------------
 % for tropical cyclones (TC): define isimip input data (in folder ../climada_data/isimip)
 tc_track_20th_file    ='temp_mpi20thcal'; % the file with Kerry's tracks
 tc_track_rcp85_file   ='temp_mpircp85cal_full'; % the file with Kerry's tracks
@@ -66,7 +77,7 @@ entity=climada_entity_load(entity_file); % try to load
 if isempty(entity)
     fprintf('*** NOTE: generating asset base %s\n\n',entity_file);
     nightlight_params.entity_filename=entity_file; % pass on
-    entity=climada_nightlight_entity('USA','Florida',nightlight_params); % create assets from nightlight
+    entity=climada_nightlight_entity(country_ISO3,admin1_name,nightlight_params); % create assets from nightlight
     entity.assets.Value=entity.assets.Value*893189e6*5; % scale to GDP*income_group_factor
     entity.assets.Cover=entity.assets.Value; % technical step, ignore
     save(entity.assets.filename,'entity');
@@ -110,6 +121,8 @@ if ~isempty(hazard_rcp85) % as we do not provide this hazard in the TEST suite, 
 end
 
 fprintf('\n*** NOTE: all basic tests for TC done ***\n');
+
+figure;climada_damagefunctions_plot(entity,'FL 001'); % the damage function plot
 
 hazard_FL=climada_hazard_load(hazard_FL_file);
 if isempty(hazard_FL)

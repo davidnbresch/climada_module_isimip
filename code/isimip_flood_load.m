@@ -227,9 +227,9 @@ for event_i=1:n_events
         events_remaining  = n_events-event_i;
         t_projected_sec   = t_elapsed_event*events_remaining;
         if t_projected_sec<60
-            msgstr = sprintf('converting ..., est. %3.0f sec left (%i/%i events)',t_projected_sec,   event_i,n_events);
+            msgstr = sprintf('converting ... est. %3.0f sec left (%i/%i events)',t_projected_sec,   event_i,n_events);
         else
-            msgstr = sprintf('converting ..., est. %3.1f min left (%i/%i events)',t_projected_sec/60,event_i,n_events);
+            msgstr = sprintf('converting ... est. %3.1f min left (%i/%i events)',t_projected_sec/60,event_i,n_events);
         end
         fprintf(format_str,msgstr); % write progress to stdout
         format_str=[repmat('\b',1,length(msgstr)) '%s']; % back to begin of line

@@ -189,9 +189,9 @@ for track_i=1:n_tracks
         tracks_remaining  = n_tracks-track_i;
         t_projected_sec   = t_elapsed_event*tracks_remaining;
         if t_projected_sec<60
-            msgstr = sprintf('converting, est. %3.0f sec left (%i/%i tracks)',t_projected_sec,   track_i,n_tracks);
+            msgstr = sprintf('converting ... est. %3.0f sec left (%i/%i tracks)',t_projected_sec,   track_i,n_tracks);
         else
-            msgstr = sprintf('converting, est. %3.1f min left (%i/%i tracks)',t_projected_sec/60,track_i,n_tracks);
+            msgstr = sprintf('converting ... est. %3.1f min left (%i/%i tracks)',t_projected_sec/60,track_i,n_tracks);
         end
         fprintf(format_str,msgstr); % write progress to stdout
         format_str=[repmat('\b',1,length(msgstr)) '%s']; % back to begin of line
@@ -207,7 +207,7 @@ if check_plot
         plot(tc_track(track_i).lon,tc_track(track_i).lat); hold on
     end
     climada_plot_world_borders
-    fprintf('done\n')
+    fprintf(' done\n')
 end % check_plot
 
 fprintf('saving tc_track as %s\n',save_filename)
