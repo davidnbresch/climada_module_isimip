@@ -16,12 +16,17 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 %   depth and fraction values to 'real' asset centroids, not to the grid
 %   'around' (see code)  
 %
+%   Octave: please install the netCDF package first: 
+%   pkg install -forge netcdf -local -auto
+%   or: pkg install -verbose -forge -auto netcdf
+%
 %   next call: climada_EDS_calc
 % CALLING SEQUENCE:
 %   hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_plot)
 % EXAMPLE:
 %   entity=climada_entity_load('USA_UnitedStates_Florida');
 %   hazard=isimip_flood_load('USA_UnitedStates_Florida_FL.nc','auto',entity);
+%   hazard=isimip_flood_load('global_FL.nc','auto',entity);
 % INPUTS:
 %   flood_filename: filename of the .nc file with the flood
 %       footprints, default folder is ..climada_data/isimip
@@ -49,6 +54,7 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 % David N. Bresch, david.bresch@gmail.com, 20160929, initial
 % David N. Bresch, david.bresch@gmail.com, 20160930, generalized, hazard.fraction added
 % Sven Willner, sven.willner@pik-potsdam.de, 20160930, reduced to one flood file
+% David N. Bresch, david.bresch@gmail.com, 20161002, small fix to print netCDF filename in stdout
 %-
 
 hazard=[];
@@ -129,7 +135,7 @@ hazard_filename=[fP filesep fN fE];
 % load entity to obtsin centroids
 entity=climada_entity_load(entity);
 
-fprintf('reading lon, lat and time from ...',flood_filename);
+fprintf('reading lon, lat and time from %s ...',flood_filename);
 % if troubles, use ncinfo(flood_fraction_filename,'var') ...
 nc.lon      = ncread(flood_filename,'lon');
 nc.lat      = ncread(flood_filename,'lat');
