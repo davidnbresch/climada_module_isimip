@@ -31,6 +31,7 @@
 % David N. Bresch, david.bresch@gmail.com, 20160929, initial
 % David N. Bresch, david.bresch@gmail.com, 20160929, hazard_dummy_std_file added
 % David N. Bresch, david.bresch@gmail.com, 20160930, flood added
+% David N. Bresch, david.bresch@gmail.com, 20161009, tested with fraction in EDS_calc
 %-
 
 global climada_global
@@ -62,7 +63,7 @@ tc_track_20th_file    ='temp_mpi20thcal'; % the file with Kerry's tracks
 tc_track_rcp85_file   ='temp_mpircp85cal_full'; % the file with Kerry's tracks
 %
 % for flood (FL): define isimip input data (in folder ../climada_data/isimip)
-flood_filename        ='USA_UnitedStates_Florida.nc';
+flood_filename        ='USA_UnitedStates_Florida_FL.nc';
 %
 % switch to FULL RESOLUTION OUTPUT, i.e. event damage at each centroid
 climada_global.EDS_at_centroid=1; % climada default=0, set =1 specifically
@@ -85,12 +86,18 @@ end
 figure;climada_entity_plot(entity) % the assets plot
 figure;climada_damagefunctions_plot(entity,'TC 001'); % the damage function plot
 
+% based on the entity, decide whether we prefer the range -180..180 or
+% 0..360 for the tracks, currently always -180..180
+maxlon=180;
+% decide on hemisphere
+hemisphere='N';if max(entity.assets.lat)<0,hemisphere='S';end
+
 % load (or, if necessary, construct) the hazard set for 20th century
 hazard_20th=climada_hazard_load(hazard_20th_file);
 if isempty(hazard_20th)
     fprintf('*** NOTE: imparting TC tracks from %s\n\n',tc_track_20th_file);
     % load Kerry's TC tracks and generate the hazard set
-    tc_track_20th=isimip_tc_track_load(tc_track_20th_file,0); % load the tracks (the only new code)
+    tc_track_20th=isimip_tc_track_load(tc_track_20th_file,hemisphere,maxlon,0); % load the tracks (the only new code)
     hazard_20th=climada_tc_hazard_set(tc_track_20th,hazard_20th_file,entity); % generate the new hazard set (4 min)
 end
 
@@ -104,21 +111,54 @@ end
 % calculate the from ground up damage for each event at each centroid
 EDS(1)=climada_EDS_calc(entity,hazard_std); % the default damage calculation for comparison (0.5 sec)
 EDS(2)=climada_EDS_calc(entity,hazard_20th); % the damage calculation with Kerry?s tracks (0.5 sec)
-figure;climada_EDS_DFC(EDS); % plot climada std and 20th century DFCs
+figure('Name','TC EDS comparison','Color',[1 1 1]);climada_EDS_DFC(EDS); % plot climada std and 20th century DFCs
+
+% compare underlying windspeeds
+fprintf('comparing windspeeds ...');
+int_20th=hazard_20th.intensity(:);
+int_20th=int_20th(int_20th>0);
+int_std =hazard_std.intensity(:);
+int_std =int_std(int_std>0);
+X=0:10:110;
+N_std =hist(int_std,X); % histogram
+N_std =N_std/sum(N_std); % normalize
+N_20th=hist(int_20th,X); % histogram
+N_20th=N_20th/sum(N_20th); % normalize
+figure('Name','windspeed comparison','Color',[1 1 1]);
+bar(X,N_std,0.5,'EdgeColor',[1 1 1],'FaceColor',[1 0 0]);
+hold on;bar(X,N_20th,0.25,'EdgeColor',[1 1 1],'FaceColor',[0 1 0]);
+legend('standard set','mpi20thcal')
+set(gcf,'Color',[1 1 1])
+title('TC windspeed comparison');
+xlabel('m/s'),ylabel('rel. count');
+fprintf(' done\n');
 
 % load (or, if necessary, construct) the hazard set for rcp85
 hazard_rcp85=climada_hazard_load(hazard_rcp85_file);
 if isempty(hazard_rcp85)
     fprintf('*** NOTE: imparting TC tracks from %s\n\n',tc_track_20th_file);
     % load Kerry's TC tracks and generate the hazard set
-    tc_track_rcp85=isimip_tc_track_load(tc_track_rcp85_file,0); % load rcp85 tracks, convert
+    tc_track_rcp85=isimip_tc_track_load(tc_track_rcp85_file,hemisphere,maxlon,0); % load rcp85 tracks, convert
     hazard_rcp85=climada_tc_hazard_set(tc_track_rcp85,hazard_rcp85_file,entity); % generate the new hazard set (4 min)
 end
 if ~isempty(hazard_rcp85) % as we do not provide this hazard in the TEST suite, hence one might not run this step and just proceed to flood
     % calculate the from ground up damage for each event at each centroid
     EDS(3)=climada_EDS_calc(entity,hazard_rcp85); % the damage calculation with Kerry?s tracks (0.5 sec)
-    figure;climada_EDS_DFC(EDS); % plot climada std, 20th century and rcp85 DFCs
+    figure('Name','TC EDS comparison','Color',[1 1 1]);climada_EDS_DFC(EDS); % plot climada std, 20th century and rcp85 DFCs
 end
+
+% compare underlying windspeeds
+fprintf('comparing windspeeds ...');
+int_rcp85=hazard_rcp85.intensity(:);
+int_rcp85=int_rcp85(int_rcp85>0);
+N_rcp85  =hist(int_rcp85,X); % histogram
+N_rcp85  =N_rcp85/sum(N_rcp85); % normalize
+figure('Name','windspeed comparison','Color',[1 1 1]);
+bar(X,N_20th,0.5,'EdgeColor',[1 1 1],'FaceColor',[1 0 0]);
+hold on;bar(X,N_rcp85,0.25,'EdgeColor',[1 1 1],'FaceColor',[0 1 0]);
+legend('20th','rcp85')
+title('TC windspeed comparison');xlabel('m/s'),ylabel('rel. count');
+fprintf(' done\n');
 
 fprintf('\n*** NOTE: all basic tests for TC done ***\n');
 
@@ -128,7 +168,7 @@ hazard_FL=climada_hazard_load(hazard_FL_file);
 if isempty(hazard_FL)
     fprintf('*** NOTE: generating FL hazard from %s\n\n',flood_filename);
     figure % new figure for the check_plot of isimip_flood_load
-    hazard=isimip_flood_load(flood_filename,'auto',entity,1);
+    hazard_FL=isimip_flood_load(flood_filename,'auto',entity,1);
 end
 
 % calculate the from ground up damage for each event at each centroid

@@ -1,4 +1,4 @@
-function [tc_track,tc_track_raw]=isimip_tc_track_load(track_filename,check_plot)
+function [tc_track,tc_track_raw]=isimip_tc_track_load(track_filename,hemisphere,maxlon,check_plot)
 % climada template
 % MODULE:
 %   module name
@@ -13,15 +13,20 @@ function [tc_track,tc_track_raw]=isimip_tc_track_load(track_filename,check_plot)
 %   next call: climada_tc_hazard_set (or climada_tc_hazard_set_for)
 %   possibly also: climada_tc_random_walk...
 % CALLING SEQUENCE:
-%   tc_track=isimip_tc_track_load(track_filename,check_plot)
+%   tc_track=isimip_tc_track_load(track_filename,hemisphere,maxlon,check_plot)
 % EXAMPLE:
-%   tc_track=isimip_tc_track_load('temp_mpi20thcal',0)
-%   tc_track=isimip_tc_track_load('temp_mpircp85cal',0)
+%   tc_track=isimip_tc_track_load('temp_mpi20thcal' ,'N',180,1)
+%   tc_track=isimip_tc_track_load('temp_mpircp85cal','S',180,1)
 % INPUTS:
 %   track_filename: filename of the .mat file with the (Kerry Emanuel)
 %       tracks, default folder is ../climada_data/isimip
 %       > promted for if not given
 % OPTIONAL INPUT PARAMETERS:
+%   hemisphere: 'N' (default) or 'S', or 'both' (speeds up)
+%   maxlon: the maximum longitude, either =180 (default) or =360
+%       For North Atlantic, for example, 180 is much more suitable. 
+%       360 makes mainly sense for Pacific (islands).
+%       Note that climda prefers to deal with -180..180 whenever possible.
 %   check_plot: whether show a check plot (=1), or not (=0, default)
 %       Note that plotting might often take longer than the full
 %       conversion...
@@ -41,6 +46,8 @@ if ~climada_init_vars,return;end % init/import global variables
 % poor man's version to check arguments
 % and to set default value where  appropriate
 if ~exist('track_filename','var'),track_filename='';end
+if ~exist('hemisphere','var'),hemisphere='N';end
+if ~exist('maxlon','var'),maxlon=180;end
 if ~exist('check_plot','var'),check_plot=0;end
 
 % locate the module's (or this code's) data folder (usually  a folder
@@ -49,6 +56,8 @@ if ~exist('check_plot','var'),check_plot=0;end
 
 % PARAMETERS
 %
+% see TEST in code to break after e.g. 1000 tracks
+%
 % define the defaut folder for isimip TC track data
 isimip_data_dir=[climada_global.data_dir filesep 'isimip'];
 if ~isdir(isimip_data_dir)
@@ -56,8 +65,7 @@ if ~isdir(isimip_data_dir)
     fprintf('NOTE: store your isimip input data in %s\n',isimip_data_dir);
 end 
 
-
-% template to prompt for track_filename if not given
+% prompt for track_filename if not given
 if isempty(track_filename) % local GUI
     track_filename=[isimip_data_dir filesep '*.mat'];
     [filename, pathname] = uigetfile(track_filename, 'Open:');
@@ -92,46 +100,27 @@ n_years=n_tracks/600;
 fprintf('loaded %i tracks (each %i nodes), representing %i years\n',...
     n_tracks,size(tc_track_raw.latstore,2),n_years);
 
-% 	latsall=(latsall*10).astype('int')
-% 	if (hemisphere=='N'):
-% 		latsall=latsall[(np.where(latsall > 0))]
-% 	else:
-% 		latsall=latsall[(np.where(latsall < 0))]
-%
-% 	if (hemisphere=='N') & ((latsall > 0).any()):
-% 		pass
-% 	elif (hemisphere=='S') & ((latsall < 0).any()):
-% 		#here=True
-% 		pass
-
-% 	if ((lonsall > 0).any()) & ((lonsall < 0).any()):
-% 		lonspos=lonsall[lonsall >= 0]
-% 		lonsneg=lonsall[lonsall < 0]
-% 		#here=True
-% 		if (((lonspos <= lonmax).any()) & ((lonspos >= lonmin).any())) & (((lonsneg <= lonmax).any()) & ((lonsneg >= lonmin).any())):
-% 			pass
-% 		else:
-% 			stop=True
-% 	else:
-% 		#print ((lonsall >= lonmin).any())
-% 		#print np.min(lonsall) , np.max(lonsall)
-% 		if ((lonsall >= lonmin).any()) & ((lonsall <= lonmax).any()):
-% 			here=True
-% 			pass
-% 		else:
-% 			stop=True
-
-% for-loop progress to stdout
+% preparation for for loop progress update to stdout
 t0       = clock;
 mod_step = 100; % first time estimate after 10 events, then every 100
 format_str='%s';
+
+if     strcmpi(hemisphere,'N')
+    hemisphere_latmin=  0;hemisphere_latmax=90;
+elseif strcmpi(hemisphere,'S')
+    hemisphere_latmin=-90;hemisphere_latmax= 0;
+else % both
+    hemisphere_latmin=-90;hemisphere_latmax=90;
+end
 
 next_track=1;
 for track_i=1:n_tracks
     pos=find(abs(tc_track_raw.latstore(track_i,:))>0 & abs(tc_track_raw.longstore(track_i,:))>0);
     if ~isempty(pos)
         
-        if min(tc_track_raw.latstore(track_i,pos))>0 % NH only (for TEST)
+        minlat=min(tc_track_raw.latstore(track_i,pos));
+        maxlat=max(tc_track_raw.latstore(track_i,pos));
+        if minlat>=hemisphere_latmin && maxlat<=hemisphere_latmax
             
             % store into tc_track
             tc_track(next_track).lon             =tc_track_raw.longstore(track_i,pos);
@@ -140,10 +129,9 @@ for track_i=1:n_tracks
             tc_track(next_track).MaxSustainedWind=tc_track_raw.vstore(track_i,pos);
             tc_track(next_track).RadiusMaxWind   =tc_track_raw.rmstore(track_i,pos);
             
-            % convert lon to climada conventino -180..180 instead of 0..360
-            lon_pos=find(tc_track(next_track).lon>260);
-            if ~isempty(lon_pos),tc_track(next_track).lon(lon_pos)=tc_track(next_track).lon(lon_pos)-360;end
-            
+            % convert lon to climada convention -180..180 instead of 0..360
+            tc_track(next_track).lon=climada_longitude_unify(tc_track(next_track).lon,maxlon,1);
+                        
             % create date/time
             mm=tc_track_raw.monthstore(track_i,pos);
             dd=tc_track_raw.daystore(track_i,pos);
@@ -161,8 +149,6 @@ for track_i=1:n_tracks
             end
             tc_track(next_track).datenum=datenum(yyyy,mm,dd,hh,0,0);
           
-            %             year_i=climada_global.present_reference_year-n_years+floor(track_i/600);
-            %             tc_track(next_track).datenum=datenum(year_i,1,1)+(0:length(tc_track(next_track).lon)-1)*node_timestep/24;
             [tc_track(next_track).yyyy,tc_track(next_track).mm,...
                 tc_track(next_track).dd,tc_track(next_track).hh]=...
                 datevec(tc_track(next_track).datenum);
