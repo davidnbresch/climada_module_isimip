@@ -160,6 +160,12 @@ legend('20th','rcp85')
 title('TC windspeed comparison');xlabel('m/s'),ylabel('rel. count');
 fprintf(' done\n');
 
+% TEST windspeed exceedance curves (commented, as this is not finished yet)
+% nz_pos=find(entity.assets.Value>0);
+% figure;climada_entity_plot(entity);hold on;plot(entity.assets.lon(nz_pos),entity.assets.lat(nz_pos),'og');% test, wo diese Punkte liegen
+% IFC_20th=climada_hazard2IFC(hazard_20th,hazard_20th.centroid_ID(nz_pos)); % IFC f?r alle Punkte 20th
+% IFC_rcp85=climada_hazard2IFC(hazard_rcp85,hazard_rcp85.centroid_ID(nz_pos)); % IFC f?r alle Punkte rcp85
+
 fprintf('\n*** NOTE: all basic tests for TC done ***\n');
 
 figure;climada_damagefunctions_plot(entity,'FL 001'); % the damage function plot
