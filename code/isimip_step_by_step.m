@@ -32,6 +32,7 @@
 % David N. Bresch, david.bresch@gmail.com, 20160929, hazard_dummy_std_file added
 % David N. Bresch, david.bresch@gmail.com, 20160930, flood added
 % David N. Bresch, david.bresch@gmail.com, 20161009, tested with fraction in EDS_calc
+% David N. Bresch, david.bresch@gmail.com, 20161010, IFC added
 %-
 
 global climada_global
