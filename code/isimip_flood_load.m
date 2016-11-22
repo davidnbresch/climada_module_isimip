@@ -29,7 +29,7 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 %   hazard=isimip_flood_load('global_FL.nc','auto',entity);
 % INPUTS:
 %   flood_filename: filename of the .nc file with the flood
-%       footprints, default folder is ..climada_data/isimip
+%       footprints, default folder is ..climada_data/isimip/FL
 %       > promted for if not given
 %       fraction (variable name 'fldfrc') is in the range 0..1
 %       depth (variable name 'flddph') in units of meters [m]
@@ -89,7 +89,7 @@ sparse_density=.01; % density of hazard.intensity (sparse, guess to allocate)
 % interpolation method, see help interpn
 interpn_method='linear'; % default 'linear', also: 'nearest','spline','cubic'
 
-% prompt for flood_fraction_filename if not given
+% prompt for flood_filename if not given
 if isempty(flood_filename) % local GUI
     flood_filename=[isimip_data_dir filesep '*.nc'];
     [filename, pathname] = uigetfile(flood_filename, 'Select flood file:');
