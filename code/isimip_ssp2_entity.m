@@ -68,6 +68,7 @@ function entity=isimip_ssp2_entity(ISO3,ssp2_filename,NatId_filename,check_plot,
 % David N. Bresch, david.bresch@gmail.com, 20161017, initial
 % David N. Bresch, david.bresch@gmail.com, 20161120, ALL_IN_ONE added
 % David N. Bresch, david.bresch@gmail.com, 20161121, list of ISO3 allowed
+% David N. Bresch, david.bresch@gmail.com, 20161123, checked for 2.5min
 %-
 
 entity=[]; % init output
@@ -97,7 +98,7 @@ end
 % define default filenames for population (ssp2) and country number (NatId)
 ssp2_filename01deg =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0.1deg_yearly_zip.nc'];
 NatId_filename01deg=[isimip_data_dir filesep 'Nat_id_grid_0.1deg.nc'];
-ssp2_filename25min =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_2.5min_yearly_zip.nc'];
+ssp2_filename25min =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_2.5min_yearly_zip.nc4'];
 NatId_filename25min=[isimip_data_dir filesep 'Nat_id_grid_2.5min.nc'];
 %
 % the entity template to populate a defaiult entity
@@ -204,6 +205,8 @@ else
     gridlat=reshape(gridlat0,[1 numel(gridlat0)]);
     %if verbose,fprintf(' done\n');end
         
+    if iscell(ISO3),ISO3_char=cell2mat(ISO3);else ISO3_char=ISO3;end
+    
     NatId_pos=[]; % init
     if exist(NatId_filename,'file')
         % read the NatId grid
@@ -215,7 +218,7 @@ else
             entity.assets.NatId=NatIdGrid(NatId_pos); % store the NatId grid
             n_centroids=sum(NatId_pos); % logical
 
-            if verbose,fprintf(' %i NatId grid cells within country %s\n',n_centroids,cell2mat(ISO3));end
+            if verbose,fprintf(' %i NatId grid cells within country %s\n',n_centroids,ISO3_char);end
         else
             fprintf('Warning: grid sizes do not match, 2nd approach (shape)\n');
         end
@@ -251,7 +254,7 @@ else
     
     if ~isempty(NatId_pos)
         
-        entity.assets.filename=[climada_global.entities_dir filesep cell2mat(ISO3) '_entity'];
+        entity.assets.filename=[climada_global.entities_dir filesep ISO3_char '_entity'];
         entity.assets.admin0_ISO3=ISO3;
         
         entity.assets.lon=gridlon(NatId_pos);
@@ -302,6 +305,11 @@ if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
     if isfield(entity.assets,'hazard'),entity.assets=rmfield(entity.assets,'hazard');end
         
     entity.assets = climada_assets_complete(entity.assets);
+    
+    % add the source files
+    entity.assets.ssp2_filename =ssp2_filename;
+    entity.assets.NatId_filename=NatId_filename;
+
         
     % create centroid_index already, since we generate the isimip hazard 
     % sets based on this entity and later save time (skip re-encoding)
