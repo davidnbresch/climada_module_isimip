@@ -22,6 +22,7 @@ function tc_track=isimip_ibtracs_read(csv_filename,delimiter)
 %       track data .csv file, OR the folder name containing such single
 %       .csv files (processing all .csv files within)
 %       > promted for if not given (for single track)
+%       ='TEST' to run TEST mode (just one track, Andrew 1992)
 % OPTIONAL INPUT PARAMETERS:
 %   delimiter: the delimiter, default is climada_global.csv_delimiter
 % OUTPUTS:
@@ -45,7 +46,14 @@ if ~exist('delimiter','var'),delimiter=climada_global.csv_delimiter;end
 % PARAMETERS
 %
 % define all parameters here - no parameters to be defined in code below
-
+%
+% set TEST track
+if strcmp(csv_filename,'TEST')
+    csv_filename=[climada_global.modules_dir filesep 'isimip' ...
+        filesep 'data' filesep 'isimip' filesep ...
+        'ibtracs_basin-NA_intp-None_1992230N11325.csv']; % Andrew
+    fprintf('TEST mode, using %s\n',csv_filename)
+end
 
 % prompt for csv_filename if not given
 if isempty(csv_filename) % local GUI
@@ -61,18 +69,17 @@ end
 
 track_i=1;
 
-% figure whether we deal with a folder
-if isdir(csv_filename)
+if isdir(csv_filename) % figure whether we deal with a folder
     files=dir([csv_filename filesep '*.csv']);
     
     n_files=length(files);
-        
+    
     % template for-loop with waitbar or progress to stdout
     t0       = clock;
     mod_step = 2; % first time estimate after 10 events, then every 100 (see below)
     format_str='%s';
     fprintf('processing %i files\n',n_files);
-
+    
     for file_i=1:n_files
         if ~files(file_i).isdir % is a data file
             single_filename=[csv_filename filesep files(file_i).name];
@@ -96,7 +103,7 @@ if isdir(csv_filename)
         end
     end
     fprintf(format_str,''); % move carriage to begin of line
-
+    
 else
     tc_track=[]; % init output
     
@@ -128,58 +135,7 @@ else
     
     % a unique ID
     tc_track(track_i).ID_no=str2double(res.ibtracsID{1}(1:7));
-                    
-end
-
-return
-
-% template for-loop with waitbar or progress to stdout
-n_files = 10000; % to run it here
-t0       = clock;
-mod_step = 10; % first time estimate after 10 events, then every 100 (see below)
-format_str='%s';
-
-msgstr   = sprintf('processing %i events',n_files);
-fprintf('%s\n',msgstr);
-
-% if climada_global.waitbar % commented, as we do not recommend to use a pop-up waitbar (often a nuisance)
-%     fprintf('%s (updating waitbar with estimation of time remaining every 100th event)\n',msgstr);
-%     h        = waitbar(0,msgstr);
-%     set(h,'Name','Event loop');
-% else
-%     fprintf('%s (waitbar suppressed)\n',msgstr);
-% end
-
-for file_i=1:n_files
     
-    % your calculations here
-    for i=1:5000,sqrt(i)*exp(file_i);end % DUMMY
-    
-    % the progress management
-    if mod(file_i,mod_step)==0
-        mod_step          = 100;
-        t_elapsed_files   = etime(clock,t0)/file_i;
-        files_remaining  = n_files-file_i;
-        t_projected_sec   = t_elapsed_files*files_remaining;
-        if t_projected_sec<60
-            msgstr = sprintf('est. %3.0f sec left (%i/%i events)',t_projected_sec,   file_i,n_files);
-        else
-            msgstr = sprintf('est. %3.1f min left (%i/%i events)',t_projected_sec/60,file_i,n_files);
-        end
-        % if climada_global.waitbar
-        %    waitbar(file_i/n_files,h,msgstr); % update waitbar
-        % else
-        fprintf(format_str,msgstr); % write progress to stdout
-        format_str=[repmat('\b',1,length(msgstr)) '%s']; % back to begin of line
-        % end
-    end
-    
-end % file_i
-% if climada_global.waitbar
-%     close(h) % dispose waitbar
-% else
-fprintf(format_str,''); % move carriage to begin of line
-% end
-fprintf('after the loop\n')
+end % isdir(csv_filename)
 
-end % climada_template
+end % isimip_ibtracs_read
