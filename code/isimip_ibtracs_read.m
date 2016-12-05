@@ -8,6 +8,9 @@ function tc_track=isimip_ibtracs_read(csv_filename,delimiter)
 %   read isimip ibtracs tropical cyclone (TC) track data
 %   Either a single track or all tracks within a folder
 %
+%   If a whoe folder is processed, tracks with less than 3 nodes are
+%   skipped.
+%
 %   next call: climada_tc_hazard_set
 % CALLING SEQUENCE:
 %   tc_track=isimip_ibtracs_read(csv_filename,delimiter)
@@ -73,7 +76,8 @@ if isdir(csv_filename) % figure whether we deal with a folder
     files=dir([csv_filename filesep '*.csv']);
     
     n_files=length(files);
-    
+    track_ok=0;track_not_ok=0; % init
+                
     % template for-loop with waitbar or progress to stdout
     t0       = clock;
     mod_step = 2; % first time estimate after 10 events, then every 100 (see below)
@@ -84,7 +88,13 @@ if isdir(csv_filename) % figure whether we deal with a folder
         if ~files(file_i).isdir % is a data file
             single_filename=[csv_filename filesep files(file_i).name];
             tc_track(track_i)=isimip_ibtracs_read(single_filename,delimiter);
-            track_i=track_i+1; % point to next free track
+            
+            if length(tc_track(track_i).lon)>2
+                track_i=track_i+1; % point to next free track
+                track_ok=track_ok+1;
+            else
+                track_not_ok=track_not_ok+1;
+            end 
             
             if mod(file_i,mod_step)==0  % progress management
                 mod_step          = 10;
@@ -103,6 +113,8 @@ if isdir(csv_filename) % figure whether we deal with a folder
         end
     end
     fprintf(format_str,''); % move carriage to begin of line
+    
+    fprintf('%i tracks ok, %i not ok (less than 3 nodes, skipped)\n',track_ok,track_not_ok);
     
 else
     tc_track=[]; % init output
@@ -136,6 +148,22 @@ else
     % a unique ID
     tc_track(track_i).ID_no=str2double(res.ibtracsID{1}(1:7));
     
+    % deal with missing pressure
+    tc_track(track_i).CentralPressure(tc_track(track_i).CentralPressure<=0)=NaN;
+    if sum(isnan(tc_track.CentralPressure))
+        tc_track.CentralPressure=extra_p(tc_track(track_i).MaxSustainedWind,tc_track(track_i).lat,tc_track(track_i).lon);
+    end
+    
 end % isdir(csv_filename)
 
 end % isimip_ibtracs_read
+
+
+% follow helper functions (the ones easy to convert from python ;-)
+% -----------------------------------------------------------------
+
+function p_from_v=extra_p(vmax,lat,lon)
+% determined in hPa
+%p_from_v = 1024.688+0.055*lat-0.028*lon-0.815*vmax # peduzzi
+p_from_v = 1024.388 + 0.047*lat - 0.029*lon - 0.818*vmax; % ibtracs 1980 -2013 (r2=0.91)
+end %  extra_p
