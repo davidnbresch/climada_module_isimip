@@ -15,6 +15,8 @@ function tc_track=isimip_ibtracs_read(csv_filename,delimiter)
 % CALLING SEQUENCE:
 %   tc_track=isimip_ibtracs_read(csv_filename,delimiter)
 % EXAMPLE:
+%   tc_track=isimip_ibtracs_read('TEST'); % returns test track (Andrew,1992)
+%
 %   csv_filename=[climada_global.modules_dir filesep 'isimip' ...
 %       filesep 'data' filesep 'isimip' filesep ...
 %       'ibtracs_basin-NA_intp-None_1992230N11325.csv']; % Andrew
@@ -32,6 +34,7 @@ function tc_track=isimip_ibtracs_read(csv_filename,delimiter)
 %   tc_track: a climada TC track structure, see e.g. climada_tc_read_unisys_database
 %       plus the fields RadiusMaxWind, EnvironmentalPressure
 % David N. Bresch, david.bresch@gmail.com, 20161203, intial
+% David N. Bresch, david.bresch@gmail.com, 20161222, new field isotime used to properly define yyyy,mm,dd and hh
 %-
 
 global climada_global
@@ -120,7 +123,6 @@ else
     tc_track=[]; % init output
     
     res=climada_csvread(csv_filename,delimiter);
-    
     if isempty(res),return;end
     
     % store into tc_track structure
@@ -137,13 +139,25 @@ else
     tc_track(track_i).orig_event_flag=res.original_data(1);
     tc_track(track_i).name=res.ibtracsID{1};
     
-    % fiddle with the data/time
-    yyyy=str2double(res.ibtracsID{1}(1:4)); % figure start year
-    tc_track(track_i).yyyy=tc_track(track_i).lon*0+yyyy; % init year
-    tc_track(track_i).datenum=datenum(yyyy,1,1)+cumsum(tc_track(track_i).TimeStep)/24; % to define a date
-    tc_track(track_i).mm=str2num(datestr(tc_track(track_i).datenum,'mm'));
-    tc_track(track_i).dd=str2num(datestr(tc_track(track_i).datenum,'dd'));
-    tc_track(track_i).hh=str2num(datestr(tc_track(track_i).datenum,'hh'));
+    if isfield(res,'isotime')
+        isotime=res.isotime;
+        tc_track(track_i).yyyy=fix(isotime/1e6);
+        isotime               =isotime-tc_track(track_i).yyyy*1e6;
+        tc_track(track_i).mm  =fix(isotime/1e4);
+        isotime               =isotime-tc_track(track_i).mm  *1e4;
+        tc_track(track_i).dd  =fix(isotime/1e2);
+        tc_track(track_i).hh  =isotime-tc_track(track_i).dd  *1e2;
+        tc_track(track_i).datenum=datenum(tc_track(track_i).yyyy,...
+            tc_track(track_i).mm,tc_track(track_i).dd,tc_track(track_i).hh,0,0); % convert
+    else
+        % fiddle with the data/time
+        yyyy=str2double(res.ibtracsID{1}(1:4)); % figure start year
+        tc_track(track_i).yyyy=tc_track(track_i).lon*0+yyyy; % init year
+        tc_track(track_i).datenum=datenum(yyyy,1,1)+cumsum(tc_track(track_i).TimeStep)/24; % to define a date
+        tc_track(track_i).mm=str2num(datestr(tc_track(track_i).datenum,'mm'));
+        tc_track(track_i).dd=str2num(datestr(tc_track(track_i).datenum,'dd'));
+        tc_track(track_i).hh=str2num(datestr(tc_track(track_i).datenum,'hh'));
+    end
     
     % a unique ID
     tc_track(track_i).ID_no=str2double(res.ibtracsID{1}(1:7));

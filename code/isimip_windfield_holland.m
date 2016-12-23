@@ -19,8 +19,10 @@ function gust = isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 %   gust = isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 %   [vfull,pcen,vmax]=isimip_windfield_holland(msize,res,cgps,ngps,penv,pcen,rmax,vmax,tint,prepcen,model)
 % EXAMPLE:
+%   gust=isimip_windfield_holland(climada_subarray(isimip_ibtracs_read('TEST'),31:33));
+%   gust=isimip_windfield_holland; % TEST, does the same as previous line
 %   tc_track=isimip_ibtracs_read('TEST');
-%   tc_track=climada_tc_equal_timestep(tc_track); % make equal timestep
+%   tc_track=climada_tc_equal_timestep(tc_track,1/3); % make equal timestep, 20 min
 %   gust=isimip_windfield_holland(tc_track)
 % INPUTS:
 %   tc_track: a structure with the single track information (length(tc_track)!=1)
@@ -43,11 +45,14 @@ function gust = isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 % Tobias Geiger, geiger@pik-potsdam.de, 2016, Copyright, python verison
 % David N. Bresch, david.bresch@gmail.com, 20161204, intial
 % David N. Bresch, david.bresch@gmail.com, 20161205, traslation added
+% David N. Bresch, david.bresch@gmail.com, 20161223, traslation removed for TESTS
 %-
+
+fprintf('WARNING: TEST MODE\n');
 
 gust = []; % init output
 
-if ~exist('tc_track' ,'var'),return; end
+if ~exist('tc_track' ,'var'),tc_track=climada_subarray(isimip_ibtracs_read('TEST'),31:33); end
 if ~exist('centroids','var'),centroids=[]; end
 if ~exist('silent_mode','var'),silent_mode=0; end
 
@@ -61,7 +66,9 @@ EnvironmentalPressure_default=1010; % mb
 %
 % TEST area (Southern tip of Florida)
 %TEST_lon=-82:0.25:-80;TEST_lat=25:0.25:27;
-TEST_lon=-82:0.1:-80;TEST_lat=25:0.1:27;
+%TEST_lon=-82:0.1:-80;TEST_lat=25:0.1:27;
+TEST_lon=-83:0.1:-79;TEST_lat=24:0.1:28;
+%TEST_lon=-105:0.1:20;TEST_lat=0:0.1:70;
 
 if isempty(centroids) % generate TEST centroids
     [centroids.lon,centroids.lat] = meshgrid(TEST_lon,TEST_lat); % get 2-D
@@ -186,7 +193,8 @@ for node_i=2:n_nodes % process each node (later speedup potential)
     %        return
     %    end
     
-    vfull=vwind+vtrans_arr; % symmetric windfield plus translation
+    %vfull=vwind+vtrans_arr; % symmetric windfield plus translation
+    vfull=vwind; % symmetric windfield plus translation
     
     gust=max(gust,vfull); % keep maximum instantaneous wind
     
@@ -200,40 +208,66 @@ if ~silent_mode
     
     figure('Name','Holland windfield','Position',[10 854 1587 482])
     subplot(1,3,1)
+    [X,Y] = meshgrid(centroids.lon,centroids.lat); % get 2-D
+    gridgust = griddata(centroids.lon,centroids.lat,gust,X,Y); % interpolate to grid
+    pcolor(X,Y,gridgust);hold on;shading flat;axis equal;
+    caxis([0 140]);axis off
+    climada_plot_world_borders(1);title('isimip');
     plot(tc_track.lon,tc_track.lat,'-k');
-    hold on
     plot(tc_track.lon,tc_track.lat,'xk');
-    plot(centroids.lon,centroids.lat,'xr');
-    climada_color_plot(gust,centroids.lon,centroids.lat,'none','isimip',[],[],[],1,[0 100]);
+    xlim([min(centroids.lon),max(centroids.lon)]);
+    ylim([min(centroids.lat),max(centroids.lat)]);
+    colormap(jet);colorbar
+
+    global climada_global
+    ncTEST=[climada_global.data_dir filesep 'isimip' filesep '__ibtracs-events-windfields_basin_NA_1992-1992_test.nc'];
+    nc.vmax=ncread(ncTEST,'vmax');
+    nc.lon=ncread(ncTEST,'lon');
+    nc.lat=ncread(ncTEST,'lat');
+    
+    [nc.gridlon,nc.gridlat]=meshgrid(nc.lon,nc.lat);
+    nc.gridlon=nc.gridlon';nc.gridlat=nc.gridlat';
+    
+    subplot(1,3,2)
+    pcolor(nc.gridlon,nc.gridlat,nc.vmax);hold on;shading flat;axis equal;
+    caxis([0 140]);axis off
+    climada_plot_world_borders(1);title('CHECK');
     plot(tc_track.lon,tc_track.lat,'-k');
     plot(tc_track.lon,tc_track.lat,'xk');
-    plot(centroids.lon,centroids.lat,'xr');
+    xlim([min(centroids.lon),max(centroids.lon)]);
+    ylim([min(centroids.lat),max(centroids.lat)]);
+    colormap(jet);colorbar
+
+    fprintf('isimip    min/max: %f / %f\n',min(gust),max(gust));
+    fprintf('checkfile min/max: %f / %f\n',min(min(nc.vmax)),max(max(nc.vmax)));
     
     t0=clock;
     climada_gust = climada_tc_windfield(tc_track,centroids);
     climada_etime=etime(clock,t0);
-    fprintf('isimip windfield took %f sec\n',climada_etime);
+    fprintf('climada windfield took %f sec\n',climada_etime);
     
-    subplot(1,3,2)
-    plot(tc_track.lon,tc_track.lat,'-k');
-    hold on
-    plot(tc_track.lon,tc_track.lat,'xk');
-    plot(centroids.lon,centroids.lat,'xr');
-    climada_color_plot(climada_gust,centroids.lon,centroids.lat,'none','climada',[],[],[],1,[0 100]);
-    plot(tc_track.lon,tc_track.lat,'-k');
-    plot(tc_track.lon,tc_track.lat,'xk');
-    plot(centroids.lon,centroids.lat,'xr');
-    
-    subplot(1,3,3)
-    plot(tc_track.lon,tc_track.lat,'-k');
-    hold on
-    plot(tc_track.lon,tc_track.lat,'xk');
-    plot(centroids.lon,centroids.lat,'xr');
-    climada_color_plot(gust-climada_gust,centroids.lon,centroids.lat,'none','isimip-climada',[],[],[],1,[-50 50]);
-    plot(tc_track.lon,tc_track.lat,'-k');
-    plot(tc_track.lon,tc_track.lat,'xk');
-    plot(centroids.lon,centroids.lat,'xr');
-    
+%     subplot(1,3,3)
+%     [X,Y] = meshgrid(centroids.lon,centroids.lat); % get 2-D
+%     gridclimada_gust = griddata(centroids.lon,centroids.lat,climada_gust,X,Y); % interpolate to grid
+%     pcolor(X,Y,gridclimada_gust);hold on;shading flat;axis equal;
+%     caxis([0 140]);axis off
+%     climada_plot_world_borders(1);title('climada');
+%     plot(tc_track.lon,tc_track.lat,'-k');
+%     plot(tc_track.lon,tc_track.lat,'xk');
+%     xlim([min(centroids.lon),max(centroids.lon)]);
+%     ylim([min(centroids.lat),max(centroids.lat)]);
+%     colormap(jet);colorbar
+        
+%     subplot(1,3,3)
+%     plot(tc_track.lon,tc_track.lat,'-k');
+%     hold on
+%     plot(tc_track.lon,tc_track.lat,'xk');
+%     plot(centroids.lon,centroids.lat,'xr');
+%     climada_color_plot(gust-climada_gust,centroids.lon,centroids.lat,'none','isimip-climada',[],[],[],1,[-50 50]);
+%     plot(tc_track.lon,tc_track.lat,'-k');
+%     plot(tc_track.lon,tc_track.lat,'xk');
+%     plot(centroids.lon,centroids.lat,'xr');
+
 end % ~silent_mode
 
 end % isimip_windfield_holland
