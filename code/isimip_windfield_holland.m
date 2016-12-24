@@ -1,4 +1,4 @@
-function gust = isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
+function [gust,nc] = isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 % TC windfield calculation
 % NAME:
 %   isimip_windfield_holland
@@ -7,6 +7,10 @@ function gust = isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 %
 %   given a TC track (lat/lon,CentralPressure,MaxSustainedWind), calculate
 %   the wind field at locations (=centroids)
+%
+%   see TEST for testing options (to check for 1-to-1 correspondence with
+%   python). There are several TEST sections, indicated always with
+%   TEST_START and ending with TEST_END
 %
 %   See also the original (not fully functional) Matlab version of
 %   helper_advanced_windfield_global.py, i.e.
@@ -30,13 +34,15 @@ function gust = isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 %       tc_track.Azimuth and/or tc_track.Celerity calculated, if not existing
 %       but climada_tc_equal_timestep mist have been run and
 %       tc_track.MaxSustainedWind must exist on input
+%       If empty: TEST mode, use three nodes of Andrew
 %   centroids: a structure with the centroids information (see e.g.
 %       climada_centroids_read):
 %       centroids.lat: the latitude of the centroids
 %       centroids.lon: the longitude of the centroids
+%       If empty: TEST mode, use three nodes of Andrew
 % OPTIONAL INPUT PARAMETERS:
-%   silent_mode: default=0, if =1, do not show any output or print to
-%       stdout (speedup)
+%   silent_mode: default=1 (for speedup)
+%       if =0, do show output to stdout and print windfield, see also TEST
 % OUTPUTS:
 %   gust: the windfield [m/s] at all centroids, NOT sparse for speedup
 %       i.e. convert like hazard.intensity()=sparse(res.gust)...
@@ -46,17 +52,25 @@ function gust = isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 % David N. Bresch, david.bresch@gmail.com, 20161204, intial
 % David N. Bresch, david.bresch@gmail.com, 20161205, traslation added
 % David N. Bresch, david.bresch@gmail.com, 20161223, traslation removed for TESTS
+% David N. Bresch, david.bresch@gmail.com, 20161224, TEST options finalized
 %-
-
-fprintf('WARNING: TEST MODE\n');
 
 gust = []; % init output
 
-if ~exist('tc_track' ,'var'),tc_track=climada_subarray(isimip_ibtracs_read('TEST'),31:33); end
+global climada_global
+if ~climada_init_vars,return;end % init/import global variables
+
+if ~exist('tc_track' ,'var')
+    tc_track=climada_subarray(isimip_ibtracs_read('TEST'),30:33);
+    fprintf('WARNING: simple TEST MODE in %s (using a few nodes of Andrew)\n',mfilename);
+end
 if ~exist('centroids','var'),centroids=[]; end
-if ~exist('silent_mode','var'),silent_mode=0; end
+if ~exist('silent_mode','var'),silent_mode=1; end
 
 % PARAMETERS
+%
+% only deal with centtroids not further away than from any node
+centroid_node_max_dist_km=300;
 %
 % the model to be used
 model='H08';
@@ -64,14 +78,37 @@ model='H08';
 rho=1.15; % data for windfield calculation
 EnvironmentalPressure_default=1010; % mb
 %
-% TEST area (Southern tip of Florida)
-%TEST_lon=-82:0.25:-80;TEST_lat=25:0.25:27;
-%TEST_lon=-82:0.1:-80;TEST_lat=25:0.1:27;
-TEST_lon=-83:0.1:-79;TEST_lat=24:0.1:28;
-%TEST_lon=-105:0.1:20;TEST_lat=0:0.1:70;
+% next line the test area (Southern tip of Florida)
+% no need ot comment out if no test
+test_lon=-83:0.1:-79;test_lat=24:0.1:28;
+%
+% TEST_START
+% here a section reading TEST output from Python starts
+TEST_comparison_file=[climada_global.data_dir filesep 'isimip' ...
+    filesep 'ibtracs_andrew_test' filesep 'ibtracs_andrew_test_3nodes_with-vtrans.nc'];
+%    filesep 'ibtracs_andrew_test' filesep 'ibtracs_andrew_test_3nodes_no-vtrans.nc'];
+TEST_comparison_file_nvt=[climada_global.data_dir filesep 'isimip' ...
+    filesep 'ibtracs_andrew_test' filesep 'ibtracs_andrew_test_3nodes_no-vtrans.nc'];
+if exist('TEST_comparison_file','var')
+    fprintf('TEST mode, reading %s\n',TEST_comparison_file);
+    nc.vmax=ncread(TEST_comparison_file,'vmax');
+    nc.vmax_nvt=ncread(TEST_comparison_file_nvt,'vmax');
+    nc.vtrans=nc.vmax-nc.vmax_nvt;
+    nc.lon=ncread(TEST_comparison_file,'lon');
+    nc.lat=ncread(TEST_comparison_file,'lat');
+    [nc.gridlon,nc.gridlat]=meshgrid(nc.lon,nc.lat);
+    nc.gridlon=nc.gridlon';nc.gridlat=nc.gridlat';
+    test_lon=nc.lon;
+    test_lat=nc.lat;
+    %XLim=[-83 -79];YLim=[24 28];
+    %XLim=[-88 -75];YLim=[20 32];
+    XLim=[-82 -77];YLim=[23 28]; % the area of the two nodes we inspect
+    silent_mode=0; % force output to stdout and plots
+end
+% TEST_END
 
-if isempty(centroids) % generate TEST centroids
-    [centroids.lon,centroids.lat] = meshgrid(TEST_lon,TEST_lat); % get 2-D
+if isempty(centroids) % generate test centroids
+    [centroids.lon,centroids.lat] = meshgrid(test_lon,test_lat); % get 2-D
     centroids.lon=reshape(centroids.lon,[1 numel(centroids.lon)]); % make 1-D
     centroids.lat=reshape(centroids.lat,[1 numel(centroids.lat)]); % make 1-D
 end
@@ -84,7 +121,7 @@ end
 if ~isfield(tc_track,'RadiusMaxWind') % set with default
     tc_track.RadiusMaxWind=tc_track.CentralPressure*0;
 end
-    
+
 t0=clock;
 
 % make sure that CentralPressure never exceeds EnvironmentalPressure
@@ -109,14 +146,22 @@ tc_track.RadiusMaxWind=tc_track.RadiusMaxWind*1.852; % nautical mile to km
 
 n_nodes=length(tc_track.lon);
 
+% add one more point to the end of the track (for forward vector)
+tc_track.lon(end+1)=tc_track.lon(end);
+tc_track.lat(end+1)=tc_track.lat(end);
+
 gust=centroids.lon*0; % init output
 
-%node_i=32; % a point right within the TEST centroids
+%node_i=32; % a point of Andrew right within the TEST centroids (over Florida)
 
 for node_i=2:n_nodes % process each node (later speedup potential)
     
     % calculate distance to all centroids
-    r_arr=isimip_haversine(centroids.lon,centroids.lat,tc_track.lon(node_i),tc_track.lat(node_i));
+    r_arr=isimip_haversine(centroids.lon,centroids.lat,tc_track.lon(node_i),tc_track.lat(node_i),0.001); % km
+    
+    %cc=true(1,length(centroids.lon)); % use all, cc stands for Centroids Close enough
+    cc=find(r_arr<centroid_node_max_dist_km); % only centroids close enough
+    r_arr=r_arr(cc); % restrict r_arr
     
     % calculate translation speed of track
     dist=isimip_haversine(tc_track.lon(node_i-1),tc_track.lat(node_i-1),tc_track.lon(node_i),tc_track.lat(node_i));
@@ -125,14 +170,14 @@ for node_i=2:n_nodes % process each node (later speedup potential)
     vtrans=dist/tc_track.TimeStep(node_i); % nautical miles/hour
     if vtrans>30,vtrans=30;end % limit to 30 nmph
     
-    % convert variable names to the ones used in isimip
+    % convert variable names to the ones used in isimip (python)
     vmax    =tc_track.MaxSustainedWind(node_i);
     rmax    =tc_track.RadiusMaxWind(node_i);
     pcen    =tc_track.CentralPressure(node_i);
-    prepcen =tc_track.CentralPressure(node_i-1);
+    prepcen =tc_track.CentralPressure(node_i-1); % previous node
     penv    =tc_track.EnvironmentalPressure(node_i);
     tint    =tc_track.TimeStep(node_i);
-    xc      =tc_track.lon(node_i);
+    %xc      =tc_track.lon(node_i); % not used
     yc      =tc_track.lat(node_i);
     
     % adjust pressure at previous track point
@@ -158,106 +203,193 @@ for node_i=2:n_nodes % process each node (later speedup potential)
         %         vwind=stat_holland2010(r_arr,rmax,penv,pcen,bs,x_exp,rho);
     end
     % avoid negative wind speed, set to zero
-    vwind(vwind < 0)=0;
-    
-    % calculate vtrans wind field array assuming that effect of vtrans decreases with distance from eye
-    r_arr_normed=rmax./r_arr;
-    r_arr_normed(r_arr_normed>1)=1;
-    vtrans_arr=vtrans*r_arr_normed;
+    vwind(vwind<0)=0;
     
     % instead of calling dynamic_windfield, deal with translational wind
     % explicitely here
     
-    % calculate angle to node to determine left/right of track
-    ddx     = (centroids.lon-xc)*cos(yc/180*pi);
-    ddy     = (centroids.lat-yc);
-    azi_arr = atan2(ddy,ddx)*180/pi; % in degree
-    azi_arr = mod(-azi_arr+90,360); % convert wind such that N is 0, E is 90, S is 180, W is 270
+    % calculate angular field to add translational wind
+    % -------------------------------------------------
     
-    % calculate azimith of track
-    ddx     = (tc_track.lon(node_i-1)-xc)*cos(yc/180*pi);
-    ddy     = (tc_track.lat(node_i-1)-yc);
-    azi     = atan2(ddy,ddx)*180/pi; % in degree
-    azi     = mod(-azi+90,360); % convert wind such that N is 0, E is 90, S is 180, W is 270
+    % figure which side of track, hence add/subtract translational wind
+    node_dx=tc_track.lon(node_i+1)-tc_track.lon(node_i); % track forward vector
+    node_dy=tc_track.lat(node_i+1)-tc_track.lat(node_i);
+    node_len=sqrt(node_dx^2+node_dy^2); % length of track forward vector
     
-    pos=mod(azi_arr-azi+360,360)<180; % left of track
-    vtrans_arr(pos)=-vtrans_arr(pos); % subract left of track
-    if yc<0, vtrans_arr = -vtrans_arr;end % switch sign for Southern Hemisphere
+    % we use the scalar product of the track forward vector and the vector
+    % towards each centroid to figure the angle between and hence whether
+    % the translational wind needs to be added (on the right side of the
+    % track for Northern hemisphere) and to which extent (100% exactly 90
+    % to the right of the track, zero in front of the track)
     
-    % to check the translation speed array:
-    %    if node_i==32 % for TEST track (Andrew)
-    %        climada_color_plot(vtrans_arr,centroids.lon,centroids.lat,'none','vtrans',[],[],[],1,[]);
-    %        hold on
-    %        plot(tc_track.lon,tc_track.lat,'-k');
-    %        plot(tc_track.lon(node_i),tc_track.lat(node_i),'xk');
-    %        return
-    %    end
+    % hence, rotate track forward vector 90 degrees clockwise, i.e.
+    % x2=x* cos(a)+y*sin(a), with a=pi/2,cos(a)=0,sin(a)=1
+    % y2=x*-sin(a)+Y*cos(a), therefore
+    node_tmp=node_dx;node_dx=node_dy;node_dy=-node_tmp;
+
+    % the vector towards each centroid
+    centroids_dlon=centroids.lon(cc)-tc_track.lon(node_i); % vector from center
+    centroids_dlat=centroids.lat(cc)-tc_track.lat(node_i);
+    centroids_len=sqrt(centroids_dlon.^2+centroids_dlat.^2); % length
     
-    %vfull=vwind+vtrans_arr; % symmetric windfield plus translation
-    vfull=vwind; % symmetric windfield plus translation
+    % scalar product, a*b=|a|*|b|*cos(phi), phi angle between vectors
+    cos_phi=(centroids_dlon*node_dx+centroids_dlat*node_dy)./centroids_len/node_len;
+    if tc_track.lat(node_i)<0;cos_phi=-cos_phi;end % southern hemisphere
+
+    % calculate vtrans wind field array assuming that 
+    % - effect of vtrans decreases with distance from eye (r_arr_normed)
+    % - vtrans is added 100% to the right of the track, 0% in front etc. (cos_phi)
+    r_arr_normed=rmax./r_arr;
+    r_arr_normed(r_arr_normed>1)=1;
+    vtrans_arr=vtrans*r_arr_normed.*cos_phi;
+        
+    %vfull=vwind; % TEST: symmetric windfield only
+    vfull=vwind+vtrans_arr; % symmetric windfield plus translation
     
-    gust=max(gust,vfull); % keep maximum instantaneous wind
+    gust(cc)=max(gust(cc),vfull); % keep maximum instantaneous wind
     
 end % node_i
 
 if ~silent_mode
     isimip_etime=etime(clock,t0);
     fprintf('isimip windfield took %f sec\n',isimip_etime);
-    
     fprintf('plotting ...\n');
-    
-    figure('Name','Holland windfield','Position',[10 854 1587 482])
+
+    % % SWITCH this section on to compare with and without vtrans
+    % % run code FIRST with
+    % % line about 246 vfull=vwind;             instead of
+    % % line about 246 vfull=vwind+vtrans_arr;
+    % % and uncomment ONLY the next line
+    % %save('TEST_gust_nvt','gust'); return
+    % % then siwthc back to vfull=vwind+vtrans_arr and uncomment code below
+    % %
+    % gust_nvt=load('TEST_gust_nvt'); % load gust with no vtrans
+    % caxis_rng=[-10 10];XLim=[-82 -77];YLim=[23 28];
+    % vtrans=gust-gust_nvt.gust;
+    % [X,Y] = meshgrid(test_lon,test_lat); % get 2-D
+    % gridvtrans = griddata(centroids.lon,centroids.lat,vtrans,X,Y); % interpolate to grid
+    % figure('Name','vtrans comparison','Position',[10 854 1587 482])
+    % subplot(1,3,1);
+    % pcolor(X,Y,gridvtrans);hold on;shading flat;axis equal;
+    % caxis(caxis_rng);climada_plot_world_borders(1);title('MATLAB');
+    % plot(tc_track.lon,tc_track.lat,'-k');plot(tc_track.lon,tc_track.lat,'xk');
+    % xlim(XLim);ylim(YLim);colormap(jet);colorbar;
+    % subplot(1,3,2);
+    % pcolor(nc.gridlon,nc.gridlat,nc.vtrans);hold on;shading flat;axis equal;
+    % caxis(caxis_rng);climada_plot_world_borders(1);title('Python');
+    % plot(tc_track.lon,tc_track.lat,'-k');plot(tc_track.lon,tc_track.lat,'xk');
+    % xlim(XLim);ylim(YLim);colormap(jet);colorbar;
+    % subplot(1,3,3) % the difference
+    % d_vtrans=gridvtrans'-double(nc.vtrans);
+    % pcolor(nc.gridlon,nc.gridlat,d_vtrans);hold on;shading flat;axis equal;
+    % caxis(caxis_rng);climada_plot_world_borders(1);title('MATLAB-Python');
+    % plot(tc_track.lon,tc_track.lat,'-k');plot(tc_track.lon,tc_track.lat,'xk');
+    % xlim(XLim);ylim(YLim);colormap(jet);colorbar
+    % return
+    % % end of SWITCH this section on to compare with and without vtrans
+            
+    figure('Name','windfield comparison','Position',[10 854 1587 482])
     subplot(1,3,1)
-    [X,Y] = meshgrid(centroids.lon,centroids.lat); % get 2-D
+    [X,Y] = meshgrid(test_lon,test_lat); % get 2-D
     gridgust = griddata(centroids.lon,centroids.lat,gust,X,Y); % interpolate to grid
     pcolor(X,Y,gridgust);hold on;shading flat;axis equal;
-    caxis([0 140]);axis off
-    climada_plot_world_borders(1);title('isimip');
+    caxis([0 140]);
+    climada_plot_world_borders(1);title('MATLAB');
     plot(tc_track.lon,tc_track.lat,'-k');
     plot(tc_track.lon,tc_track.lat,'xk');
-    xlim([min(centroids.lon),max(centroids.lon)]);
-    ylim([min(centroids.lat),max(centroids.lat)]);
+    xlim(XLim);
+    ylim(YLim);
     colormap(jet);colorbar
-
-    global climada_global
-    ncTEST=[climada_global.data_dir filesep 'isimip' filesep '__ibtracs-events-windfields_basin_NA_1992-1992_test.nc'];
-    nc.vmax=ncread(ncTEST,'vmax');
-    nc.lon=ncread(ncTEST,'lon');
-    nc.lat=ncread(ncTEST,'lat');
+    gridgust(gridgust<34)=0;
+    pos=find(gridgust>0);
+    xlabel(sprintf('min/max: %2.1f/%2.1f\n',min(min(gridgust(pos))),max(max(gridgust(pos)))));
     
-    [nc.gridlon,nc.gridlat]=meshgrid(nc.lon,nc.lat);
-    nc.gridlon=nc.gridlon';nc.gridlat=nc.gridlat';
-    
+    if exist('nc','var')
     subplot(1,3,2)
     pcolor(nc.gridlon,nc.gridlat,nc.vmax);hold on;shading flat;axis equal;
-    caxis([0 140]);axis off
-    climada_plot_world_borders(1);title('CHECK');
+    caxis([0 140]);
+    climada_plot_world_borders(1);title('netCDF (Python)');
     plot(tc_track.lon,tc_track.lat,'-k');
     plot(tc_track.lon,tc_track.lat,'xk');
-    xlim([min(centroids.lon),max(centroids.lon)]);
-    ylim([min(centroids.lat),max(centroids.lat)]);
+    xlim(XLim);
+    ylim(YLim);
     colormap(jet);colorbar
-
-    fprintf('isimip    min/max: %f / %f\n',min(gust),max(gust));
-    fprintf('checkfile min/max: %f / %f\n',min(min(nc.vmax)),max(max(nc.vmax)));
+     pos=find(nc.vmax>0);
+     xlabel(sprintf('min/max: %2.1f/%2.1f\n',min(min(nc.vmax(pos))),max(max(nc.vmax(pos)))));
+    
+    subplot(1,3,3) % the difference
+    d_vmax=gridgust'-double(nc.vmax);
+    pcolor(nc.gridlon,nc.gridlat,d_vmax);hold on;shading flat;axis equal;
+    caxis([-20 20]);
+    climada_plot_world_borders(1);title('MATLAB-Python');
+    plot(tc_track.lon,tc_track.lat,'-k');
+    plot(tc_track.lon,tc_track.lat,'xk');
+    xlim(XLim);
+    ylim(YLim);
+    colormap(jet);colorbar
+    pos=find(abs(d_vmax)>eps);
+    xlabel(sprintf('min/max: %2.1f/%2.1f\n',min(min(d_vmax(pos))),max(max(d_vmax(pos)))));
+    
+    end % exist('nc','var')
+    
+    gust=gust*1.852/3.6; % from nautical miles/hour to km/h to m/s
     
     t0=clock;
     climada_gust = climada_tc_windfield(tc_track,centroids);
     climada_etime=etime(clock,t0);
     fprintf('climada windfield took %f sec\n',climada_etime);
     
-%     subplot(1,3,3)
-%     [X,Y] = meshgrid(centroids.lon,centroids.lat); % get 2-D
-%     gridclimada_gust = griddata(centroids.lon,centroids.lat,climada_gust,X,Y); % interpolate to grid
-%     pcolor(X,Y,gridclimada_gust);hold on;shading flat;axis equal;
-%     caxis([0 140]);axis off
-%     climada_plot_world_borders(1);title('climada');
-%     plot(tc_track.lon,tc_track.lat,'-k');
-%     plot(tc_track.lon,tc_track.lat,'xk');
-%     xlim([min(centroids.lon),max(centroids.lon)]);
-%     ylim([min(centroids.lat),max(centroids.lat)]);
-%     colormap(jet);colorbar
-        
+    figure('Name','windfield comparison','Position',[10 854 1587 482])
+    subplot(1,3,1)
+    climada_gridgust = griddata(centroids.lon,centroids.lat,climada_gust,X,Y); % interpolate to grid
+    pcolor(X,Y,climada_gridgust);hold on;shading flat;axis equal;
+    caxis([0 100]);colormap(jet);colorbar
+    climada_plot_world_borders(1);title('climada');
+    plot(tc_track.lon,tc_track.lat,'-k');
+    plot(tc_track.lon,tc_track.lat,'xk');
+    xlim(XLim);ylim(YLim);
+    climada_gridgust(climada_gridgust<34)=0;
+    pos=find(climada_gridgust>0);
+    xlabel(sprintf('min/max: %2.1f/%2.1f\n',min(min(climada_gridgust(pos))),max(max(climada_gridgust(pos)))));
+    
+    if exist('nc','var')
+    subplot(1,3,2)
+    pcolor(nc.gridlon,nc.gridlat,nc.vmax);hold on;shading flat;axis equal;
+    caxis([0 140]);
+    climada_plot_world_borders(1);title('netCDF (Python)');
+    plot(tc_track.lon,tc_track.lat,'-k');
+    plot(tc_track.lon,tc_track.lat,'xk');
+    xlim(XLim);
+    ylim(YLim);
+    colormap(jet);colorbar
+     pos=find(nc.vmax>0);
+     xlabel(sprintf('min/max: %2.1f/%2.1f\n',min(min(nc.vmax(pos))),max(max(nc.vmax(pos)))));
+    
+    subplot(1,3,3) % the difference
+    d_vmax=gridgust'-double(nc.vmax);
+    pcolor(nc.gridlon,nc.gridlat,d_vmax);hold on;shading flat;axis equal;
+    caxis([-20 20]);
+    climada_plot_world_borders(1);title('climada-Python');
+    plot(tc_track.lon,tc_track.lat,'-k');
+    plot(tc_track.lon,tc_track.lat,'xk');
+    xlim(XLim);
+    ylim(YLim);
+    colormap(jet);colorbar
+    pos=find(abs(d_vmax)>eps);
+    xlabel(sprintf('min/max: %2.1f/%2.1f\n',min(min(d_vmax(pos))),max(max(d_vmax(pos)))));
+    
+    end % exist('nc','var')
+    
+    
+        pcolor(X,Y,gridclimada_gust);hold on;shading flat;axis equal;
+        caxis([0 140]);axis off
+        climada_plot_world_borders(1);title('climada');
+        plot(tc_track.lon,tc_track.lat,'-k');
+        plot(tc_track.lon,tc_track.lat,'xk');
+        xlim([min(centroids.lon),max(centroids.lon)]);
+        ylim([min(centroids.lat),max(centroids.lat)]);
+        colormap(jet);colorbar
+    
 %     subplot(1,3,3)
 %     plot(tc_track.lon,tc_track.lat,'-k');
 %     hold on
@@ -268,7 +400,7 @@ if ~silent_mode
 %     plot(tc_track.lon,tc_track.lat,'xk');
 %     plot(centroids.lon,centroids.lat,'xr');
 
-end % ~silent_mode
+end % TEST_mode
 
 end % isimip_windfield_holland
 
