@@ -1,5 +1,7 @@
 function gust=isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 % TC windfield calculation
+% MODULE:
+%   isimip
 % NAME:
 %   isimip_windfield_holland
 % PURPOSE:
@@ -7,6 +9,13 @@ function gust=isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 %   the wind field at locations (=centroids). Based upon: 
 %   Greg J. Holland, 1980: An Analytic Model of the Wind and Pressure Profiles in
 %   Hurricanes. DOI: http://dx.doi.org/10.1175/1520-0493(1980)108<1212:AAMOTW>2.0.CO;2 
+%
+%   Using a FAST distance calculation (not haversine), which speeds
+%   calculations up by factor 2-3. See r_arr and dist in code.
+%
+%   see isimip_windfield_TESTS to check for haversine/fast difference, for
+%   the vtrans calculation and for the difference between isimip and
+%   default climada windfield calculation
 %
 %   see TEST for testing options (to check for 1-to-1 correspondence with
 %   python). There are several TEST sections, indicated always with
@@ -30,6 +39,7 @@ function gust=isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 %   tc_track=isimip_ibtracs_read('TEST');
 %   tc_track=climada_tc_equal_timestep(tc_track,1); % make equal timestep, 1 hour
 %   gust=isimip_windfield_holland(tc_track)
+%   climada_color_plot(gust,centroids.lon,centroids.lat);
 % INPUTS:
 %   tc_track: a structure with the single track information (length(tc_track)!=1)
 %       see e.g. climada_tc_read_unisys_tc_track
@@ -58,11 +68,6 @@ function gust=isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 % David N. Bresch, david.bresch@gmail.com, 20161224, TEST options finalized
 % David N. Bresch, david.bresch@gmail.com, 20161225, final output in m/s
 %-
-
-gust = []; % init output
-
-global climada_global
-if ~climada_init_vars,return;end % init/import global variables
 
 if ~exist('tc_track' ,'var')
     tc_track=climada_subarray(isimip_ibtracs_read('TEST'),30:33);
@@ -95,6 +100,8 @@ p1=950;p2=980;p3=1020; % in mb
 test_lon=-83:0.1:-79;test_lat=24:0.1:28;
 %
 % % TEST_START
+% global climada_global
+% if ~climada_init_vars,return;end % init/import global variables
 % % here a section reading TEST output from Python starts
 % TEST_comparison_file=[climada_global.data_dir filesep 'isimip' ...
 %     filesep 'ibtracs_andrew_test' filesep 'ibtracs_andrew_test_3nodes_with-vtrans.nc'];
@@ -161,19 +168,26 @@ tc_track.lat(end+1)=tc_track.lat(end);
 
 gust=centroids.lon*0; % init output
 
-%node_i=32; % a point of Andrew right within the TEST centroids (over Florida)
+cos_centroids_lat = cos(centroids.lat/180*pi); % calculate once for speedup
 
 for node_i=2:n_nodes % process each node (later speedup potential)
     
     % calculate distance to all centroids
-    r_arr=isimip_haversine(centroids.lon,centroids.lat,tc_track.lon(node_i),tc_track.lat(node_i),0.001); % km
-    
+    %r_arr=isimip_haversine(centroids.lon,centroids.lat,tc_track.lon(node_i),tc_track.lat(node_i),0.001); % km
+    % faster version, 8km off for distances of >1000km
+    r_arr = sqrt(...
+        ((centroids.lon-tc_track.lon(node_i)).*cos_centroids_lat).^2+...
+        ( centroids.lat-tc_track.lat(node_i)                    ).^2)*111.1; % approx. conversion into km
+       
     %cc=true(1,length(centroids.lon)); % use all, cc stands for Centroids Close enough
     cc=find(r_arr<centroid_node_max_dist_km); % only centroids close enough
     r_arr=r_arr(cc); % restrict r_arr
     
     % calculate translation speed of track
-    dist=isimip_haversine(tc_track.lon(node_i-1),tc_track.lat(node_i-1),tc_track.lon(node_i),tc_track.lat(node_i));
+    %dist=isimip_haversine(tc_track.lon(node_i-1),tc_track.lat(node_i-1),tc_track.lon(node_i),tc_track.lat(node_i));
+    % faster version, difference to haversine does not matter for such distances
+    dist=sqrt(((tc_track.lon(node_i-1)-tc_track.lon(node_i))*cos(tc_track.lat(node_i)/180*pi))^2+...
+        (tc_track.lat(node_i-1)-tc_track.lat(node_i))^2)*111.1; % approx. conversion into km
     dist= dist/1.852; % dist to nautical miles
     % hours = hours between track coordiantes
     vtrans=dist/tc_track.TimeStep(node_i); % nautical miles/hour
