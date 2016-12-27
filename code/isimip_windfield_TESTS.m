@@ -30,9 +30,9 @@
 % switches mean
 check_vtrans=0;
 check_haversine=0;
-check_Andrew=0;
+check_Andrew=1;
 check_historic_hazard_set=0;
-check_probabilistic_hazard_set=1;
+check_probabilistic_hazard_set=0;
 
 % check the translation windspeed (vtrans) calculation
 % ====================================================
@@ -261,3 +261,21 @@ if check_probabilistic_hazard_set
     climada_hazard_stats(hazard_isimip_prob);set(gcf,'Position',[20 268 1481 768]);
     
 end % check_probabilistic_hazard_set
+
+
+
+tc_track_hist=climada_tc_read_unisys_database('nio'); % nio: North Indian Ocean
+climada_tc_track_info(tc_track_hist,1);xlim([40 110]);ylim([0 40]) % Fig 1
+tc_track_prob9=climada_tc_random_walk(tc_track_hist,9);
+climada_tc_track_info(tc_track_prob9,1); xlim([40 110]);ylim([0 40]) % Fig 2
+p.resolution_km=10;entity=climada_nightlight_entity('India','Maharashtra',p);
+ entity.assets.Value=entity.assets.Value/sum(entity.assets.Value)*250e9*(2+1);entity.assets.Cover=entity.assets.Value;
+climada_entity_plot(entity,3) % Fig 3
+hazard_hist=climada_tc_hazard_set(tc_track_hist,'NOSAVE',entity,1);
+climada_hazard_stats(hazard_hist) % Fig 4
+hazard_prob9=climada_tc_hazard_set(tc_track_prob9,'NOSAVE',entity,1);
+climada_hazard_stats(hazard_prob9) % Fig 5
+tc_track_prob99=climada_tc_random_walk(tc_track_hist,99);
+hazard_prob99=climada_tc_hazard_set(tc_track_prob99,'NOSAVE',entity,1);
+climada_hazard_stats(hazard_prob99) % Fig 6
+
