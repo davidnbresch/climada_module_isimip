@@ -67,7 +67,8 @@ tc_track_rcp85_file   ='temp_mpircp85cal_full'; % the file with Kerry's tracks
 flood_filename        ='USA_UnitedStates_Florida_FL.nc';
 %
 % switch to FULL RESOLUTION OUTPUT, i.e. event damage at each centroid
-climada_global.EDS_at_centroid=1; % climada default=0, set =1 specifically
+initial_damage_at_centroid=climada_global.damage_at_centroid; % the one used globally
+climada_global.damage_at_centroid=1; % pass on, reset at the end
 
 % define the climada hazard set files (to be generated below)
 hazard_20th_file       =[entity_file '_' tc_track_20th_file];
@@ -181,3 +182,6 @@ end
 % calculate the from ground up damage for each event at each centroid
 EDS_FL=climada_EDS_calc(entity,hazard_FL); % the damage calculation with Kerry?s tracks (0.5 sec)
 figure;climada_EDS_DFC(EDS_FL); % plot flood DFC
+
+fprintf('Note that we set climada_global.damage_at_centroid (back to) %i\n',initial_damage_at_centroid);
+climada_global.damage_at_centroid=initial_damage_at_centroid; % reset

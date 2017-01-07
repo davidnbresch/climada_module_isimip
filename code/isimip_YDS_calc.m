@@ -1,4 +1,4 @@
-function [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard,check_plot)
+function [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard,params)
 % climada isimip YDS EDS calc
 % MODULE:
 %   isimip
@@ -19,26 +19,37 @@ function [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard,check_plot)
 % CALLING SEQUENCE:
 %   EDS=isimip_YDS_calc(entity,hazard)
 % EXAMPLE:
+%   one country:
 %   entity=isimip_ssp2_entity('DEU') % create single country entity
 %   entity=climada_entity_load('DEU_entity') % load DEU entity
 %   hazard=isimip_flood_load('global_FL.nc','auto',entity,0); % create DEU FL hazard set
 %   [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard,1);
-%   entity=isimip_ssp2_entity({'DEU','ITA','FRA'}) % create entity for DEU ITA and FRA
-%   entity=climada_entity_load('DEUITAFRA_entity') % load DEU entity
-%   hazard=isimip_flood_load('global_FL.nc','auto',entity,0); % create DEU FL hazard set
-%   [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard,1);
+%
 %   entity=isimip_ssp2_entity('USA') % create single country entity
 %   entity=climada_entity_load('USA_entity') % load entity
 %   hazard=isimip_flood_load('global_FL.nc','auto',entity,0); % create USA FL hazard set
 %   [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard);
+%
+%   list of countries:
+%   entity=isimip_ssp2_entity({'DEU','ITA','FRA'}) % create entity for DEU ITA and FRA
+%   entity=climada_entity_load('DEUITAFRA_entity') % load DEU entity
+%   hazard=isimip_flood_load('global_FL.nc','auto',entity,0); % create DEU FL hazard set
+%   [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard);
 % INPUTS:
 %   entity: an isimip entity (i.e. an entity with entity.assets.Values for
-%       many years)
+%       many years). Needs to contain the following additional a fields:
+%       (a so-called isimip entity has that, e.g. if created by isimip_ssp2_entity) 
+%       entity.assets.NatId(centroid_i): to link each centroid to one country  
+%       entity.assets.Values(year_i,centroid_i): the assets for year_i
+%       entity.assets.Value_yyyy(year_i): the year assets are valid for
+%       If ='params', return all default parameters in YDS, params=isimip_YDS_calc('params')
 %   hazard: a hazard event set (either a regular one or an isimip special
 %       one)
 % OPTIONAL INPUT PARAMETERS:
-%   check_plot: if=1, plot exected damage at each centroid for each country
-%       separately. Default=0 (no plot)
+%   params: a structure with fields:
+%    check_plot: if=1, plot exected damage at each centroid for each country
+%       separately. Default=1 (plot), no plot if =0
+%    markersize: the marker size for the check plot, default=3
 % OUTPUTS:
 %   YDS: the year damage set (YDS), see e.g. climada_EDS2YDS for details
 %   PLUS the fields
@@ -54,6 +65,7 @@ function [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard,check_plot)
 %           hazard for a particular corresponding year in entity_yyyy)
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20161120, initial
+% David N. Bresch, david.bresch@gmail.com, 20170107, damage_at_centroid
 %-
 
 YDS=[];EDS_stats=[]; % init output
@@ -64,13 +76,23 @@ if ~climada_init_vars,return;end % init/import global variables
 %%if climada_global.verbose_mode,fprintf('*** %s ***\n',mfilename);end % show routine name on stdout
 
 % poor man's version to check arguments
-if ~exist('entity','var'),entity=[];end
-if ~exist('hazard','var'),hazard=[];end
-if ~exist('check_plot','var'),check_plot=0;end
+if ~exist('entity','var'),         entity=[];end
+if ~exist('hazard','var'),         hazard=[];end
+if ~exist('params','var'),         params=struct;end
+
+% check for some parameter fields we need
+if ~isfield(params,'check_plot'),params.check_plot=[];end
+if ~isfield(params,'markersize'),params.markersize=[];end
 
 % PARAMETERS
 %
+% set default values (see header for details)
+if isempty(params.check_plot),params.check_plot=1;end
+if isempty(params.markersize),params.markersize=3;end
+%
 silent_mode=0;
+
+if strcmpi(entity,'params'),YDS=params;return;end % special case, return the full params strcture
 
 % check/process input
 entity = climada_entity_load(entity); % prompt for entity if not given
@@ -78,9 +100,13 @@ hazard = climada_hazard_load(hazard); % prompt for hazard if not given
 if isempty(hazard) || isempty(entity),return;end
 hazard = climada_hazard2octave(hazard); % Octave compatibility for -v7.3 mat-files
 
+if ~isfield(entity.assets,'NatId')
+    fprintf('Warning: no field entity.assets.NatId, might not be an isimip entity\n'); 
+end
+
 % figure number of years to process
 if ~isfield(entity.assets,'Values_yyyy')
-    fprintf('ERROR: not an isimip entity, aborted\n');
+    fprintf('ERROR: no field entity.assets.Values_yyyy, not an isimip entity, aborted\n');
     return
 end
 
@@ -115,7 +141,7 @@ temp_hazard.filename        =hazard.filename;
 temp_hazard.date            =hazard.date;
 temp_hazard.comment         =hazard.comment;
 temp_hazard.filename        =hazard.filename;
-
+        
 % figure the number of countries in the entity
 try
     unique_NatId=unique(entity.assets.NatId);
@@ -124,21 +150,6 @@ catch
     fprintf('Warning: not able to infer number of countries, assuming only one\n');
     n_countries=1; % default to one
 end
-
-% pre-fill the YDS
-for country_i=1:n_countries
-    YDS(country_i).reference_year=-999; % init
-    YDS(country_i).ED_at_centroid=0; % init
-    YDS(country_i).Value=0; % init
-    YDS(country_i).ED=0; % init
-    [~,list_pos]=intersect(cell2mat(entity.assets.ISO3_list(:,2)),unique_NatId(country_i));
-    YDS(country_i).comment=entity.assets.ISO3_list{list_pos,1};
-    YDS(country_i).assets.filename=entity.assets.filename; % as expected by eg climada_EDS_DFC
-    country_info(country_i).pos=find(entity.assets.NatId==unique_NatId(country_i));
-    YDS(country_i).lon=entity.assets.lon(country_info(country_i).pos);
-    YDS(country_i).lat=entity.assets.lat(country_info(country_i).pos);
-end % country_i
-next_YDS_i=1; % init
 
 % figure the matching years
 valid_time_i=[]; % init
@@ -150,6 +161,21 @@ for time_i=1:n_times
 end % time_i
 
 n_times=length(valid_time_i);
+
+% pre-fill the YDS
+for country_i=1:n_countries
+    YDS(country_i).reference_year=-999; % init
+    YDS(country_i).Value=0; % init
+    YDS(country_i).ED=0; % init
+    [~,list_pos]=intersect(cell2mat(entity.assets.ISO3_list(:,2)),unique_NatId(country_i));
+    YDS(country_i).comment=entity.assets.ISO3_list{list_pos,1};
+    YDS(country_i).assets.filename=entity.assets.filename; % as expected by eg climada_EDS_DFC
+    country_info(country_i).pos=find(entity.assets.NatId==unique_NatId(country_i));
+    YDS(country_i).lon=entity.assets.lon(country_info(country_i).pos);
+    YDS(country_i).lat=entity.assets.lat(country_info(country_i).pos);
+    YDS(country_i).damage_at_centroid=zeros(n_times,length(YDS(country_i).lon)); % init
+end % country_i
+next_YDS_i=1; % init
 
 % template for-loop with waitbar or progress to stdout
 t0       = clock;
@@ -183,7 +209,7 @@ for time_i=1:n_times
             CP=country_info(country_i).pos; % just for shorter code
             
             YDS(country_i).damage(next_YDS_i)=sum(EDS.ED_at_centroid(CP));
-            YDS(country_i).ED_at_centroid=YDS(country_i).ED_at_centroid+EDS.ED_at_centroid(CP);
+            YDS(country_i).damage_at_centroid(next_YDS_i,:)=EDS.ED_at_centroid(CP)';
             YDS(country_i).Value=YDS(country_i).Value+entity.assets.Value(CP);
             
             YDS(country_i).event_ID(next_YDS_i)=time_ii;
@@ -226,23 +252,25 @@ for country_i=1:n_countries
     YDS(country_i).orig_year_flag = YDS(country_i).damage*0+1;
     YDS(country_i).Value          = YDS(country_i).Value/n_years; % take average
     YDS(country_i).ED             = sum(YDS(country_i).damage)/n_years; % take average
-    YDS(country_i).ED_at_centroid = YDS(country_i).ED_at_centroid/n_years; % take average
     YDS(country_i).frequency      = YDS(country_i).frequency/n_years; % per year
 end % country_i
 
-if check_plot
+if params.check_plot
     m=ceil(sqrt(length(YDS)));n=m;
     fprintf('plotting');
     for i=1:length(YDS)
         subplot(m,n,i)
-        if sum(YDS(i).ED_at_centroid)>0 % something to plot
+        damage_at_centroid=sum(YDS(i).damage_at_centroid,1)/n_years;
+        if sum(damage_at_centroid)>0 % something to plot
             fprintf(' %s',YDS(i).comment);
             a.assets.lon=YDS(i).lon;a.assets.lat=YDS(i).lat;
-            a.assets.Value=YDS(i).ED_at_centroid';climada_entity_plot(a);
+            a.assets.Value=damage_at_centroid;
+            climada_entity_plot(a,params.markersize);hold on;title([YDS(i).comment ' ' YDS(i).peril_ID ' ex. damage']);
+        else
+            title([YDS(i).comment ' ' YDS(i).peril_ID ' damage ZERO']);
         end
-        title(YDS(i).comment)
     end % country_i
     fprintf('\n');
-end % check_plot
+end % params.check_plot
 
 end % isimip_YDS_calc
