@@ -109,6 +109,7 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,noparf
 % david.bresch@gmail.com, 20161008, hazard.fraction added
 % david.bresch@gmail.com, 20161023, noparfor and verbose_mode added
 % david.bresch@gmail.com, 20170121, default global centroids added
+% david.bresch@gmail.com, 20170121, memory use optimized (intensity)
 %-
 
 hazard=[]; % init
@@ -130,7 +131,7 @@ if ~exist('verbose_mode','var'),verbose_mode=1;end
 %
 % since we store the hazard as sparse array, we need an a-priory estimation
 % of it's density
-hazard_arr_density=0.03; % 3% sparse hazard array density (estimated)
+hazard_arr_density=0.001; % 3% sparse hazard array density (estimated)
 %
 % define the reference year for this hazard set
 hazard_reference_year = climada_global.present_reference_year; % default for present hazard is normally 2015
@@ -303,7 +304,8 @@ if noparfor
     mod_step=10;format_str='%s'; % init progress update
     for track_i=1:n_tracks
         %intensity(track_i,:) = climada_tc_windfield(tc_track(track_i),centroids,0,1,0);
-        intensity(track_i,:) = isimip_windfield_holland(tc_track(track_i),centroids,0,1,0);
+        %intensity(track_i,:) = isimip_windfield_holland(tc_track(track_i),centroids,0,1,0);
+        intensity(track_i,:) = sparse(isimip_windfield_holland(tc_track(track_i),centroids,0,1,0));
         
          % following block only for progress measurement (waitbar or stdout)
         if mod(track_i,mod_step)==0
@@ -325,7 +327,8 @@ if noparfor
 else
     parfor track_i=1:n_tracks
         %intensity(track_i,:) = climada_tc_windfield(tc_track(track_i),centroids,0,1,0);
-        intensity(track_i,:) = isimip_windfield_holland(tc_track(track_i),centroids,0,1,0);
+        %intensity(track_i,:) = isimip_windfield_holland(tc_track(track_i),centroids,0,1,0);
+        intensity(track_i,:) = sparse(isimip_windfield_holland(tc_track(track_i),centroids,0,1,0));
     end %track_i
 end % noparfor
 
@@ -462,7 +465,7 @@ if verbose_mode,fprintf(' done\n');end
 
 if isempty(strfind(hazard_set_file,'NOSAVE'))
     if verbose_mode,fprintf('saving TC wind hazard set as %s\n',hazard_set_file);end
-    save(hazard_set_file,'hazard')
+    save(hazard_set_file,'hazard','-v7.3') % for large data
 end
 
 return
