@@ -35,10 +35,14 @@ function [tc_track,save_file]=isimip_ibtracs_read(csv_filename,delimiter,save_fl
 %       > promted for if not given (for single track)
 %       ='TEST' to run TEST mode (just one track, Andrew 1992)
 %        Note that this reads the test file in the isimip module's data folder, i.e
-%        {climada_global.modules_dir}/isimip/data/isimip/ibtracs_basin-NA_intp-None_1992230N11325.csv
+%        {climada_global.modules_dir}/isimip/data/ibtracs/ibtracs_basin-NA_intp-None_1992230N11325.csv
 %       ='EP', 'NA', 'NI', 'SA', 'SI', 'SP', 'WP': read all tracks of one
-%        basin, assuming the .csv files to be stored in
-%        {climada_global.data_dir}/isimip/ibtracs/{csv_filename}/*.csv
+%        basin, assuming the .csv files are named  {climada_global.data_dir}/isimip/ibtracs/ibtracs_basin-{basin}_intp-None_*.csv
+%        Resulting tc_track saved as ibtracs{basin}.mat in the same folder the ibtracs file were found
+%       ='all' to process all tracks globally in {climada_global.data_dir}/isimip/ibtracs. 
+%        Resulting tc_track saved as ibtracs.mat in the same folder the ibtracs file were found
+%        Usually processing 6462 single track files, 6323 tracks ok, 139 not ok (less than 3 nodes, skipped)
+%        1407 tracks more than once, duplicates removed
 % OPTIONAL INPUT PARAMETERS:
 %   delimiter: the delimiter, default is climada_global.csv_delimiter
 %   save_flag: if =1, save as .mat file, named */ibtracs.mat in the folder
@@ -51,6 +55,7 @@ function [tc_track,save_file]=isimip_ibtracs_read(csv_filename,delimiter,save_fl
 % David N. Bresch, david.bresch@gmail.com, 20161203, intial
 % David N. Bresch, david.bresch@gmail.com, 20161222, new field isotime used to properly define yyyy,mm,dd and hh
 % David N. Bresch, david.bresch@gmail.com, 20161226, allow for basin name, such as 'NA'
+% David N. Bresch, david.bresch@gmail.com, 20170121, allow for all tracks globally (currently basin name not operational), duplicates removed
 %-
 
 save_file='';
@@ -94,24 +99,42 @@ if isempty(csv_filename) % local GUI
     end
 end
 
-if length(csv_filename)==2
+basin_name=''; % usually no specific basin
+
+if length(csv_filename)==2 % length =2 for 'XX', such as 'NA'
     % it contains a basin name
-    fprintf('processing %s region\n',csv_filename);
+    fprintf('processing %s basin\n',csv_filename);
+    basin_name=csv_filename;
     csv_filename=[climada_global.data_dir filesep 'isimip' filesep ...
-        'ibtracs' filesep csv_filename];
+        'ibtracs'];
+%        'ibtracs' filesep csv_filename];
+    save_flag=1;
+end
+
+if strcmpi(csv_filename,'all')
+    % it contains a basin name
+    fprintf('processing all tracks\n');
+    csv_filename=[climada_global.data_dir filesep 'isimip' filesep ...
+        'ibtracs'];
     save_flag=1;
 end
 
 track_i=1;
 
 if isdir(csv_filename) % figure whether we deal with a folder
-    files=dir([csv_filename filesep '*.csv']);
+    
+    if ~isempty(basin_name)
+        % files such as e.g. ibtracs_basin-WP_intp-None_2014015N10129
+        files=dir([csv_filename filesep 'ibtracs_basin-' basin_name '_intp-None_*.csv']);
+    else
+        files=dir([csv_filename filesep '*.csv']);
+    end
     
     n_files=length(files);
     
     if n_files>0
         
-        save_file=[csv_filename filesep 'ibtracs.mat'];
+        save_file=[csv_filename filesep 'ibtracs' basin_name '.mat'];
         if exist(save_file,'file')
             fprintf('HINT: consider isimip_ibtracs_load, since %s exists already\n',save_file);
         end
@@ -155,6 +178,17 @@ if isdir(csv_filename) % figure whether we deal with a folder
         fprintf(format_str,''); % move carriage to begin of line
         
         fprintf('%i tracks ok, %i not ok (less than 3 nodes, skipped)\n',track_ok,track_not_ok);
+        
+        % check for duplicate entries
+        ID_no=zeros(1,length(tc_track));
+        for track_i=1:length(tc_track)
+            ID_no(track_i)=tc_track(track_i).ID_no;
+        end
+        [ID_no_unique,unique_i] = unique(ID_no);
+        if length(ID_no_unique)~=length(ID_no)
+            fprintf('%i tracks more than once, duplicates removed\n',length(ID_no)-length(ID_no_unique));
+            tc_track=tc_track(unique_i);
+        end
         
         if save_flag
             fprintf('savig tc_track in %s\n',save_file);

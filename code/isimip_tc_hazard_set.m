@@ -34,10 +34,10 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,noparf
 % CALLING SEQUENCE:
 %   res=isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,noparfor,verbose_mode)
 % EXAMPLE:
-%   tc_track=climada_tc_track_load('TEST_tracks.atl_hist');
-%   centroids=climada_centroids_load('USFL_MiamiDadeBrowardPalmBeach');
-%   %centroids=climada_entity_load('USA_UnitedStatesFlorida'); % works, too
-%   hazard=isimip_tc_hazard_set(tc_track,'_TC_TEST_PARFOR',centroids);
+%   tc_track=isimip_ibtracs_read('NA'); % isimip's ibtracs
+%   %tc_track=climada_tc_track_load('TEST_tracks.atl_hist'); % default HURDAT tracks
+%   centroids=climada_entity_load('USA_UnitedStatesFlorida');
+%   hazard=isimip_tc_hazard_set(tc_track,'_TC_TEST_PARFOR'  ,centroids);
 %   hazard=isimip_tc_hazard_set(tc_track,'_TC_TEST_NOPARFOR',centroids,1);
 % INPUTS:
 % OPTIONAL INPUT PARAMETERS:
@@ -60,8 +60,7 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,noparf
 %       which case climada_centroids_read is called.
 %       OR: an entity, in which case the entity.assets.lat and
 %       entity.assets.lon are used as centroids.
-%       > promted for .mat or .xls filename if not given
-%       NOTE: if you then select Cancel, a regular default grid is used, see hard-wired definition in code
+%       If empty, the code usses the default 0.1 degree isimip resolution
 %   noparfor: if =1, do NOT use parfor, default=0, use parfor
 %       If less than 100 tracks are handed over, noparfor=1, since parfor
 %       does npt speed up if less than say 100 tracks to be processed
@@ -109,6 +108,7 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,noparf
 % david.bresch@gmail.com, 20160603, header: comment added
 % david.bresch@gmail.com, 20161008, hazard.fraction added
 % david.bresch@gmail.com, 20161023, noparfor and verbose_mode added
+% david.bresch@gmail.com, 20170121, default global centroids added
 %-
 
 hazard=[]; % init
@@ -146,6 +146,11 @@ hazard_scenario = 'no climate change';
 % Note: the yearset creation assumes tracks to be ordered by ascending year
 % (that's the case for UNISYS tracks as read by climada_tc_read_unisys_database)
 create_yearset=1; % default=1
+%
+% define the defaut folder for isimip TC track data
+isimip_data_dir=[climada_global.data_dir filesep 'isimip'];
+%NatId_filename=[isimip_data_dir filesep 'Nat_id_grid_0.1deg.nc']; % on land
+NatId_filename=[isimip_data_dir filesep 'Nat_id_grid_0.1deg_adv_10.nc']; % with buffer
 
 % prompt for tc_track if not given
 if isempty(tc_track) % local GUI
@@ -185,11 +190,24 @@ if isempty(fP),hazard_set_file=[climada_global.data_dir filesep 'hazards' filese
 
 % prompt for centroids if not given
 if isempty(centroids) % local GUI
-    centroids_default    = [climada_global.centroids_dir filesep '*.mat'];
-    %%[filename, pathname] = uigetfile(centroids_default,'Select centroids:');
-    [filename, pathname] = uigetfile({'*.mat;*.xls'},'Select centroids (.mat or .xls):',centroids_default);
-    if isequal(filename,0) || isequal(pathname,0)
+    if exist(NatId_filename,'file')
+        if verbose_mode,fprintf('NOTE: centroids from %s\n',NatId_filename);end
+        % special case for isimip, read global NatId file
+        nc.NatIdGrid = ncread(NatId_filename,'NatIdGrid');
+        nc.lon = ncread(NatId_filename,'lon');
+        nc.lat = ncread(NatId_filename,'lat');
+        [gridlon0,gridlat0] = meshgrid(nc.lon,nc.lat);
+        gridlon0=gridlon0';
+        gridlat0=gridlat0';
+        land_point=~isnan(nc.NatIdGrid); % find land points
+        centroids.lon=gridlon0(land_point);
+        centroids.lat=gridlat0(land_point);
+        centroids.centroid_ID=nc.NatIdGrid(land_point);
+        hazard.NatId=nc.NatIdGrid(land_point);
+        % see isimip_ISO3_list to get the mapping ISO3 - isimip country code
+    else
         % TEST centroids
+        if verbose_mode,fprintf('WARNING: file %s not found\n',NatId_filename);end
         if verbose_mode,fprintf('WARNING: Special mode, TEST centroids grid created in %s\n',mfilename);end
         ii=0;
         for lon_i=-100:1:-50
@@ -200,25 +218,14 @@ if isempty(centroids) % local GUI
             end
         end
         centroids.centroid_ID=1:length(centroids.lon);
-    else
-        centroids_file=fullfile(pathname,filename);
-        [~,~,fE]=fileparts(centroids_file);
-        if strcmp(fE,'.xls')
-            if verbose_mode,fprintf('reading centroids from %s\n',centroids_file);end
-            centroids=climada_centroids_read(centroids_file);
-        else
-            centroids=centroids_file;
-        end
-        
     end
 end
 
 if isfield(centroids,'assets')
     % centroids contains in fact an entity
     entity=centroids; centroids=[]; % silly switch, but fastest
-    centroids.lat =entity.assets.lat;
+    centroids.lat=entity.assets.lat;
     centroids.lon=entity.assets.lon;
-    centroids.centroid_ID=1:length(entity.assets.lon);
     % treat optional fields
     if isfield(entity.assets,'distance2coast_km'),centroids.distance2coast_km=entity.assets.distance2coast_km;end
     if isfield(entity.assets,'elevation_m'),centroids.elevation_m=entity.assets.elevation_m;end
@@ -229,6 +236,8 @@ if isfield(centroids,'assets')
     if isfield(entity.assets,'admin1_code'),centroids.admin1_code=entity.assets.admin1_code;end
     clear entity
 end
+
+if ~isfield(centroids,'centroid_ID'),centroids.centroid_ID=1:length(centroids.lon);end
 
 if ~isstruct(centroids) % load, if filename given
     centroids_file=centroids;centroids=[];
