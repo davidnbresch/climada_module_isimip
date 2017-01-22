@@ -109,7 +109,7 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,noparf
 % david.bresch@gmail.com, 20161008, hazard.fraction added
 % david.bresch@gmail.com, 20161023, noparfor and verbose_mode added
 % david.bresch@gmail.com, 20170121, default global centroids added
-% david.bresch@gmail.com, 20170121, memory use optimized (intensity)
+% david.bresch@gmail.com, 20170121, memory use optimized (intensity), coastal_centroids introduced
 %-
 
 hazard=[]; % init
@@ -128,6 +128,9 @@ if ~exist('verbose_mode','var'),verbose_mode=1;end
 % PARAMETERS
 %
 % check_plot commented out here and in climada_tc_windfield for speedup, see code
+%
+% only deal with centtroids not further away than from the coast
+centroid_inland_max_dist_km=500;
 %
 % since we store the hazard as sparse array, we need an a-priory estimation
 % of it's density
@@ -150,8 +153,8 @@ create_yearset=1; % default=1
 %
 % define the defaut folder for isimip TC track data
 isimip_data_dir=[climada_global.data_dir filesep 'isimip'];
-%NatId_filename=[isimip_data_dir filesep 'Nat_id_grid_0.1deg.nc']; % on land
-NatId_filename=[isimip_data_dir filesep 'Nat_id_grid_0.1deg_adv_10.nc']; % with buffer
+%NatId_filename=[isimip_data_dir filesep 'Nat_id_grid_0d1deg.nc']; % on land
+NatId_filename=[isimip_data_dir filesep 'Nat_id_grid_0d1deg_adv_10.nc']; % with buffer
 
 % prompt for tc_track if not given
 if isempty(tc_track) % local GUI
@@ -282,6 +285,18 @@ intensity = spalloc(n_tracks,n_centroids,...
     ceil(n_tracks*n_centroids*hazard_arr_density));
 %intensity = zeros(n_tracks,n_centroids); % FASTER
 
+if isfield(centroids,'distance2coast_km')
+    coastal_pos=find(centroids.distance2coast_km<centroid_inland_max_dist_km);
+    coastal_centroids.lon=centroids.lon(coastal_pos);
+    coastal_centroids.lat=centroids.lat(coastal_pos);
+    coastal_centroids.centroid_ID=centroids.centroid_ID(coastal_pos);
+    n_coastal_centroids=length(coastal_centroids.lon);
+    if verbose_mode,fprintf('restricting to coastal %i km (%i%% of all centroids)\n',centroid_inland_max_dist_km,ceil(n_coastal_centroids/n_centroids*100));end
+else
+    coastal_centroids=centroids;
+    coastal_pos=1:n_centroids;
+end
+
 if verbose_mode
     if noparfor
         fprintf('processing %i tracks @ %i centroids (isimip, no parfor)\n',n_tracks,n_centroids);
@@ -305,7 +320,7 @@ if noparfor
     for track_i=1:n_tracks
         %intensity(track_i,:) = climada_tc_windfield(tc_track(track_i),centroids,0,1,0);
         %intensity(track_i,:) = isimip_windfield_holland(tc_track(track_i),centroids,0,1,0);
-        intensity(track_i,:) = sparse(isimip_windfield_holland(tc_track(track_i),centroids,0,1,0));
+        intensity(track_i,coastal_pos) = sparse(isimip_windfield_holland(tc_track(track_i),coastal_centroids,0,1,0));
         
          % following block only for progress measurement (waitbar or stdout)
         if mod(track_i,mod_step)==0
@@ -328,7 +343,7 @@ else
     parfor track_i=1:n_tracks
         %intensity(track_i,:) = climada_tc_windfield(tc_track(track_i),centroids,0,1,0);
         %intensity(track_i,:) = isimip_windfield_holland(tc_track(track_i),centroids,0,1,0);
-        intensity(track_i,:) = sparse(isimip_windfield_holland(tc_track(track_i),centroids,0,1,0));
+        intensity(track_i,coastal_pos) = sparse(isimip_windfield_holland(tc_track(track_i),coastal_centroids,0,1,0));
     end %track_i
 end % noparfor
 

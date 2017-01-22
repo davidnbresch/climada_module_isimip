@@ -96,10 +96,10 @@ if ~isdir(isimip_data_dir)
 end
 %
 % define default filenames for population (ssp2) and country number (NatId)
-ssp2_filename01deg =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0.1deg_yearly_zip.nc'];
-NatId_filename01deg=[isimip_data_dir filesep 'Nat_id_grid_0.1deg.nc'];
-ssp2_filename25min =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_2.5min_yearly_zip.nc4'];
-NatId_filename25min=[isimip_data_dir filesep 'Nat_id_grid_2.5min.nc'];
+ssp2_filename01deg =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0d1deg_yearly_zip.nc'];
+NatId_filename01deg=[isimip_data_dir filesep 'Nat_id_grid_0d1deg.nc'];
+ssp2_filename25min =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_2d5min_yearly_zip.nc4'];
+NatId_filename25min=[isimip_data_dir filesep 'Nat_id_grid_2d5min.nc'];
 %
 % the entity template to populate a defaiult entity
 entity_template=[climada_global.entities_dir filesep 'entity_template'];
