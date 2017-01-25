@@ -91,21 +91,7 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,noparf
 %       filename: the filename of the hazard event set (if passed as a
 %           struct, this is often useful)
 % MODIFICATION HISTORY:
-% david.bresch@gmail.com, 20090729
-% david.bresch@gmail.com, 20130506, centroids filename handling improved
-% david.bresch@gmail.com, 20140421, waitbar with secs
-% david.bresch@gmail.com, 20141226, optional fields in centroids added
-% david.bresch@gmail.com, 20150103, equal_timestep (much) improved
-% muelleleh@gmail.com, 20150420, include tc category into hazard structure
-% david.bresch@gmail.com, 20150804, allow for filename without path for hazard set name on input
-% david.bresch@gmail.com, 20150819, climada_global.centroids_dir
-% david.bresch@gmail.com, 20150824, removed 'TCNA' from hazard.comment
-% david.bresch@gmail.com, 20150906, note on a frequent issue added to header
-% david.bresch@gmail.com, 20151008, NOSAVE option added
-% muelleleh@gmail.com, 20151127, add hazard.scenario, default is 'no climate change'
-% david.bresch@gmail.com, 20160514, -v7.3 in save added
-% david.bresch@gmail.com, 20160529, fast parfor version, about twenty times faster
-% david.bresch@gmail.com, 20160603, header: comment added
+% david.bresch@gmail.com, 20160909, starting from climada_tc_hazard_set
 % david.bresch@gmail.com, 20161008, hazard.fraction added
 % david.bresch@gmail.com, 20161023, noparfor and verbose_mode added
 % david.bresch@gmail.com, 20170121, default global centroids added
@@ -292,6 +278,7 @@ if isfield(centroids,'distance2coast_km')
     coastal_centroids.centroid_ID=centroids.centroid_ID(coastal_pos);
     n_coastal_centroids=length(coastal_centroids.lon);
     if verbose_mode,fprintf('restricting to coastal %i km (%i%% of all centroids)\n',centroid_inland_max_dist_km,ceil(n_coastal_centroids/n_centroids*100));end
+    n_centroids=n_coastal_centroids;
 else
     coastal_centroids=centroids;
     coastal_pos=1:n_centroids;

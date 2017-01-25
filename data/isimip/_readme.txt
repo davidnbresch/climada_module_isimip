@@ -5,8 +5,14 @@ just copy this whole folder ../climada_modules/isimip/data/isimip to
 
 see code isimip_step_by_step to get started
 
-ibtracs_basin-NA_intp-None_1992230N11325.csv a single TC track file (Andrew), see isimip_ibtracs_read
+ibtracs_global_intp-None_1992230N11325.csv a single TC track file (Andrew),
+	see isimip_ibtracs_read(‘TEST’)
+
+ibtracs_basin*.csv: OLD TEST files, kept for the time being
 
 USA_UnitedStates_Florida_FL.nc a sample flood data file
 
-david.bresch@gmail.com, 2016
+Nat_id_grid_0d1deg_adv_10.nc the 0.1 degree global grid, 
+	with each cell assigned to a country (Nat_id) and sea points NaN.
+
+david.bresch@gmail.com, 2016, 2017

@@ -1,4 +1,4 @@
-function [tc_track,save_file]=isimip_ibtracs_read(csv_filename,delimiter,save_flag)
+function [tc_track,save_file]=isimip_ibtracs_read(csv_filename,delimiter,save_flag,quality_check)
 % climada isimip ibtracs read tc
 % MODULE:
 %   isimip
@@ -9,22 +9,25 @@ function [tc_track,save_file]=isimip_ibtracs_read(csv_filename,delimiter,save_fl
 %   Either a single track or all tracks within a folder
 %
 %   The code basically assumes single .csv files to be stored in
-%   {climada_global.data_dir}/isimip/ibtracs/{basin}/*.cs
+%   {climada_global.data_dir}/isimip/ibtracs/*.csv
 %   where climada_global.data_dir is the local users climada data dir
-%   and basin denotes the ocean basin, such as 'EP','NA','NI','SA','SI','SP','WP'
 %
 %   If a whoe folder is processed, tracks with less than 3 nodes are
-%   skipped.
+%   skipped. For the whole dataset, we obtained:
+%   5720 tracks, 5689 ok, 31 not ok (less than 3 nodes, skipped)
+%   after quality check, we end up with 5686 (three rejected due to too
+%   fast movement, >10 degree in 6h)
 %
-%   next call: climada_tc_hazard_set
+%   next call: climada_tc_track_info % to check
+%              isimip_tc_hazard_set % to generate the hazard event set
 % CALLING SEQUENCE:
-%   tc_track=isimip_ibtracs_read(csv_filename,delimiter)
+%   [tc_track,save_file]=isimip_ibtracs_read(csv_filename,delimiter,save_flag,quality_check)
 % EXAMPLE:
 %   tc_track=isimip_ibtracs_read('TEST'); % returns test track (Andrew,1992)
-%   tc_track=isimip_ibtracs_read('NA'); % all North Atlantic tracks
+%   tc_track=isimip_ibtracs_read('all','',1,1); % all tracks globally, quality checked
 %   csv_filename=[climada_global.modules_dir filesep 'isimip' ...
 %       filesep 'data' filesep 'isimip' filesep ...
-%       'ibtracs_basin-NA_intp-None_1992230N11325.csv']; % Andrew
+%       'ibtracs_global_intp-None_1992230N11325.csv']; % Andrew, 1992
 %   tc_track=isimip_ibtracs_read(csv_filename);
 %   climada_tc_track_info(tc_track,1) % check plot
 %
@@ -47,6 +50,9 @@ function [tc_track,save_file]=isimip_ibtracs_read(csv_filename,delimiter,save_fl
 %   delimiter: the delimiter, default is climada_global.csv_delimiter
 %   save_flag: if =1, save as .mat file, named */ibtracs.mat in the folder
 %       that has been processed (only if called for a folder). Default=0
+%   quality_check: =0 (default), read data as is.
+%       =1, run quality check, i.e. reject tracks moving too fast (>10
+%       degrees in one timestep) and fix dateline issue.
 % OUTPUTS:
 %   tc_track: a climada TC track structure, see e.g. climada_tc_read_unisys_database
 %       plus the fields RadiusMaxWind, EnvironmentalPressure
@@ -68,6 +74,7 @@ if ~climada_init_vars,return;end % init/import global variables
 if ~exist('csv_filename','var'),csv_filename=[];end % OR:
 if ~exist('delimiter','var'),delimiter='';end
 if ~exist('save_flag','var'),save_flag=0;end
+if ~exist('quality_check','var'),quality_check=0;end
 
 % locate the module's (or this code's) data folder (usually  a folder
 % 'parallel' to the code folder, i.e. in the same level as code folder)
@@ -83,7 +90,8 @@ if isempty(delimiter),delimiter=climada_global.csv_delimiter;end
 if strcmp(csv_filename,'TEST')
     csv_filename=[climada_global.modules_dir filesep 'isimip' ...
         filesep 'data' filesep 'isimip' filesep ...
-        'ibtracs_basin-NA_intp-None_1992230N11325.csv']; % Andrew
+        'ibtracs_global_intp-None_1992230N11325.csv']; % Andrew
+    %        'ibtracs_basin-NA_intp-None_1992230N11325.csv']; % Andrew
     fprintf('TEST mode, using %s\n',csv_filename)
 end
 
@@ -190,6 +198,8 @@ if isdir(csv_filename) % figure whether we deal with a folder
             tc_track=tc_track(unique_i);
         end
         
+        if quality_check,tc_track=climada_tc_track_quality_check(tc_track);end
+        
         if save_flag
             fprintf('savig tc_track in %s\n',save_file);
             save(save_file,'tc_track');
@@ -240,8 +250,9 @@ else
         tc_track(track_i).hh=str2num(datestr(tc_track(track_i).datenum,'hh'));
     end
     
-    % a unique ID
-    tc_track(track_i).ID_no=str2double(res.ibtracsID{1}(1:7));
+    % a unique ID, a number for faster comparison, hence convert 1950166N14262 to 1950166.14262
+    tc_track(track_i).ID_str=res.ibtracsID{1};
+    tc_track(track_i).ID_no=str2double(res.ibtracsID{1}(1:7))+str2double(res.ibtracsID{1}(9:end))/100000;
     
     % deal with missing pressure
     tc_track(track_i).CentralPressure(tc_track(track_i).CentralPressure<=0)=NaN;
