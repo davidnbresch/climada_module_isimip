@@ -42,6 +42,7 @@ function [tc_track,save_file]=isimip_ibtracs_read(csv_filename,delimiter,save_fl
 %       ='EP', 'NA', 'NI', 'SA', 'SI', 'SP', 'WP': read all tracks of one
 %        basin, assuming the .csv files are named  {climada_global.data_dir}/isimip/ibtracs/ibtracs_basin-{basin}_intp-None_*.csv
 %        Resulting tc_track saved as ibtracs{basin}.mat in the same folder the ibtracs file were found
+%        Preferred option: use 'all' and take basin from 
 %       ='all' to process all tracks globally in {climada_global.data_dir}/isimip/ibtracs. 
 %        Resulting tc_track saved as ibtracs.mat in the same folder the ibtracs file were found
 %        Usually processing 6462 single track files, 6323 tracks ok, 139 not ok (less than 3 nodes, skipped)
@@ -50,18 +51,21 @@ function [tc_track,save_file]=isimip_ibtracs_read(csv_filename,delimiter,save_fl
 %   delimiter: the delimiter, default is climada_global.csv_delimiter
 %   save_flag: if =1, save as .mat file, named */ibtracs.mat in the folder
 %       that has been processed (only if called for a folder). Default=0
-%   quality_check: =0 (default), read data as is.
-%       =1, run quality check, i.e. reject tracks moving too fast (>10
-%       degrees in one timestep) and fix dateline issue.
+%   quality_check: =1 (default), run quality check, i.e. reject tracks
+%       moving too fast (>10 degrees in one timestep) and fix dateline issue.
+%       If =0, read data as is.
 % OUTPUTS:
 %   tc_track: a climada TC track structure, see e.g. climada_tc_read_unisys_database
-%       plus the fields RadiusMaxWind, EnvironmentalPressure
+%       plus the fields RadiusMaxWind, EnvironmentalPressure,
+%       data_provider, basin, ID_str. Note that ID_no is ID_str, with the
+%       number after N or S as decimals, such as 1971275N10176 -> 1971275.10176
 %   save_file: the file (with path) where the tc_track structure has been
 %       saved to if save_flag=1, ='' otherwise
 % David N. Bresch, david.bresch@gmail.com, 20161203, intial
 % David N. Bresch, david.bresch@gmail.com, 20161222, new field isotime used to properly define yyyy,mm,dd and hh
 % David N. Bresch, david.bresch@gmail.com, 20161226, allow for basin name, such as 'NA'
 % David N. Bresch, david.bresch@gmail.com, 20170121, allow for all tracks globally (currently basin name not operational), duplicates removed
+% David N. Bresch, david.bresch@gmail.com, 20170127, ..data/tc_tracks/ibtracs, data_provider, basin added
 %-
 
 save_file='';
@@ -73,8 +77,8 @@ if ~climada_init_vars,return;end % init/import global variables
 % and to set default value where  appropriate
 if ~exist('csv_filename','var'),csv_filename=[];end % OR:
 if ~exist('delimiter','var'),delimiter='';end
-if ~exist('save_flag','var'),save_flag=0;end
-if ~exist('quality_check','var'),quality_check=0;end
+if ~exist('save_flag','var'),save_flag=[];end
+if ~exist('quality_check','var'),quality_check=[];end
 
 % locate the module's (or this code's) data folder (usually  a folder
 % 'parallel' to the code folder, i.e. in the same level as code folder)
@@ -85,6 +89,8 @@ if ~exist('quality_check','var'),quality_check=0;end
 % define all parameters here - no parameters to be defined in code below
 %
 if isempty(delimiter),delimiter=climada_global.csv_delimiter;end
+if isempty(save_flag),save_flag=0;end
+if isempty(quality_check),quality_check=1;end
 %
 % set TEST track
 if strcmp(csv_filename,'TEST')
@@ -120,9 +126,8 @@ if length(csv_filename)==2 % length =2 for 'XX', such as 'NA'
 end
 
 if strcmpi(csv_filename,'all')
-    % it contains a basin name
     fprintf('processing all tracks\n');
-    csv_filename=[climada_global.data_dir filesep 'isimip' filesep ...
+    csv_filename=[climada_global.data_dir filesep 'tc_tracks' filesep ...
         'ibtracs'];
     save_flag=1;
 end
@@ -212,10 +217,22 @@ if isdir(csv_filename) % figure whether we deal with a folder
     
 else
     tc_track=[]; % init output
-    
+        
+    % to to complete filename
+    if ~exist(csv_filename,'file')
+        [fP,fN,fE]=fileparts(csv_filename);
+        if isempty(fP),fP=[climada_global.data_dir filesep 'tc_tracks' filesep 'ibtracs'];end
+        if isempty(fE),fE='.csv';end
+        csv_filename=[fP filesep fN fE];
+        if ~exist(csv_filename,'file')
+            fN=['ibtracs_global_intp-None_' fN];
+            csv_filename=[fP filesep fN fE];
+        end
+    end
+        
     res=climada_csvread(csv_filename,delimiter);
     if isempty(res),return;end
-    
+        
     % store into tc_track structure
     tc_track(track_i).MaxSustainedWindUnit='kn';
     tc_track(track_i).CentralPressureUnit='kn';
@@ -229,6 +246,8 @@ else
     tc_track(track_i).EnvironmentalPressure=res.penv;
     tc_track(track_i).orig_event_flag=res.original_data(1);
     tc_track(track_i).name=res.ibtracsID{1};
+    tc_track(track_i).data_provider=res.data_provider{1};
+    tc_track(track_i).basin=res.gen_basin{1};
     
     if isfield(res,'isotime')
         isotime=res.isotime;

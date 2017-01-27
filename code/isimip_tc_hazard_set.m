@@ -1,4 +1,4 @@
-function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,noparfor,verbose_mode)
+function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,noparfor,verbose_mode,annotation_str)
 % climada TC hazard event set generate
 % NAME:
 %   climada_tr_hazard_set
@@ -32,9 +32,9 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,noparf
 %   previous: likely climada_random_walk
 %   next: diverse
 % CALLING SEQUENCE:
-%   res=isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,noparfor,verbose_mode)
+%   res=isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,noparfor,verbose_mode,annotation_str)
 % EXAMPLE:
-%   tc_track=isimip_ibtracs_read('NA'); % isimip's ibtracs
+%   tc_track=isimip_ibtracs_read('all'); % isimip's ibtracs
 %   %tc_track=climada_tc_track_load('TEST_tracks.atl_hist'); % default HURDAT tracks
 %   centroids=climada_entity_load('USA_UnitedStatesFlorida');
 %   hazard=isimip_tc_hazard_set(tc_track,'_TC_TEST_PARFOR'  ,centroids);
@@ -65,6 +65,7 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,noparf
 %       If less than 100 tracks are handed over, noparfor=1, since parfor
 %       does npt speed up if less than say 100 tracks to be processed
 %   verbose_mode: default=1, =0: do not print anything to stdout
+%   annotation_str: free annotation string added to hazard
 % OUTPUTS:
 %   hazard: a struct, the hazard event set, more for tests, since the
 %       hazard set is stored as hazard_set_file, see code
@@ -96,6 +97,7 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,noparf
 % david.bresch@gmail.com, 20161023, noparfor and verbose_mode added
 % david.bresch@gmail.com, 20170121, default global centroids added
 % david.bresch@gmail.com, 20170121, memory use optimized (intensity), coastal_centroids introduced
+% david.bresch@gmail.com, 20170121, annotation_str
 %-
 
 hazard=[]; % init
@@ -110,6 +112,7 @@ if ~exist('hazard_set_file','var'),hazard_set_file=[];end
 if ~exist('centroids','var'),centroids=[];end
 if ~exist('noparfor','var'),noparfor=0;end
 if ~exist('verbose_mode','var'),verbose_mode=1;end
+if ~exist('annotation_str','var'),annotation_str='';end
 
 % PARAMETERS
 %
@@ -464,6 +467,8 @@ end % create_yearset
 if verbose_mode,fprintf('adding hazard.fraction ...');end
 hazard.fraction=spones(hazard.intensity); % fraction 100%
 if verbose_mode,fprintf(' done\n');end
+
+hazard.annotation_str=annotation_str;
 
 if isempty(strfind(hazard_set_file,'NOSAVE'))
     if verbose_mode,fprintf('saving TC wind hazard set as %s\n',hazard_set_file);end
