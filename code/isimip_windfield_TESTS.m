@@ -22,7 +22,11 @@
 % RESTRICTIONS:
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20161225, initial
+% David N. Bresch, david.bresch@gmail.com, 20170202, climada_global.parfor
 %-
+
+global climada_global
+climada_global.parfor=1;
 
 % PARAMETERS
 %
@@ -179,7 +183,6 @@ end % check_Andrew
 % calculate historic haazrd event set
 % ===================================
 if check_historic_hazard_set
-    noparfor=1;
     
     % get tracks
     tc_track=climada_tc_track_load('tracks.atl_hist');
@@ -197,8 +200,8 @@ if check_historic_hazard_set
     climada_plot_world_borders(1);title('centroids');
     xlim([min(centroids.lon),max(centroids.lon)]);ylim([min(centroids.lat),max(centroids.lat)]);
     
-    hazard_isimip_hist  = isimip_tc_hazard_set( tc_track,'_TC_atl_isimip_hist', centroids,noparfor);
-    hazard_climada_hist = climada_tc_hazard_set(tc_track,'_TC_atl_climada_hist',centroids,noparfor);
+    hazard_isimip_hist  = isimip_tc_hazard_set( tc_track,'_TC_atl_isimip_hist', centroids);
+    hazard_climada_hist = climada_tc_hazard_set(tc_track,'_TC_atl_climada_hist',centroids);
     hazard_climada_hist.intensity=hazard_climada_hist.intensity/1.27; % gust, not peak gust to compare with isimip
     
     hazard_climada_hist.intensity(hazard_climada_hist.intensity<20)=0;
@@ -218,7 +221,6 @@ end % check_historic_hazard_set
 % calculate probabilistic haazrd event set
 % ========================================
 if check_probabilistic_hazard_set
-    noparfor=0;
     
     % get tracks
     tc_track=climada_tc_track_load('tracks.atl_hist');
@@ -242,8 +244,8 @@ if check_probabilistic_hazard_set
     climada_plot_world_borders(1);title('centroids');
     xlim([min(centroids.lon),max(centroids.lon)]);ylim([min(centroids.lat),max(centroids.lat)]);
     
-    hazard_isimip_prob  = isimip_tc_hazard_set( tc_track,'_TC_atl_isimip_prob', centroids,noparfor);
-    hazard_climada_prob = climada_tc_hazard_set(tc_track,'_TC_atl_climada_prob',centroids,noparfor);
+    hazard_isimip_prob  = isimip_tc_hazard_set( tc_track,'_TC_atl_isimip_prob', centroids);
+    hazard_climada_prob = climada_tc_hazard_set(tc_track,'_TC_atl_climada_prob',centroids);
     
     % NOTE: climada scaled, NOT in saved hazard set
     hazard_climada_prob.intensity=hazard_climada_prob.intensity/1.27; % gust, not peak gust to compare with isimip
@@ -269,7 +271,7 @@ climada_tc_track_info(tc_track_hist,1);xlim([40 110]);ylim([0 40]) % Fig 1
 tc_track_prob9=climada_tc_random_walk(tc_track_hist,9);
 climada_tc_track_info(tc_track_prob9,1); xlim([40 110]);ylim([0 40]) % Fig 2
 p.resolution_km=10;entity=climada_nightlight_entity('India','Maharashtra',p);
- entity.assets.Value=entity.assets.Value/sum(entity.assets.Value)*250e9*(2+1);entity.assets.Cover=entity.assets.Value;
+entity.assets.Value=entity.assets.Value/sum(entity.assets.Value)*250e9*(2+1);entity.assets.Cover=entity.assets.Value;
 climada_entity_plot(entity,3) % Fig 3
 hazard_hist=climada_tc_hazard_set(tc_track_hist,'NOSAVE',entity,1);
 climada_hazard_stats(hazard_hist) % Fig 4
