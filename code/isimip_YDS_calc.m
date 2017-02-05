@@ -14,31 +14,31 @@ function [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard,params)
 %   If the entity does contain more than one (isimip) country, create one
 %   YDS for each country separately (based upon entity.assets.NatId).
 %
-%   previous call: isimip_ssp2_entity and e.g. isimip_flood_load
+%   previous call: isimip_gdp_entity and e.g. isimip_flood_load
 %   next call: isimip_YDS_table
 % CALLING SEQUENCE:
 %   EDS=isimip_YDS_calc(entity,hazard)
 % EXAMPLE:
 %   one country:
-%   entity=isimip_ssp2_entity('DEU') % create single country entity
+%   entity=isimip_gdp_entity('DEU') % create single country entity
 %   entity=climada_entity_load('DEU_entity') % load DEU entity
 %   hazard=isimip_flood_load('global_FL.nc','auto',entity,0); % create DEU FL hazard set
 %   [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard,1);
 %
-%   entity=isimip_ssp2_entity('USA') % create single country entity
+%   entity=isimip_gdp_entity('USA') % create single country entity
 %   entity=climada_entity_load('USA_entity') % load entity
 %   hazard=isimip_flood_load('global_FL.nc','auto',entity,0); % create USA FL hazard set
 %   [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard);
 %
 %   list of countries:
-%   entity=isimip_ssp2_entity({'DEU','ITA','FRA'}) % create entity for DEU ITA and FRA
+%   entity=isimip_gdp_entity({'DEU','ITA','FRA'}) % create entity for DEU ITA and FRA
 %   entity=climada_entity_load('DEUITAFRA_entity') % load DEU entity
 %   hazard=isimip_flood_load('global_FL.nc','auto',entity,0); % create DEU FL hazard set
 %   [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard);
 % INPUTS:
 %   entity: an isimip entity (i.e. an entity with entity.assets.Values for
 %       many years). Needs to contain the following additional a fields:
-%       (a so-called isimip entity has that, e.g. if created by isimip_ssp2_entity) 
+%       (a so-called isimip entity has that, e.g. if created by isimip_gdp_entity) 
 %       entity.assets.NatId(centroid_i): to link each centroid to one country  
 %       entity.assets.Values(year_i,centroid_i): the assets for year_i
 %       entity.assets.Value_yyyy(year_i): the year assets are valid for

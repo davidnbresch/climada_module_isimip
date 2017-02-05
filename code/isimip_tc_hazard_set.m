@@ -139,8 +139,8 @@ create_yearset=1; % default=1
 %
 % define the defaut folder for isimip TC track data
 isimip_data_dir=[climada_global.data_dir filesep 'isimip'];
-%NatId_filename=[isimip_data_dir filesep 'Nat_id_grid_0d1deg.nc']; % on land
-NatId_filename=[isimip_data_dir filesep 'Nat_id_grid_0d1deg_adv_10.nc']; % with buffer
+%NatId_filename=[isimip_data_dir filesep 'Nat_id_grid_0360as.nc']; % on land
+NatId_filename=[isimip_data_dir filesep 'Nat_id_grid_0360as_adv_10.nc']; % with buffer
 
 % prompt for tc_track if not given
 if isempty(tc_track) % local GUI
