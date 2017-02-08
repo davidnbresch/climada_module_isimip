@@ -1,5 +1,5 @@
 function [entity,params]=isimip_gdp_entity(ISO3,params)
-% climada isimip entity population
+% climada isimip entity population gdp
 % MODULE:
 %   isimip
 % NAME:
@@ -10,21 +10,22 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %   Reads the GDP or population grid (per time, usually once per year) from
 %   data_filename, multiplies with the conversion_factor (per gridcell)
 %   from conversion_filename and stores into climada
-%   entity.assets.Values(i,j) for year i and centroid j.
+%   entity.assets.Values(i,j) for year i and centroid j. The code maps to
+%   the GLOBAL centroids, such that one can generate one (global) hazard
+%   set and all single/multi country entities run properly (see
+%   entity.assets.centroid_index on otuput below).
 %
-%   Please be PATIENT the first time you run this code, as it generated the
+%   Please be PATIENT the first time you run this code, as it generates the
 %   global reference grid, where calculation of distance to coast for all
 %   land points does take (substantial) time. See PARAMETERS to switch
 %   distance_to_coast off.
 %
-%   single country mode (e.g. ISO3='DEU'):
-%    Checks the country ID (NatId) on NatId_filename and takes all gridcells
-%    within the requested country. If the resolution of the NatId does not
+%   single/multi country mode (e.g. ISO3='DEU', ISO3={'DEU','FRA'}):
+%    Checks the country ID(s) (NatId) on NatId_filename and takes all gridcells
+%    within the requested country(s). If the resolution of the NatId does not
 %    match the population data or if there is no NatId_filename provided,
 %    the code uses the climada country shape files to select the gridcells
-%    within the country (the code notifies to stdout).
-%    The asset values are then scaled by GDP and the income group, see
-%    climada_entity_value_GDP_adjust_one.
+%    within the country(s) (the code notifies to stdout).
 %
 %   all country mode (ISO3='ALL_IN_ONE'):
 %    same as for single country, but create one global entity with
@@ -77,14 +78,15 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %       If only a filename (without path) is passed, isimip_data_dir (set
 %       in PARAMETERS) is prepended .
 %    check_plot: whether show a check plot (=1, default), or not (=0)
-%    time_t0: to set the first year (as variable 'time' does not contain it)
-%       default=1980, if time(1)<1800|>2100, otherwise time_t0=0
+% % %    time_t0: to set the first year (as variable 'time' does not contain it)
+% % %       default=1980, if time(1)<1800|>2100, otherwise time_t0=0
 %    distance_to_coast: whether we calculate distant to coast (in km) of
 %       call centroids (default=1), which speeds up later climada calculations
 %       substantially (as coastal hazards need not to be evaluated at
 %       inner-continental points). Set =0 in special cases, as initial
 %       calculation might easily take 1h (we're talking about millions of
-%       centroids...).
+%       centroids... but since climada_distance2coast_km listens to
+%       climada_global.parfor, set climada_global.parfor=1 for speedup). 
 % OUTPUTS:
 %   entity: a climada entity structure, see climada_entity_read for a full
 %       description of all fields
@@ -98,9 +100,10 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %       entity.assets.ISO3_list: the list linking isimip country numbers
 %           in ISO3_list(:,2) with ISO names in ISO3_list(:,1)
 %       Note that entity.assets.centroid_index is already pointing to the
-%           correct centroids in the corresponding global centroids file, but
-%           the hazard is not set yet (instead of re-encoding, just define
-%           entity.assets.hazard yourself)
+%           correct centroids in the corresponding global centroids file
+%           (as retunred in params.centroid_file), but the hazard is not
+%           set yet (instead of re-encoding, just define
+%           entity.assets.hazard yourself).
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20161017, initial
 % David N. Bresch, david.bresch@gmail.com, 20161120, ALL_IN_ONE added
@@ -124,7 +127,7 @@ if ~isfield(params,'data_filename'),      params.data_filename='';end
 if ~isfield(params,'conversion_filename'),params.conversion_filename='';end
 if ~isfield(params,'NatId_filename'),     params.NatId_filename='';end
 if ~isfield(params,'check_plot'),         params.check_plot=[];end
-if ~isfield(params,'time_t0'),            params.time_t0=[];end
+% if ~isfield(params,'time_t0'),            params.time_t0=[];end
 if ~isfield(params,'distance_to_coast'),  params.distance_to_coast=[];end
 if ~isfield(params,'centroids_file'),     params.centroids_file='';end % output only
 
@@ -151,7 +154,6 @@ conversion_filename0150as=[isimip_data_dir filesep 'GDP2Asset_converter_0150as_a
 NatId_filename0150as=[isimip_data_dir filesep 'Nat_id_grid_0150as.nc'];
 %
 centroids_file=[climada_global.data_dir filesep 'centroids' filesep 'GLB_']; % Nat_id_grid name will be appended
-distance_to_coast=1; % calculate distance to coast for full centroids file (save lots of time later)
 %
 % the entity template to populate a defaiult entity
 entity_template=[climada_global.entities_dir filesep 'entity_template'];
@@ -159,12 +161,12 @@ entity_template=[climada_global.entities_dir filesep 'entity_template'];
 % admin0 shape file (for fallback selection option):
 admin0_shape_file=climada_global.map_border_file;
 %
-% to TEST the code, i.e. reads only a few timesteps
+% to TEST the code, i.e. reads only a few (3) timesteps
 TEST_mode=0; % default=0
 %
 % populate default parameters in params
 if isempty(params.check_plot),        params.check_plot=0;end
-if isempty(params.time_t0),           params.time_t0=[];end
+% if isempty(params.time_t0),           params.time_t0=[];end
 if isempty(params.distance_to_coast), params.distance_to_coast=1;end
 
 if strcmpi(ISO3,'params'),return;end % special case, return the full params structure
@@ -187,12 +189,26 @@ if ~exist(params.conversion_filename,'file'),params.conversion_filename=[isimip_
 if ~exist(params.NatId_filename,'file'),params.NatId_filename=[isimip_data_dir filesep params.NatId_filename];end
 
 % read the population or GDP data
+% read only one slide (timestep) to save memory, read slab-by-slab below
+% -------------------------------
 
 % first, figure the variable name for the data
-gdp_ncinfo=ncinfo(params.data_filename);
-for i=1:length(gdp_ncinfo.Variables)
-    if strcmpi(gdp_ncinfo.Variables(i).Name,'var1'),data_variable_name='var1';end
-    if strcmpi(gdp_ncinfo.Variables(i).Name,'gdp_grid'),data_variable_name='gdp_grid';end
+nc.info=ncinfo(params.data_filename);
+
+% figure value units
+Values_factor=1;
+try
+    if strcmpi(nc.info.Variables(4).Attributes(2).Value,'GDP PPP 2005 billion $ US')
+        Values_factor=1e9;
+    end
+catch
+    if verbose,fprintf('Warning: Determining Value unit from nc failed\n');end
+end % try
+if verbose,fprintf('Values factor f=%g (climada Values=f * Values from nc)\n',Values_factor);end
+
+for i=1:length(nc.info.Variables)
+    if strcmpi(nc.info.Variables(i).Name,'var1'),data_variable_name='var1';end
+    if strcmpi(nc.info.Variables(i).Name,'gdp_grid'),data_variable_name='gdp_grid';end
 end % i
 
 if verbose,fprintf('reading lon, lat, time and %s from %s ...',data_variable_name,params.data_filename);end
@@ -201,7 +217,7 @@ nc.lon       = ncread(params.data_filename,'lon')';
 nc.lat       = ncread(params.data_filename,'lat')';
 nc.time      = ncread(params.data_filename,'time')';
 n_times      = length(nc.time);
-if TEST_mode,n_times=min(3,n_times);end % TEST mode, read only few times
+if TEST_mode,n_times=min(3,n_times);nc.time=nc.time(1:n_times);end % TEST mode, read only few times
 nc.var1      = ncread(params.data_filename,data_variable_name,[1 1 1],[Inf Inf 1]); % only one time slab
 if verbose,fprintf(' done\n');end
 
@@ -234,6 +250,8 @@ else
 end
 
 % deal with the (global) centroids
+% --------------------------------
+
 [~,fN]=fileparts(params.NatId_filename);
 full_centroids_file=[centroids_file fN '.mat'];
 params.centroids_file=full_centroids_file; % output only
@@ -250,7 +268,7 @@ else
         centroids.centroid_ID=1:length(centroids.lat); % define the GLOBAL centroid_ID
         
         n_centroids=length(centroids.lon);
-        if distance_to_coast
+        if params.distance_to_coast
             fprintf('> calculating distance to coast of %i land points, takes time...\n',n_centroids)
             centroids.distance2coast_km=climada_distance2coast_km(centroids.lon,centroids.lat);
         end
@@ -264,7 +282,7 @@ else
         end
         centroids.centroid_ID=1:length(centroids.lon);
         centroids.centroid_ID(n_centroids+1:end)=centroids.centroid_ID(n_centroids+1:end)+(3e6-n_centroids); % to set the ocean-point centroids apart
-        if distance_to_coast,centroids.distance2coast_km(n_centroids+1:length(centroids.lon))=0;end % ocean points
+        if params.distance_to_coast,centroids.distance2coast_km(n_centroids+1:length(centroids.lon))=0;end % ocean points
                 
         fprintf('> saving global isimip centroids in %s\n',full_centroids_file);
         save(full_centroids_file,'centroids')
@@ -414,21 +432,18 @@ end % ALL_IN_ONE
 
 if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
     
-    % default=1980, if time(1)<1800|>2100, otherwise params.time_t0=0
-    if isempty(params.time_t0)
-        if (nc.time(1)<1860 || nc.time(1)>2100)
-            params.time_t0=str2double(datestr(nc.time(1)+datenum(1950,1,1),'yyyy'));
-        else
-            params.time_t0=0;
-        end
+    entity.assets.Values_yyyy=zeros(1,n_times); % init
+    for i=1:n_times
+        entity.assets.Values_yyyy(i)=str2double(datestr(nc.time(i)+datenum(1950,1,1)+1,'yyyy'));
     end
-    entity.assets.Values_yyyy=nc.time(1:n_times)+params.time_t0;
     if entity.assets.Values_yyyy(1)<1860 || entity.assets.Values_yyyy(1)>2100 % strange content of nc.time
-        entity.assets.Values_yyyy=params.time_t0-1+(1:n_times);
+        entity.assets.Values_yyyy=1980+(1:n_times);
         fprintf('Warning: Values_yyyy hard wired to %i..%i\n',entity.assets.Values_yyyy(1),entity.assets.Values_yyyy(end))
     end
-    entity.assets.Values_yyyy=entity.assets.Values_yyyy'; % to have 1 x n_times
     if verbose,fprintf('timestamp %i .. %i\n',entity.assets.Values_yyyy(1),entity.assets.Values_yyyy(end));end
+    
+    % convert currency units
+    entity.assets.Values=entity.assets.Values*Values_factor;
     
     % set active assets to first entry
     entity.assets.reference_year=entity.assets.Values_yyyy(1);
@@ -443,6 +458,7 @@ if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
     
     if isfield(entity.assets,'Value_unit'),entity.assets=rmfield(entity.assets,'Value_unit');end
     if isfield(entity.assets,'hazard'),entity.assets=rmfield(entity.assets,'hazard');end
+    entity.assets.centroids_file=params.centroids_file; % store the centroid origin
     
     entity.assets = climada_assets_complete(entity.assets);
     
