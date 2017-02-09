@@ -42,6 +42,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %   entity=isimip_gdp_entity('DEU') % single country entity
 %   entity=isimip_gdp_entity({'DEU','FRA','ITA'}) % multi country entity
 %   entity=isimip_gdp_entity('ALL_IN_ONE') % one global entity
+%   params=isimip_gdp_entity('params') % get default parameters
 % INPUTS:
 %   ISO3: the ISO3 country code, e.g. 'DEU' or 'FRA' or {'DEU','FRA'} to
 %       combine two countries in one entity (the entity still knows which
@@ -149,8 +150,9 @@ conversion_filename0360as=[isimip_data_dir filesep 'GDP2Asset_converter_0360as_a
 %NatId_filename0360as=[isimip_data_dir filesep 'Nat_id_grid_0360as.nc']; % no tolerance arund borders
 NatId_filename0360as=[isimip_data_dir filesep 'Nat_id_grid_0360as_adv_1.nc'];
 %
-data_filename0150as =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0150as_yearly_zip.nc4']; % data_variable_name='var1';
-conversion_filename0150as=[isimip_data_dir filesep 'GDP2Asset_converter_0150as_adv_1.nc']; % conversion_factor
+%data_filename0150as =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0150as_yearly_zip.nc4']; % data_variable_name='var1';
+data_filename0150as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc']; % data_variable_name='var1';
+conversion_filename0150as=[isimip_data_dir filesep 'GDP2Asset_converter_0150as.nc']; % conversion_factor
 NatId_filename0150as=[isimip_data_dir filesep 'Nat_id_grid_0150as.nc'];
 %
 centroids_file=[climada_global.data_dir filesep 'centroids' filesep 'GLB_']; % Nat_id_grid name will be appended
@@ -169,7 +171,7 @@ if isempty(params.check_plot),        params.check_plot=0;end
 % if isempty(params.time_t0),           params.time_t0=[];end
 if isempty(params.distance_to_coast), params.distance_to_coast=1;end
 
-if strcmpi(ISO3,'params'),return;end % special case, return the full params structure
+if strcmpi(ISO3,'params'),entity=params;return;end % special case, return the full params structure
 
 if isempty(params.data_filename),params.data_filename='0360as';end
 

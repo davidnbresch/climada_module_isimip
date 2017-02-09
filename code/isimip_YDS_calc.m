@@ -30,6 +30,11 @@ function [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard,params)
 %   hazard=isimip_flood_load('global_FL.nc','auto',entity,0); % create USA FL hazard set
 %   [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard);
 %
+%   entity=isimip_gdp_entity('USA') % create single country entity
+%   entity=climada_entity_load('USA_entity') % load entity
+%   hazard=climada_hazard_load('GLB_glb_TC'); % see isimip_tc_hazard_set
+%   [YDS,EDS_stats]=isimip_YDS_calc(entity,hazard);
+%
 %   list of countries:
 %   entity=isimip_gdp_entity({'DEU','ITA','FRA'}) % create entity for DEU ITA and FRA
 %   entity=climada_entity_load('DEUITAFRA_entity') % load DEU entity
@@ -264,7 +269,7 @@ if params.check_plot
         if sum(damage_at_centroid)>0 % something to plot
             fprintf(' %s',YDS(i).comment);
             a.assets.lon=YDS(i).lon;a.assets.lat=YDS(i).lat;
-            a.assets.Value=damage_at_centroid;
+            a.assets.Value=damage_at_centroid;a.assets.filename=YDS(i).comment;
             climada_entity_plot(a,params.markersize);hold on;title([YDS(i).comment ' ' YDS(i).peril_ID ' ex. damage']);
         else
             title([YDS(i).comment ' ' YDS(i).peril_ID ' damage ZERO']);
