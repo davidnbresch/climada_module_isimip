@@ -5,7 +5,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 % NAME:
 %   isimip_gdp_entity
 % PURPOSE:
-%   create the entity based on isimip GDP or population data. 
+%   create the entity based on isimip GDP or population data.
 %
 %   Reads the GDP or population grid (per time, usually once per year) from
 %   data_filename, multiplies with the conversion_factor (per gridcell)
@@ -18,7 +18,9 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %   Please be PATIENT the first time you run this code, as it generates the
 %   global reference grid, where calculation of distance to coast for all
 %   land points does take (substantial) time. See PARAMETERS to switch
-%   distance_to_coast off.
+%   distance_to_coast off. In the first run, it also saves a centroids
+%   file, in case more than 4 mio centroids, it also saves a reduced
+%   verison (see code for details).
 %
 %   single/multi country mode (e.g. ISO3='DEU', ISO3={'DEU','FRA'}):
 %    Checks the country ID(s) (NatId) on NatId_filename and takes all gridcells
@@ -52,7 +54,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %           hence see also nexst option).
 %       if ='ALL_IN_ONE', one entity with all countries is created
 %           This is a bit a special case, as the entity is mainly to be
-%           used within the ismip context in this case. 
+%           used within the ismip context in this case.
 %       > promted for (to select from a list, also multiple) if not given
 %       if ='params', just return default parameters, in entity, i.e. the
 %           first output, already.
@@ -62,7 +64,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %       ='0360as': use 0.1 degree default file (default, set in PARAMETERS)
 %       ='0150as': use 2.5 minutes default file (set in PARAMETERS)
 %       If only a filename (without path) is passed, isimip_data_dir (set
-%       in PARAMETERS) is prepended 
+%       in PARAMETERS) is prepended
 %    conversion_filename: filename of the .nc file with the conversion
 %       factor from either GDP or population to assets (per gridpoint)
 %       if data_filename is one of the short names, conversion_filename is
@@ -87,7 +89,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %       inner-continental points). Set =0 in special cases, as initial
 %       calculation might easily take 1h (we're talking about millions of
 %       centroids... but since climada_distance2coast_km listens to
-%       climada_global.parfor, set climada_global.parfor=1 for speedup). 
+%       climada_global.parfor, set climada_global.parfor=1 for speedup).
 % OUTPUTS:
 %   entity: a climada entity structure, see climada_entity_read for a full
 %       description of all fields
@@ -111,6 +113,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 % David N. Bresch, david.bresch@gmail.com, 20161121, list of ISO3 allowed
 % David N. Bresch, david.bresch@gmail.com, 20161123, checked for 2.5min
 % David N. Bresch, david.bresch@gmail.com, 20170205, renamed to isimip_gdp_entity, overhaul, conversion_factor, params
+% David N. Bresch, david.bresch@gmail.com, 20170209, 0150as files updated
 %-
 
 entity=[]; % init output
@@ -285,9 +288,25 @@ else
         centroids.centroid_ID=1:length(centroids.lon);
         centroids.centroid_ID(n_centroids+1:end)=centroids.centroid_ID(n_centroids+1:end)+(3e6-n_centroids); % to set the ocean-point centroids apart
         if params.distance_to_coast,centroids.distance2coast_km(n_centroids+1:length(centroids.lon))=0;end % ocean points
-                
+        
         fprintf('> saving global isimip centroids in %s\n',full_centroids_file);
         save(full_centroids_file,'centroids')
+        
+        if length(centroids.lon)>4000000 && params.distance_to_coast
+            n_centroids=length(centroids.lon);centroids_full=centroids;
+            pos=find(centroids.lat<60.06 & centroids.distance2coast_km<500);
+            [centroids,untreated_fields]=climada_subarray(centroids,pos);
+            if sum(strncmp('NatId',untreated_fields,5))>0,...
+                    centroids.NatId = centroids.NatId(pos(pos<=length(centroids.NatId)));end
+            [fP,fN,fE]=fileparts(full_centroids_file);
+            full_centroids_file_red=[fP filesep fN '_red' fE];
+            centroids.comment=sprintf('as %s, but latitude -60..60 and dense points only closer than 500km to coast, coarse grid also inland',fN);
+            fprintf('> saving reduced (%i insted of %i centroids) global isimip centroids in %s\n',...
+                n_centroids,length(pos),full_centroids_file_red);
+            save(full_centroids_file_red,'centroids')
+            centroids=centroids_full; centroids_full=[]; % keep going with full set
+        end
+        
     else
         fprintf('> Warning: unable to create proper global centroids (no NatId_file), using RAW method\n');
         centroids.lon=vectlon;
@@ -303,7 +322,7 @@ end % exist(centroids_file,'file')
 entity=climada_entity_load(entity_template);
 
 if strcmpi(ISO3,'ALL_IN_ONE')
-        
+    
     entity.assets.filename=[climada_global.entities_dir filesep 'GLB_isimip_entity'];
     
     entity.assets.ISO3_list=ISO3_list;
@@ -362,16 +381,16 @@ else
         NatId=cell2mat(ISO3_list(iso3_pos,2));
         entity.assets.ISO3_list=ISO3_list(iso3_pos,:); % store the list
     end % ~isempty(iso3_pos)
-            
+    
     if iscell(ISO3),ISO3_char=cell2mat(ISO3);else ISO3_char=ISO3;end
     
-    NatId_pos=[]; % init 
+    NatId_pos=[]; % init
     if exist(params.NatId_filename,'file')
         if sum(abs(size(nc.var1(:,:,1))-size(nc.NatIdGrid))) == 0 % grid sizes the same
             NatId_pos=ismember(nc.NatIdVect,NatId); % return all positions
             entity.assets.NatId=nc.NatIdVect(NatId_pos); % store the NatId grid
             n_centroids=sum(NatId_pos); % logical
-
+            
             if verbose,fprintf(' %i NatId grid cells within country %s (conversion min/max: %2.1f/%2.1f)\n',...
                     n_centroids,ISO3_char,min(nc.conversion_factor(NatId_pos)),max(nc.conversion_factor(NatId_pos)));end
         else
@@ -415,7 +434,7 @@ else
         entity.assets.lat=vectlat(NatId_pos);
         
         entity.assets.centroid_index=centroids.centroid_ID(NatId_pos(nc.land_point));
-
+        
         if verbose,fprintf(' extracting %i centroids at %i times ...',n_centroids,n_times);end
         entity.assets.Values=zeros(n_times,n_centroids);
         for time_i=1:n_times
