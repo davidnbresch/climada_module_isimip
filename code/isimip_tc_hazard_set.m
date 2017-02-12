@@ -96,6 +96,7 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,verbos
 % david.bresch@gmail.com, 20170121, memory use optimized (intensity), coastal_centroids introduced
 % david.bresch@gmail.com, 20170121, annotation_str
 % david.bresch@gmail.com, 20170202, noparfor -> climada_global.parfor
+% david.bresch@gmail.com, 20170212, climada_progress2stdout
 %-
 
 hazard=[]; % init
