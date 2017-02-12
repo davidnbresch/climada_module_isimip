@@ -266,11 +266,6 @@ hazard.dd               = zeros(1,n_tracks);
 hazard.datenum          = zeros(1,n_tracks);
 hazard.scenario         = hazard_scenario;
 
-% allocate the hazard array (sparse, to manage MEMORY)
-intensity = spalloc(n_tracks,n_centroids,...
-    ceil(n_tracks*n_centroids*hazard_arr_density));
-%intensity = zeros(n_tracks,n_centroids); % FASTER
-
 if isfield(centroids,'distance2coast_km')
     coastal_pos=find(centroids.distance2coast_km<centroid_inland_max_dist_km);
     coastal_centroids.lon=centroids.lon(coastal_pos);
@@ -278,17 +273,22 @@ if isfield(centroids,'distance2coast_km')
     coastal_centroids.centroid_ID=centroids.centroid_ID(coastal_pos);
     n_coastal_centroids=length(coastal_centroids.lon);
     if verbose_mode,fprintf('restricting to coastal %i km (%i%% of all centroids)\n',centroid_inland_max_dist_km,ceil(n_coastal_centroids/n_centroids*100));end
-    n_centroids=n_coastal_centroids;
 else
     coastal_centroids=centroids;
     coastal_pos=1:n_centroids;
+    n_coastal_centroids=n_centroids;
 end
+
+% allocate the hazard array (sparse, to manage MEMORY)
+intensity = spalloc(n_tracks,n_centroids,...
+    ceil(n_tracks*n_coastal_centroids*hazard_arr_density));
+%intensity = zeros(n_tracks,n_centroids); % FASTER ,but MEMORY?
 
 if verbose_mode
     if climada_global.parfor
-        fprintf('processing %i tracks @ %i centroids (isimip, parfor)\n',n_tracks,n_centroids);
+        fprintf('processing %i tracks @ %i centroids (isimip, parfor)\n',n_tracks,n_coastal_centroids);
     else
-        fprintf('processing %i tracks @ %i centroids (isimip)\n',n_tracks,n_centroids);
+        fprintf('processing %i tracks @ %i centroids (isimip)\n',n_tracks,n_coastal_centroids);
     end
 end
 
@@ -303,34 +303,16 @@ t0=clock;
 
 if climada_global.parfor
     parfor track_i=1:n_tracks
-        %intensity(track_i,:) = climada_tc_windfield(tc_track(track_i),centroids,0,1,0);
-        %intensity(track_i,:) = isimip_windfield_holland(tc_track(track_i),centroids,0,1,0);
         intensity(track_i,coastal_pos) = sparse(isimip_windfield_holland(tc_track(track_i),coastal_centroids,0,1,0));
     end %track_i
 else
-    mod_step=10;format_str='%s'; % init progress update
+    if verbose_mode,climada_progress2stdout;end    % init
     for track_i=1:n_tracks
-        %intensity(track_i,:) = climada_tc_windfield(tc_track(track_i),centroids,0,1,0);
-        %intensity(track_i,:) = isimip_windfield_holland(tc_track(track_i),centroids,0,1,0);
         intensity(track_i,coastal_pos) = sparse(isimip_windfield_holland(tc_track(track_i),coastal_centroids,0,1,0));
         
-         % following block only for progress measurement (waitbar or stdout)
-        if mod(track_i,mod_step)==0
-            mod_step          = 100;
-            t_elapsed_track   = etime(clock,t0)/track_i;
-            tracks_remaining  = n_tracks-track_i;
-            t_projected_sec   = t_elapsed_track*tracks_remaining;
-            if t_projected_sec<60
-                msgstr = sprintf('est. %3.0f sec left (%i/%i tracks)',t_projected_sec,   track_i,n_tracks);
-            else
-                msgstr = sprintf('est. %3.1f min left (%i/%i tracks)',t_projected_sec/60,track_i,n_tracks);
-            end
-            if verbose_mode,fprintf(format_str,msgstr);end
-            format_str=[repmat('\b',1,length(msgstr)) '%s'];
-        end
-        
+         if verbose_mode,climada_progress2stdout(track_i,n_tracks,100,'tracks');end
     end %track_i
-    if verbose_mode,fprintf(format_str,'');end % move carriage to begin of line
+    if verbose_mode,climada_progress2stdout(0);end % terminate
 end % climada_global.parfor
 
 hazard.intensity=sparse(intensity); % store into struct, sparse() to be safe
