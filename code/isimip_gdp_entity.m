@@ -114,6 +114,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 % David N. Bresch, david.bresch@gmail.com, 20161123, checked for 2.5min
 % David N. Bresch, david.bresch@gmail.com, 20170205, renamed to isimip_gdp_entity, overhaul, conversion_factor, params
 % David N. Bresch, david.bresch@gmail.com, 20170209, 0150as files updated
+% David N. Bresch, david.bresch@gmail.com, 20170215, ISO3 sorted, if a list
 %-
 
 entity=[]; % init output
@@ -382,7 +383,12 @@ else
         entity.assets.ISO3_list=ISO3_list(iso3_pos,:); % store the list
     end % ~isempty(iso3_pos)
     
-    if iscell(ISO3),ISO3_char=cell2mat(ISO3);else ISO3_char=ISO3;end
+    if iscell(ISO3) % more than one country
+        ISO3=sort(ISO3); % sort to have alphabetical order
+        ISO3_char=cell2mat(ISO3);
+    else
+        ISO3_char=ISO3;
+    end
     
     NatId_pos=[]; % init
     if exist(params.NatId_filename,'file')
