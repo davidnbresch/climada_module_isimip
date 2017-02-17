@@ -19,34 +19,34 @@ function [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard,params)
 %   previous call: isimip_gdp_entity and e.g. isimip_flood_load
 %   next call: isimip_YDS_table
 % CALLING SEQUENCE:
-%   [YDS,RDS,EDS_stats]=isimip_YDS_calc(entity,hazard,params)
+%   [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard,params)
 % EXAMPLE:
 %   one country:
 %   entity=isimip_gdp_entity('DEU') % create single country entity
 %   entity=climada_entity_load('DEU_entity') % load DEU entity
 %   hazard=isimip_flood_load('global_FL.nc','auto',entity,0); % create DEU FL hazard set
-%   [YDS,RDS,EDS_stats]=isimip_YDS_calc(entity,hazard,1);
+%   [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard,1);
 %
 %   entity=isimip_gdp_entity('USA') % create single country entity
 %   entity=climada_entity_load('USA_entity') % load entity
 %   hazard=isimip_flood_load('global_FL.nc','auto',entity,0); % create USA FL hazard set
-%   [YDS,RDS,EDS_stats]=isimip_YDS_calc(entity,hazard);
+%   [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard);
 %
 %   entity=isimip_gdp_entity('USA') % create single country entity
 %   entity=climada_entity_load('USA_entity') % load entity
 %   hazard=climada_hazard_load('GLB_glb_TC'); % see isimip_tc_hazard_set
-%   [YDS,RDS,EDS_stats]=isimip_YDS_calc(entity,hazard);
+%   [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard);
 %
 %   entity=isimip_gdp_entity({'PRI','DOM','BRB','CUB'}) % create single country entity
 %   entity=climada_entity_load('BRBCUBDOMPRI') % load entity
 %   hazard=climada_hazard_load('GLB_0360as_TC'); % see isimip_tc_hazard_set
-%   [YDS,RDS,EDS_stats]=isimip_YDS_calc(entity,hazard);
+%   [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard);
 %
 %   list of countries:
 %   entity=isimip_gdp_entity({'DEU','ITA','FRA'}) % create entity for DEU ITA and FRA
 %   entity=climada_entity_load('DEUITAFRA_entity') % load DEU entity
 %   hazard=isimip_flood_load('global_FL.nc','auto',entity,0); % create DEU FL hazard set
-%   [YDS,RDS,EDS_stats]=isimip_YDS_calc(entity,hazard);
+%   [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard);
 % INPUTS:
 %   entity: an isimip entity (i.e. an entity with entity.assets.Values for
 %       many years). Needs to contain the following additional a fields:
@@ -83,6 +83,7 @@ function [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard,params)
 % David N. Bresch, david.bresch@gmail.com, 20161120, initial
 % David N. Bresch, david.bresch@gmail.com, 20170107, damage_at_centroid
 % David N. Bresch, david.bresch@gmail.com, 20170216, EDS(country_i) returned
+% David N. Bresch, david.bresch@gmail.com, 20170217, simplified
 %-
 
 YDS=[];EDS=[];stats=[]; % init output
@@ -329,5 +330,13 @@ damage_function_regions=climada_csvread(params.damage_function_regions_file);
 % ID: [1x230 double]
 % Reg_ID: [1x230 double]
 % Reg_name: {1x230 cell}
+
+params.damage_data_file=[climada_global.data_dir filesep 'isimip' filesep 'matching_Natcat-damages_ibtracs_1980-2014.csv'];
+% commas within fields
+damage_data=climada_csvread(params.damage_data_file);
+
+params.price_deflator_file=[climada_global.data_dir filesep 'isimip' filesep 'GDP_deflator_converted_base2005_1969-2016_source_BEA.csv'];
+deflator_data=climada_csvread(params.price_deflator_file);
+deflator_value=1./(deflator_data.GDP_deflator_base2005/100);
 
 end % isimip_YDS_calc

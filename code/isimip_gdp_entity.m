@@ -5,15 +5,21 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 % NAME:
 %   isimip_gdp_entity
 % PURPOSE:
-%   create the entity based on isimip GDP or population data.
+%   create the entity based on isimip GDP (and add population data).
 %
-%   Reads the GDP or population grid (per time, usually once per year) from
-%   data_filename, multiplies with the conversion_factor (per gridcell)
-%   from conversion_filename and stores into climada
+%   Reads the GDP grid (per time, usually once per year) from
+%   val_filename, multiplies with the conversion_factor (per gridcell)
+%   from con_filename and stores into climada
 %   entity.assets.Values(i,j) for year i and centroid j. The code maps to
 %   the GLOBAL centroids, such that one can generate one (global) hazard
 %   set and all single/multi country entities run properly (see
 %   entity.assets.centroid_index on otuput below).
+%
+%   If the matching population netCDF file exists (pop_filename), the variable
+%   entity.assets.Population(i,j) contains the populaiton (number of people
+%   per centroid) for year i and centroid j.  Note that year i matches with
+%   year i of entity.assets.Values, i.e. Population is only stored for
+%   years with Values.
 %
 %   Please be PATIENT the first time you run this code, as it generates the
 %   global reference grid, where calculation of distance to coast for all
@@ -45,6 +51,13 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %   entity=isimip_gdp_entity({'DEU','FRA','ITA'}) % multi country entity
 %   entity=isimip_gdp_entity('ALL_IN_ONE') % one global entity
 %   params=isimip_gdp_entity('params') % get default parameters
+%   % to check population for year 2030:
+%   params.plot_population=1;params.year=2030;climada_entity_plot(entity,2,params)
+%
+%   % store the hazard also into the entity for special isimip use
+%   params.hazard_file='GLB_0360as_TC_hist';
+%   entity=isimip_gdp_entity('BRB',params)
+% INPUTS:
 % INPUTS:
 %   ISO3: the ISO3 country code, e.g. 'DEU' or 'FRA' or {'DEU','FRA'} to
 %       combine two countries in one entity (the entity still knows which
@@ -60,20 +73,23 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %           first output, already.
 % OPTIONAL INPUT PARAMETERS:
 %   params: a structure with fields (see also ISO3='params' above):
-%    data_filename: filename of the .nc file with the GDP or population values
+%    val_filename: filename of the .nc file with the (annual) GDP values
 %       ='0360as': use 0.1 degree default file (default, set in PARAMETERS)
 %       ='0150as': use 2.5 minutes default file (set in PARAMETERS)
 %       If only a filename (without path) is passed, isimip_data_dir (set
 %       in PARAMETERS) is prepended
-%    conversion_filename: filename of the .nc file with the conversion
+%    pop_filename: filename of the .nc file with the population values
+%       if not existing, population is not written into the entity. Same
+%       conventions as for val_filename apply
+%    con_filename: filename of the .nc file with the conversion
 %       factor from either GDP or population to assets (per gridpoint)
-%       if data_filename is one of the short names, conversion_filename is
+%       if val_filename is one of the short names, con_filename is
 %       set to the corresponding file, if empty on input. Default set in
 %       PARAMETERS. If only a filename (without path) is passed,
 %       isimip_data_dir (set in PARAMETERS) is prepended.
 %    NatId_filename: filename of the .nc file with the national grid IDs (to
 %       assign grid cells to countries). Default set in PARAMETERS
-%       if data_filename is one of the short names, NatId_filename is
+%       if val_filename is one of the short names, NatId_filename is
 %       set to the corresponding file, if empty on input
 %       To avoid using NatId and just use the grid cells within a country
 %       shape, set NatId_filename='ignore', but if ISO3='ALL_IN_ONE', NatId
@@ -81,8 +97,6 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %       If only a filename (without path) is passed, isimip_data_dir (set
 %       in PARAMETERS) is prepended .
 %    check_plot: whether show a check plot (=1, default), or not (=0)
-% % %    time_t0: to set the first year (as variable 'time' does not contain it)
-% % %       default=1980, if time(1)<1800|>2100, otherwise time_t0=0
 %    distance_to_coast: whether we calculate distant to coast (in km) of
 %       call centroids (default=1), which speeds up later climada calculations
 %       substantially (as coastal hazards need not to be evaluated at
@@ -90,6 +104,14 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %       calculation might easily take 1h (we're talking about millions of
 %       centroids... but since climada_distance2coast_km listens to
 %       climada_global.parfor, set climada_global.parfor=1 for speedup).
+%    hazard_file: if the name of a valid hazard event set, join the hazard
+%       intensity as field entity.hazard.intensity(event_i,centroids) and
+%       the field entity.hazard.yyyy(event_i) to contain the year of the
+%       event_i. Since we use climada_hazard_load, hazard_file does neither
+%       to contain the path nor the .mat extension, e.g.
+%       ='GLB_0360as_TC_hist' is ok.
+%    hazard_match: if=1, match assets (population) and hazard, i.e. only
+%       keep data for years we have all three. Default=1
 % OUTPUTS:
 %   entity: a climada entity structure, see climada_entity_read for a full
 %       description of all fields
@@ -102,19 +124,35 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %       entity.assets.NatId: the isimip country number for each centroid
 %       entity.assets.ISO3_list: the list linking isimip country numbers
 %           in ISO3_list(:,2) with ISO names in ISO3_list(:,1)
-%       Note that entity.assets.centroid_index is already pointing to the
+%       entity.assets.centroid_index: is already pointing to the
 %           correct centroids in the corresponding global centroids file
 %           (as retunred in params.centroid_file), but the hazard is not
 %           set yet (instead of re-encoding, just define
 %           entity.assets.hazard yourself).
+%       entity.hazard: the hazard set just for the centroids as in assets
+%
+%   for direct isimip usage, you might mainly consider the fields
+%       note that we have assets at centroids for each year, hazard events within years
+%       entity.assets.lon(centroid_i): the longitude of each centroid
+%       entity.assets.lat(centroid_i): the latitude of each centroid
+%       entity.assets.Values(year_i,centroid_i): asset value for year_i at centroid_i
+%       entity.assets.Values_yyyy(year_i): the years
+%       entity.assets.Population(year_i,centroid_i): population for year_i at centroid_i
+%       entity.hazard.intensity(event_i,centroid_i): the hazard intensity for event_i at centroid_i
+%       entity.hazard.yyyy(event_i): the year of event_i, e.g.
+%           pos=find(entity.hazard.yyyy==entity.assets.Values_yyyy(1)) gives all events in first year of assets
+%       entity.hazard.name{event_i}: the ibtracsID (such as 1950058S20114)
+%       entity.hazard.ID_no(event_i): ibtracsID as number, such as 1971275N10176 -> 1971275.10176
+%
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20161017, initial
 % David N. Bresch, david.bresch@gmail.com, 20161120, ALL_IN_ONE added
 % David N. Bresch, david.bresch@gmail.com, 20161121, list of ISO3 allowed
 % David N. Bresch, david.bresch@gmail.com, 20161123, checked for 2.5min
-% David N. Bresch, david.bresch@gmail.com, 20170205, renamed to isimip_gdp_entity, overhaul, conversion_factor, params
+% David N. Bresch, david.bresch@gmail.com, 20170205, renamed to isimip_gdp_entity, overhaul, con_factor, params
 % David N. Bresch, david.bresch@gmail.com, 20170209, 0150as files updated
 % David N. Bresch, david.bresch@gmail.com, 20170215, ISO3 sorted, if a list
+% David N. Bresch, david.bresch@gmail.com, 20170217, pop_filename, hazard_file
 %-
 
 entity=[]; % init output
@@ -128,13 +166,15 @@ if ~exist('ISO3','var'),   ISO3   = '';end
 if ~exist('params','var'), params = struct;end
 
 % check for some parameter fields we need
-if ~isfield(params,'data_filename'),      params.data_filename='';end
-if ~isfield(params,'conversion_filename'),params.conversion_filename='';end
+if ~isfield(params,'val_filename'),       params.val_filename='';end
+if ~isfield(params,'con_filename'),       params.con_filename='';end
+if ~isfield(params,'pop_filename'),       params.pop_filename='';end
 if ~isfield(params,'NatId_filename'),     params.NatId_filename='';end
 if ~isfield(params,'check_plot'),         params.check_plot=[];end
-% if ~isfield(params,'time_t0'),            params.time_t0=[];end
 if ~isfield(params,'distance_to_coast'),  params.distance_to_coast=[];end
 if ~isfield(params,'centroids_file'),     params.centroids_file='';end % output only
+if ~isfield(params,'hazard_file'),        params.hazard_file='';end
+if ~isfield(params,'hazard_match'),       params.hazard_match=[];end
 
 % PARAMETERS
 %
@@ -148,15 +188,19 @@ if ~isdir(isimip_data_dir)
 end
 %
 % define default filenames for population or gdp, conversion and country number (NatId)
-%data_filename0360as =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0360as_yearly_zip.nc'];data_variable_name='var1';
-data_filename0360as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0360as_remapnn_yearly.nc'];data_variable_name='gdp_grid';
-conversion_filename0360as=[isimip_data_dir filesep 'GDP2Asset_converter_0360as_adv_1.nc']; % conversion_factor
-%NatId_filename0360as=[isimip_data_dir filesep 'Nat_id_grid_0360as.nc']; % no tolerance arund borders
+%val_filename0360as =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0360as_yearly_zip.nc'];val_variable_name='var1';
+val_filename0360as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0360as_remapnn_yearly.nc'];
+val_variable_name='gdp_grid';
+con_filename0360as=[isimip_data_dir filesep 'GDP2Asset_converter_0360as_adv_1.nc'];
+con_variable_name='conversion_factor';
+pop_filename0360as =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0360as_yearly_zip.nc'];
+pop_variable_name='var1';
 NatId_filename0360as=[isimip_data_dir filesep 'Nat_id_grid_0360as_adv_1.nc'];
 %
-%data_filename0150as =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0150as_yearly_zip.nc4']; % data_variable_name='var1';
-data_filename0150as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc']; % data_variable_name='var1';
-conversion_filename0150as=[isimip_data_dir filesep 'GDP2Asset_converter_0150as.nc']; % conversion_factor
+%val_filename0150as =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0150as_yearly_zip.nc4']; % val_variable_name='var1';
+val_filename0150as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc']; % val_variable_name='var1';
+con_filename0150as=[isimip_data_dir filesep 'GDP2Asset_converter_0150as.nc']; % con_factor
+pop_filename0150as =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0150as_yearly_zip.nc']; % pop_variable_name='gdp_grid';
 NatId_filename0150as=[isimip_data_dir filesep 'Nat_id_grid_0150as.nc'];
 %
 centroids_file=[climada_global.data_dir filesep 'centroids' filesep 'GLB_']; % Nat_id_grid name will be appended
@@ -172,26 +216,28 @@ TEST_mode=0; % default=0
 %
 % populate default parameters in params
 if isempty(params.check_plot),        params.check_plot=0;end
-% if isempty(params.time_t0),           params.time_t0=[];end
 if isempty(params.distance_to_coast), params.distance_to_coast=1;end
+if isempty(params.hazard_match),      params.hazard_match=1;end
 
 if strcmpi(ISO3,'params'),entity=params;return;end % special case, return the full params structure
 
-if isempty(params.data_filename),params.data_filename='0360as';end
+if isempty(params.val_filename),params.val_filename='0360as';end
 
-if strcmpi(params.data_filename,'0360as')
-    params.data_filename=data_filename0360as;
-    if isempty(params.conversion_filename),params.conversion_filename=conversion_filename0360as;end
+if strcmpi(params.val_filename,'0360as')
+    params.val_filename  = val_filename0360as;
+    params.pop_filename = pop_filename0360as;
+    if isempty(params.con_filename),params.con_filename=con_filename0360as;end
     if isempty(params.NatId_filename),params.NatId_filename=NatId_filename0360as;end
-elseif strcmpi(params.data_filename,'0150as')
-    params.data_filename=data_filename0150as;
-    if isempty(params.conversion_filename),params.conversion_filename=conversion_filename0150as;end
+elseif strcmpi(params.val_filename,'0150as')
+    params.val_filename  = val_filename0150as;
+    params.pop_filename = pop_filename0150as;
+    if isempty(params.con_filename),params.con_filename=con_filename0150as;end
     if isempty(params.NatId_filename),params.NatId_filename=NatId_filename0150as;end
 end
 
 % prepend isimip_data_dir in case only filenames are passed
-if ~exist(params.data_filename,'file'),params.data_filename=[isimip_data_dir filesep params.data_filename];end
-if ~exist(params.conversion_filename,'file'),params.conversion_filename=[isimip_data_dir filesep params.conversion_filename];end
+if ~exist(params.val_filename,'file'),params.val_filename=[isimip_data_dir filesep params.val_filename];end
+if ~exist(params.con_filename,'file'),params.con_filename=[isimip_data_dir filesep params.con_filename];end
 if ~exist(params.NatId_filename,'file'),params.NatId_filename=[isimip_data_dir filesep params.NatId_filename];end
 
 % read the population or GDP data
@@ -199,7 +245,7 @@ if ~exist(params.NatId_filename,'file'),params.NatId_filename=[isimip_data_dir f
 % -------------------------------
 
 % first, figure the variable name for the data
-nc.info=ncinfo(params.data_filename);
+nc.info=ncinfo(params.val_filename);
 
 % figure value units
 Values_factor=1;
@@ -208,32 +254,51 @@ try
         Values_factor=1e9;
     end
 catch
-    if verbose,fprintf('Warning: Determining Value unit from nc failed\n');end
+    if verbose,fprintf('WARNING: Determining Value unit from nc failed\n');end
 end % try
-if verbose,fprintf('Values factor f=%g (climada Values=f * Values from nc)\n',Values_factor);end
+if verbose,fprintf('Values factor f=%g (climada asset value = f * original value from file)\n',Values_factor);end
 
 for i=1:length(nc.info.Variables)
-    if strcmpi(nc.info.Variables(i).Name,'var1'),data_variable_name='var1';end
-    if strcmpi(nc.info.Variables(i).Name,'gdp_grid'),data_variable_name='gdp_grid';end
+    if strcmpi(nc.info.Variables(i).Name,'var1'),val_variable_name='var1';end
+    if strcmpi(nc.info.Variables(i).Name,'gdp_grid'),val_variable_name='gdp_grid';end
 end % i
 
-if verbose,fprintf('reading lon, lat, time and %s from %s ...',data_variable_name,params.data_filename);end
+if verbose,fprintf('reading lon, lat, time and %s from %s ...',val_variable_name,params.val_filename);end
 % if troubles, use ncinfo(flood_fraction_filename,'var') ...
-nc.lon       = ncread(params.data_filename,'lon')';
-nc.lat       = ncread(params.data_filename,'lat')';
-nc.time      = ncread(params.data_filename,'time')';
+nc.lon       = ncread(params.val_filename,'lon')';
+nc.lat       = ncread(params.val_filename,'lat')';
+nc.time      = ncread(params.val_filename,'time')';
 n_times      = length(nc.time);
 if TEST_mode,n_times=min(3,n_times);nc.time=nc.time(1:n_times);end % TEST mode, read only few times
-nc.var1      = ncread(params.data_filename,data_variable_name,[1 1 1],[Inf Inf 1]); % only one time slab
+temp_data      = ncread(params.val_filename,val_variable_name,[1 1 1],[Inf Inf 1]); % only one time slab
 if verbose,fprintf(' done\n');end
 
-if verbose,fprintf('reading conversion_factor from %s\n',params.conversion_filename);end
-nc.conversion_factor = ncread(params.conversion_filename,'conversion_factor');
-if sum(abs(size(nc.var1)-size(nc.conversion_factor)))>0
-    fprintf('Error: sizes of %s and conversion_factor do not match, aborted\n',data_variable_name);
+% make sure time is useful
+time_val_yyyy=zeros(1,n_times); % init
+for i=1:n_times
+    time_val_yyyy(i)=str2double(datestr(nc.time(i)+datenum(1950,1,1)+1,'yyyy'));
+end
+if time_val_yyyy(1)<1860 || time_val_yyyy(1)>2100 % strange content of nc.time
+    time_val_yyyy=1980+(1:n_times);
+    fprintf('WARNING: years hard wired to %i..%i\n',time_val_yyyy(1),time_val_yyyy(end))
+end
+
+if verbose,fprintf('reading %s from %s',con_variable_name,params.con_filename);end
+nc.con_factor = ncread(params.con_filename,con_variable_name);
+if sum(abs(size(temp_data)-size(nc.con_factor)))>0
+    fprintf('\nError: sizes of %s and %s do not match, aborted\n',val_variable_name,con_variable_name);
     return
 else
-    fprintf('  conversion_factor, global min/max = %2.2g %2.2g\n',min(min(nc.conversion_factor)),max(max(nc.conversion_factor)));
+    fprintf(', min/max: %2.2g/%2.2g\n',min(min(nc.con_factor)),max(max(nc.con_factor)));
+end
+
+if exist(params.pop_filename,'file')
+    if verbose,fprintf('reading population from %s\n',params.pop_filename);end
+    nc.time_pop=ncread(params.pop_filename,'time')';
+    
+    % currently hard-wired (as not properly defined in netCDF (there time just = 1..n)
+    time_pop_yyyy=1860-1+(1:length(nc.time_pop));
+    fprintf('WARNING: population years hard wired to %i..%i\n',time_pop_yyyy(1),time_pop_yyyy(end))
 end
 
 ISO3_list=isimip_ISO3_list; % get the mapping ISO3 - isimip country code
@@ -251,7 +316,7 @@ if exist(params.NatId_filename,'file')
     nc.NatIdVect = reshape(nc.NatIdGrid,[1 numel(nc.NatIdGrid)]); % as 1-D vect
     nc.land_point= ~isnan(nc.NatIdVect); % find land points in grid
 else
-    fprintf('Warning (severe), file not found: %s\n',params.NatId_filename)
+    fprintf('WARNING (severe), file not found: %s\n',params.NatId_filename)
     fprintf('> might lead to (serious trouble)\n')
 end
 
@@ -309,7 +374,7 @@ else
         end
         
     else
-        fprintf('> Warning: unable to create proper global centroids (no NatId_file), using RAW method\n');
+        fprintf('WARNING: unable to create proper global centroids (no NatId_file), using RAW method\n');
         centroids.lon=vectlon;
         centroids.lat=vectlat;
         centroids.centroid_ID=1:length(centroids.lat); % define the RAW GLOBAL centroid_ID
@@ -334,14 +399,26 @@ if strcmpi(ISO3,'ALL_IN_ONE')
     entity.assets.centroid_index=centroids.centroid_ID(1:length(entity.assets.lat));
     
     n_centroids=sum(sum(nc.land_point));
-    if verbose,fprintf('> extracting %i land points at %i times ...',n_centroids,n_times);end
+    if verbose,fprintf('> extracting %i land points at %i times (%i..%i) ...',n_centroids,n_times,time_val_yyyy(1),time_val_yyyy(end));end
     entity.assets.Values=zeros(n_times,n_centroids);
+    if ~isempty(time_pop_yyyy),entity.assets.Population=zeros(n_times,n_centroids);end
     for time_i=1:n_times
-        temp_data=ncread(params.data_filename,data_variable_name,[1 1 time_i],[Inf Inf 1]); % only one time slab
-        temp_data=temp_data.*nc.conversion_factor; % aply conversion factor
+        temp_data=ncread(params.val_filename,val_variable_name,[1 1 time_i],[Inf Inf 1]); % only one time slab
+        temp_data=temp_data.*nc.con_factor; % aply conversion factor
         temp_data=reshape(temp_data,[1 numel(temp_data)]); % as 1-D vect
-        temp_data=temp_data(nc.land_point); % constrain to land
-        entity.assets.Values(time_i,:)=temp_data; % store
+        entity.assets.Values(time_i,:)=temp_data(nc.land_point); % constrain to land
+        
+        if ~isempty(time_pop_yyyy)
+            pop_time_i=find(time_pop_yyyy==time_val_yyyy(time_i));
+            if length(pop_time_i)==1
+                temp_data=ncread(params.pop_filename,pop_variable_name,[1 1 pop_time_i],[Inf Inf 1]); % only one time slab
+                temp_data=reshape(temp_data,[1 numel(temp_data)]); % as 1-D vect
+                entity.assets.Population(time_i,:)=temp_data(nc.land_point); % constrain to land
+            else
+                if verbose,fprintf('WARNING: no population for year %i',time_val_yyyy(time_i));end
+            end
+        end % population
+        
     end  % time_i
     if verbose,fprintf(' done\n');end
     
@@ -354,8 +431,8 @@ else
         if verbose,fprintf('processing %i countries (producing single country entity files)\n',length(ISO3_list));end
         for iso3_i=1:length(ISO3_list)
             ISO3=ISO3_list(iso3_i,1);
-            local_params.data_filename=data_filename;
-            local_params.conversion_filename=conversion_filename;
+            local_params.val_filename=val_filename;
+            local_params.con_filename=con_filename;
             local_params.NatId_filename=NatId_filename;
             local_params.check_plot=check_plot;
             entity=isimip_gdp_entity(ISO3,local_params);
@@ -392,18 +469,18 @@ else
     
     NatId_pos=[]; % init
     if exist(params.NatId_filename,'file')
-        if sum(abs(size(nc.var1(:,:,1))-size(nc.NatIdGrid))) == 0 % grid sizes the same
+        if sum(abs(size(temp_data(:,:,1))-size(nc.NatIdGrid))) == 0 % grid sizes the same
             NatId_pos=ismember(nc.NatIdVect,NatId); % return all positions
             entity.assets.NatId=nc.NatIdVect(NatId_pos); % store the NatId grid
             n_centroids=sum(NatId_pos); % logical
             
-            if verbose,fprintf(' %i NatId grid cells within country %s (conversion min/max: %2.1f/%2.1f)\n',...
-                    n_centroids,ISO3_char,min(nc.conversion_factor(NatId_pos)),max(nc.conversion_factor(NatId_pos)));end
+            if verbose,fprintf('%i NatId grid cells within country %s (conversion min/max: %2.1f/%2.1f)\n',...
+                    n_centroids,ISO3_char,min(nc.con_factor(NatId_pos)),max(nc.con_factor(NatId_pos)));end
         else
-            fprintf('Warning: grid sizes do not match, 2nd approach (shape)\n');
+            fprintf('WARNING: grid sizes do not match, 2nd approach (shape)\n');
         end
     else
-        fprintf('Warning: NatIdGrid file not found, 2nd approach (shape)\n');
+        fprintf('WARNING: NatIdGrid file not found, 2nd approach (shape)\n');
     end
     
     if isempty(NatId_pos) && ~iscell(ISO3) % 2nd try, using shapes
@@ -441,17 +518,32 @@ else
         
         entity.assets.centroid_index=centroids.centroid_ID(NatId_pos(nc.land_point));
         
-        if verbose,fprintf(' extracting %i centroids at %i times ...',n_centroids,n_times);end
+        if verbose,fprintf('> extracting %i centroids at %i times (%i..%i) ...',n_centroids,n_times,time_val_yyyy(1),time_val_yyyy(end));end
         entity.assets.Values=zeros(n_times,n_centroids);
+        if ~isempty(time_pop_yyyy),entity.assets.Population=zeros(n_times,n_centroids);end
         for time_i=1:n_times
-            temp_data=ncread(params.data_filename,data_variable_name,[1 1 time_i],[Inf Inf 1]); % only one time slab
-            temp_data=temp_data.*nc.conversion_factor; % aply conversion factor
+            temp_data=ncread(params.val_filename,val_variable_name,[1 1 time_i],[Inf Inf 1]); % only one time slab
+            temp_data=temp_data.*nc.con_factor; % aply conversion factor
             temp_data=reshape(temp_data,[1 numel(temp_data)]); % convert to 1D
             entity.assets.Values(time_i,:)=temp_data(NatId_pos); % store
+            
+            if ~isempty(time_pop_yyyy)
+                pop_time_i=find(time_pop_yyyy==time_val_yyyy(time_i));
+                if length(pop_time_i)==1
+                    temp_data=ncread(params.pop_filename,pop_variable_name,[1 1 pop_time_i],[Inf Inf 1]); % only one time slab
+                    temp_data=reshape(temp_data,[1 numel(temp_data)]); % as 1-D vect
+                    entity.assets.Population(time_i,:)=temp_data(NatId_pos); % store
+                else
+                    if verbose,fprintf('WARNING: no population for year %i',time_val_yyyy(time_i));end
+                end
+                
+            end % population
+            
         end  % time_i
         if verbose,fprintf(' done\n');end
         
-        entity.assets.isimip_comment='isimip entity, entity.assets.Value and entity.assets.Values not modified (yet)';
+        
+        entity.assets.isimip_comment=sprintf('isimip entity, created %s',datestr(now));
         
     end % ~isempty(NatId_pos)
     
@@ -459,15 +551,7 @@ end % ALL_IN_ONE
 
 if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
     
-    entity.assets.Values_yyyy=zeros(1,n_times); % init
-    for i=1:n_times
-        entity.assets.Values_yyyy(i)=str2double(datestr(nc.time(i)+datenum(1950,1,1)+1,'yyyy'));
-    end
-    if entity.assets.Values_yyyy(1)<1860 || entity.assets.Values_yyyy(1)>2100 % strange content of nc.time
-        entity.assets.Values_yyyy=1980+(1:n_times);
-        fprintf('Warning: Values_yyyy hard wired to %i..%i\n',entity.assets.Values_yyyy(1),entity.assets.Values_yyyy(end))
-    end
-    if verbose,fprintf('timestamp %i .. %i\n',entity.assets.Values_yyyy(1),entity.assets.Values_yyyy(end));end
+    entity.assets.Values_yyyy=time_val_yyyy;
     
     % convert currency units
     entity.assets.Values=entity.assets.Values*Values_factor;
@@ -485,24 +569,68 @@ if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
     
     if isfield(entity.assets,'Value_unit'),entity.assets=rmfield(entity.assets,'Value_unit');end
     if isfield(entity.assets,'hazard'),entity.assets=rmfield(entity.assets,'hazard');end
-    entity.assets.centroids_file=params.centroids_file; % store the centroid origin
     
     entity.assets = climada_assets_complete(entity.assets);
     
     % add the source files
-    entity.assets.data_filename =params.data_filename;
-    entity.assets.NatId_filename=params.NatId_filename;
+    entity.assets.centroids_file=params.centroids_file; % store the centroid origin
+    entity.assets.isimip_gdp_entity_params=params; % to really keep track
     
-    if verbose,fprintf('saving entity as %s\n',entity.assets.filename);end
+    if ~isempty(params.hazard_file)
+        hazard=climada_hazard_load(params.hazard_file);
+        if ~isempty(hazard)
+            entity.hazard.intensity = hazard.intensity(:,entity.assets.centroid_index);
+            entity.hazard.fraction  = hazard.fraction(:,entity.assets.centroid_index);
+            entity.hazard.yyyy      = hazard.yyyy;
+            entity.hazard.name      = hazard.name;
+            entity.hazard.comment   = hazard.comment;
+            entity.hazard.peril_ID  = hazard.peril_ID;
+            entity.hazard.units     = hazard.units;
+            entity.hazard.filename  = hazard.filename;
+            entity.hazard.date      = hazard.date;
+            entity.hazard.annotation_str = hazard.annotation_str;
+            
+            fprintf('hazard joined from %s\n',params.hazard_file);
+            
+            if params.hazard_match
+                % reduce to the years we have assets and hazard
+                [common_yyyy,iasset]=intersect(entity.assets.Values_yyyy,entity.hazard.yyyy);
+                fprintf('both assets and hazard for years %i..%i\n',min(common_yyyy),max(common_yyyy));
+                hazard_pos=ismember(entity.hazard.yyyy,common_yyyy);
+                entity.hazard.yyyy      = hazard.yyyy(hazard_pos); % restrict to years
+                entity.hazard.intensity = hazard.intensity(hazard_pos,:);
+                entity.hazard.fraction  = hazard.fraction(hazard_pos,:);
+                entity.hazard.name      = hazard.name(hazard_pos);
+                entity.assets.Values    = entity.assets.Values(iasset,:);
+                entity.assets.Population= entity.assets.Population(iasset,:);
+                entity.assets.Values_yyyy= entity.assets.Values_yyyy(iasset);
+                if sum(abs(unique(entity.hazard.yyyy)-unique(entity.assets.Values_yyyy)))>0
+                    fprintf('WARNING: match between assets and hazard might be incomplete\n');
+                end
+            end % params.hazard_match
+            
+            % a unique ID, a number for faster comparison, hence convert 1950166N14262 to 1950166.14262
+            n_events=length(entity.hazard.name);
+            entity.hazard.ID_no=zeros(1,n_events);
+            for event_i=1:n_events
+                entity.hazard.ID_no(event_i)=str2double(entity.hazard.name{event_i}(1:7))+str2double(entity.hazard.name{event_i}(9:end))/100000;
+            end % event_i
+            
+        else
+            fprintf('WARNING: hazard not joined (%s not found)\n',params.hazard_file);
+        end
+    end % ~isempty(params.hazard_file)
+    
+    if verbose,fprintf('> saving entity as %s\n',entity.assets.filename);end
     save(entity.assets.filename,'entity','-v7.3'); % -v7.3 for size...
     
     if params.check_plot
         climada_entity_plot(entity);
         % plot the sum of assets per year
-        value_yearly_sum=sum(entity.assets.Values,2);
+        val_yearly_sum=sum(entity.assets.Values,2);
         [~,fN]=fileparts(entity.assets.filename);
         title_str=strrep(fN,'_entity','');
-        figure('Name','Values checksum','Color',[1 1 1]),bar(entity.assets.Values_yyyy,value_yearly_sum,'FaceColor',[0 .5 .5],'EdgeColor',[1 1 1]);
+        figure('Name','Values checksum','Color',[1 1 1]),bar(entity.assets.Values_yyyy,val_yearly_sum,'FaceColor',[0 .5 .5],'EdgeColor',[1 1 1]);
         axis tight;title(title_str);xlabel('years');ylabel('yearly sum of assets')
     end
 else
