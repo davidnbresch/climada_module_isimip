@@ -25,7 +25,7 @@ function [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard,params)
 %   entity=isimip_gdp_entity('DEU') % create single country entity
 %   entity=climada_entity_load('DEU_entity') % load DEU entity
 %   hazard=isimip_flood_load('global_FL.nc','auto',entity,0); % create DEU FL hazard set
-%   [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard,1);
+%   [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard);
 %
 %   entity=isimip_gdp_entity('USA') % create single country entity
 %   entity=climada_entity_load('USA_entity') % load entity
@@ -325,18 +325,10 @@ if params.check_plot
     fprintf('\n');
 end % params.check_plot
 
-damage_function_regions=climada_csvread(params.damage_function_regions_file);
+%damage_function_regions=climada_csvread(params.damage_function_regions_file);
 % ISO: {1x230 cell}
 % ID: [1x230 double]
 % Reg_ID: [1x230 double]
 % Reg_name: {1x230 cell}
-
-params.damage_data_file=[climada_global.data_dir filesep 'isimip' filesep 'matching_Natcat-damages_ibtracs_1980-2014.csv'];
-% commas within fields
-damage_data=climada_csvread(params.damage_data_file);
-
-params.price_deflator_file=[climada_global.data_dir filesep 'isimip' filesep 'GDP_deflator_converted_base2005_1969-2016_source_BEA.csv'];
-deflator_data=climada_csvread(params.price_deflator_file);
-deflator_value=1./(deflator_data.GDP_deflator_base2005/100);
 
 end % isimip_YDS_calc

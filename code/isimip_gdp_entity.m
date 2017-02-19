@@ -579,17 +579,31 @@ if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
     if ~isempty(params.hazard_file)
         hazard=climada_hazard_load(params.hazard_file);
         if ~isempty(hazard)
-            entity.hazard.intensity = hazard.intensity(:,entity.assets.centroid_index);
-            entity.hazard.fraction  = hazard.fraction(:,entity.assets.centroid_index);
-            entity.hazard.yyyy      = hazard.yyyy;
-            entity.hazard.name      = hazard.name;
-            entity.hazard.comment   = hazard.comment;
-            entity.hazard.peril_ID  = hazard.peril_ID;
-            entity.hazard.units     = hazard.units;
-            entity.hazard.filename  = hazard.filename;
-            entity.hazard.date      = hazard.date;
-            entity.hazard.annotation_str = hazard.annotation_str;
+            entity.hazard.lon             = hazard.lon(entity.assets.centroid_index);
+            entity.hazard.lat             = hazard.lat(entity.assets.centroid_index);
+            entity.hazard.centroid_ID     = hazard.centroid_ID(entity.assets.centroid_index);
+            entity.hazard.intensity       = hazard.intensity(:,entity.assets.centroid_index);
+            entity.hazard.fraction        = hazard.fraction(:, entity.assets.centroid_index);
+            entity.hazard.frequency       = hazard.frequency;
+            entity.hazard.yyyy            = hazard.yyyy;
+            entity.hazard.name            = hazard.name;
+            entity.hazard.comment         = hazard.comment;
+            entity.hazard.peril_ID        = hazard.peril_ID;
+            entity.hazard.units           = hazard.units;
+            entity.hazard.filename        = hazard.filename;
+            entity.hazard.date            = hazard.date;
+            entity.hazard.annotation_str  = hazard.annotation_str;
+            % follow non-key fields, but easier to keep full hazard structure
+            entity.hazard.reference_year  = hazard.reference_year;
+            entity.hazard.orig_years      = hazard.orig_years;
+            entity.hazard.orig_event_count= hazard.orig_event_count;
+            entity.hazard.event_count     = hazard.event_count;
+            entity.hazard.event_ID        = hazard.event_ID;
+            entity.hazard.orig_event_flag = hazard.orig_event_flag;
             
+            entity.assets.global_centroid_index=entity.assets.centroid_index; % the index into the full hazard set (backup)
+            entity.assets.centroid_index  =1:length(entity.hazard.lon);
+
             fprintf('hazard joined from %s\n',params.hazard_file);
             
             if params.hazard_match
@@ -597,13 +611,19 @@ if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
                 [common_yyyy,iasset]=intersect(entity.assets.Values_yyyy,entity.hazard.yyyy);
                 fprintf('both assets and hazard for years %i..%i\n',min(common_yyyy),max(common_yyyy));
                 hazard_pos=ismember(entity.hazard.yyyy,common_yyyy);
-                entity.hazard.yyyy      = hazard.yyyy(hazard_pos); % restrict to years
-                entity.hazard.intensity = hazard.intensity(hazard_pos,:);
-                entity.hazard.fraction  = hazard.fraction(hazard_pos,:);
-                entity.hazard.name      = hazard.name(hazard_pos);
-                entity.assets.Values    = entity.assets.Values(iasset,:);
-                entity.assets.Population= entity.assets.Population(iasset,:);
-                entity.assets.Values_yyyy= entity.assets.Values_yyyy(iasset);
+                entity.hazard.yyyy            = entity.hazard.yyyy(hazard_pos); % restrict to years
+                entity.hazard.intensity       = entity.hazard.intensity(hazard_pos,:);
+                entity.hazard.fraction        = entity.hazard.fraction(hazard_pos,:);
+                entity.hazard.frequency       = entity.hazard.frequency(hazard_pos);
+                entity.hazard.name            = entity.hazard.name(hazard_pos);
+                entity.hazard.event_ID        = entity.hazard.event_ID(hazard_pos);
+                entity.hazard.orig_event_flag = entity.hazard.orig_event_flag(hazard_pos);
+                entity.hazard.event_count     = length(entity.hazard.event_ID);
+                entity.hazard.orig_event_count = sum(entity.hazard.orig_event_flag);
+                entity.hazard.orig_years      = length(unique(entity.hazard.yyyy));
+                entity.assets.Values          = entity.assets.Values(iasset,:);
+                entity.assets.Population      = entity.assets.Population(iasset,:);
+                entity.assets.Values_yyyy     = entity.assets.Values_yyyy(iasset);
                 if sum(abs(unique(entity.hazard.yyyy)-unique(entity.assets.Values_yyyy)))>0
                     fprintf('WARNING: match between assets and hazard might be incomplete\n');
                 end
