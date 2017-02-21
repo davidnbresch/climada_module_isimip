@@ -7,14 +7,16 @@ function [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard,params)
 % PURPOSE:
 %   calculate year damage set (YDS) for isimip assets and hazards
 %
-%   TODO: matching_Natcat-damages_ibtracs_1980-2014
-%
 %   for each year where there are assets, find the corresponding events and
 %   calculate the event damage set (EDS) for this particular year, then
 %   store the year damage set (YDS, i.e. summed over events within given year).
 %
-%   If the entity does contain more than one (isimip) country, create one
-%   YDS for each country separately (based upon entity.assets.NatId).
+%   If the entity does contain more than one (isimip) country, creates one
+%   EDS and YDS for each country separately (based upon entity.assets.NatId).
+%
+%   Set climada_global.damage_at_centroid=1 to run many countries fast, but
+%   set climada_global.damage_at_centroid=0 if memory problems arise
+%   (slower, but mch less memory intense).
 %
 %   previous call: isimip_gdp_entity and e.g. isimip_flood_load
 %   next call: isimip_YDS_table
@@ -114,7 +116,7 @@ if isempty(params.damage_function_regions_file),...
 %
 silent_mode=0;
 %
-climada_global.damage_at_centroid=1;
+%climada_global.damage_at_centroid=1;
 
 if strcmpi(entity,'params'),YDS=params;return;end % special case, return the full params strcture
 
@@ -193,8 +195,10 @@ for country_i=1:n_countries
     YDS(country_i).reference_year     = entity.assets.Values_yyyy(valid_time_i(1)); % first year
     YDS(country_i).Value              = 0; % init
     YDS(country_i).ED                 = 0; % init
+    YDS(country_i).peril_ID           = hazard.peril_ID;
     [~,list_pos] = intersect(cell2mat(entity.assets.ISO3_list(:,2)),unique_NatId(country_i));
     YDS(country_i).comment            = entity.assets.ISO3_list{list_pos,1};
+    YDS(country_i).NatId              = entity.assets.ISO3_list{list_pos,2};
     YDS(country_i).assets.filename    = entity.assets.filename; % as expected by eg climada_EDS_DFC
     country_info(country_i).pos = find(entity.assets.NatId==unique_NatId(country_i));
     YDS(country_i).lon                = entity.assets.lon(country_info(country_i).pos);
@@ -213,10 +217,12 @@ for country_i=1:n_countries
     EDS(country_i).Value              = 0; % init
     EDS(country_i).ED                 = 0; % init
     EDS(country_i).comment            = entity.assets.ISO3_list{list_pos,1};
+    EDS(country_i).NatId              = entity.assets.ISO3_list{list_pos,2};
     EDS(country_i).annotation_name    = EDS(country_i).comment;
     EDS(country_i).assets.lon         = YDS(country_i).lon; % init
     EDS(country_i).assets.lat         = YDS(country_i).lat; % init
     EDS(country_i).assets.filename    = EDS(country_i).comment;
+    EDS(country_i).damagefunctions    = entity.damagefunctions;
     
 end % country_i
 next_YDS_i=1; % init
@@ -248,21 +254,35 @@ for time_i=1:n_times
         temp_hazard.orig_event_flag =hazard.orig_event_flag(hazard_yyyy_pos);
         temp_hazard.yyyy            =hazard.yyyy(hazard_yyyy_pos);
         temp_hazard.orig_years      =1;
-                
-        EDS_temp=climada_EDS_calc(entity,temp_hazard,'',0,2);
-                
+            
+        if climada_global.damage_at_centroid
+            % we can run the whole in one
+            EDS_temp=climada_EDS_calc(entity,temp_hazard,'',0,2);
+        else
+            temp_entity.damagefunctions=entity.damagefunctions;
+            temp_entity.measures=entity.measures;
+            temp_entity.discount=entity.discount;
+        end
+        
         for country_i=1:n_countries
             CP=country_info(country_i).pos; % just for shorter code
+            YDS(country_i).Value=YDS(country_i).Value+sum(entity.assets.Value(CP));
+            EDS(country_i).Value=EDS(country_i).Value+sum(entity.assets.Value(CP));
+
+            if ~climada_global.damage_at_centroid
+                % we need to run EDS per country, for memory reasons
+                temp_entity.assets=climada_subarray(entity.assets,CP,1);
+                CP=1:length(temp_entity.assets.lon); % reset, since temp_entity exists only at CP
+                EDS_temp=climada_EDS_calc(temp_entity,temp_hazard,'',0,2);
+            end
             
             YDS(country_i).damage(next_YDS_i)=sum(EDS_temp.ED_at_centroid(CP));
             YDS(country_i).damage_at_centroid(next_YDS_i,:)=EDS_temp.ED_at_centroid(CP)';
-            YDS(country_i).Value=YDS(country_i).Value+entity.assets.Value(CP);
 
             YDS(country_i).event_ID(next_YDS_i)=time_ii;
             YDS(country_i).frequency(next_YDS_i)=1;
             YDS(country_i).yyyy(next_YDS_i)=stats.entity_yyyy(time_ii);
             
-            YDS(country_i).peril_ID=EDS_temp.peril_ID;
             YDS(country_i).hazard=EDS_temp.hazard;
             YDS(country_i).Value_unit=EDS_temp.Value_unit;
             YDS(country_i).damagefunctions=EDS_temp.damagefunctions;
@@ -271,11 +291,15 @@ for time_i=1:n_times
             EDS(country_i).hazard=EDS_temp.hazard;
             EDS(country_i).Value_unit=EDS_temp.Value_unit;
             EDS(country_i).damagefunctions=EDS_temp.damagefunctions;
+            EDS(country_i).annotation_name=EDS_temp.annotation_name;
 
-            EDS(country_i).damage(hazard_yyyy_pos)=sum(EDS_temp.damage_at_centroid(CP,:)); % damage_at_centroid(centroid_i,event_i)
+            if isfield(EDS_temp,'damage_at_centroid')
+                EDS(country_i).damage(hazard_yyyy_pos)=sum(EDS_temp.damage_at_centroid(CP,:)); % damage_at_centroid(centroid_i,event_i)
+                EDS(country_i).damage_at_centroid(CP,hazard_yyyy_pos)=EDS_temp.damage_at_centroid(CP,:); % damage_at_centroid(centroid_i,event_i)
+            else
+                EDS(country_i).damage(hazard_yyyy_pos)=EDS_temp.damage;
+            end
             EDS(country_i).ED_at_centroid=EDS(country_i).ED_at_centroid+EDS_temp.ED_at_centroid(CP)'; % ED_at_centroid(centroid_i)
-            EDS(country_i).damage_at_centroid(CP,hazard_yyyy_pos)=EDS_temp.damage_at_centroid(CP,:); % damage_at_centroid(centroid_i,event_i)
-            EDS(country_i).Value=EDS(country_i).Value+sum(entity.assets.Value(CP));
             
         end % country_i
         
@@ -295,11 +319,13 @@ for country_i=1:n_countries
     YDS(country_i).orig_event_flag= YDS(country_i).damage*0+1;
     YDS(country_i).orig_year_flag = YDS(country_i).damage*0+1;
     YDS(country_i).Value          = YDS(country_i).Value/n_years; % take average
+    YDS(country_i).Value          = sum(YDS(country_i).Value);
     YDS(country_i).ED             = sum(YDS(country_i).damage)/n_years; % take average
     YDS(country_i).frequency      = YDS(country_i).frequency/n_years; % per year
     
     % finish EDS
     EDS(country_i).Value          = EDS(country_i).Value/n_years; % average Value over years
+    EDS(country_i).Value          = sum(EDS(country_i).Value);
     EDS(country_i).ED             = sum(EDS(country_i).damage)/n_years; % take average
 
 end % country_i
