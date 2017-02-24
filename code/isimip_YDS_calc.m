@@ -12,7 +12,7 @@ function [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard,params)
 %   store the year damage set (YDS, i.e. summed over events within given year).
 %
 %   If the entity does contain more than one (isimip) country, creates one
-%   EDS and YDS for each country separately (based upon entity.assets.NatId).
+%   EDS and YDS for each country separately (based upon entity.assets.NatID).
 %
 %   Set climada_global.damage_at_centroid=1 to run many countries fast, but
 %   set climada_global.damage_at_centroid=0 if memory problems arise
@@ -53,7 +53,7 @@ function [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard,params)
 %   entity: an isimip entity (i.e. an entity with entity.assets.Values for
 %       many years). Needs to contain the following additional a fields:
 %       (a so-called isimip entity has that, e.g. if created by isimip_gdp_entity) 
-%       entity.assets.NatId(centroid_i): to link each centroid to one country  
+%       entity.assets.NatID(centroid_i): to link each centroid to one country  
 %       entity.assets.Values(year_i,centroid_i): the assets for year_i
 %       entity.assets.Value_yyyy(year_i): the year assets are valid for
 %       If ='params', return all default parameters in YDS, params=isimip_YDS_calc('params')
@@ -126,8 +126,8 @@ hazard = climada_hazard_load(hazard); % prompt for hazard if not given
 if isempty(hazard) || isempty(entity),return;end
 hazard = climada_hazard2octave(hazard); % Octave compatibility for -v7.3 mat-files
 
-if ~isfield(entity.assets,'NatId')
-    fprintf('Warning: no field entity.assets.NatId, might not be an isimip entity\n'); 
+if ~isfield(entity.assets,'NatID')
+    fprintf('Warning: no field entity.assets.NatID, might not be an isimip entity\n'); 
 end
 
 % figure number of years to process
@@ -167,8 +167,8 @@ temp_hazard.filename        =hazard.filename;
         
 % figure the number of countries in the entity
 try
-    unique_NatId=unique(entity.assets.NatId);
-    n_countries=length(unique_NatId);
+    unique_NatID=unique(entity.assets.NatID);
+    n_countries=length(unique_NatID);
 catch
     fprintf('Warning: not able to infer number of countries, assuming only one\n');
     n_countries=1; % default to one
@@ -177,7 +177,7 @@ end
 % just some info we store
 stats.entity_yyyy=entity.assets.Values_yyyy;
 stats.hazard_yyyy=stats.entity_yyyy+NaN; % init
-stats.ISO3_list=entity.assets.ISO3_list;
+stats.NatID_RegID=entity.assets.NatID_RegID;
 
 % figure the matching years
 valid_time_i=[]; % init
@@ -196,11 +196,11 @@ for country_i=1:n_countries
     YDS(country_i).Value              = 0; % init
     YDS(country_i).ED                 = 0; % init
     YDS(country_i).peril_ID           = hazard.peril_ID;
-    [~,list_pos] = intersect(cell2mat(entity.assets.ISO3_list(:,2)),unique_NatId(country_i));
-    YDS(country_i).comment            = entity.assets.ISO3_list{list_pos,1};
-    YDS(country_i).NatId              = entity.assets.ISO3_list{list_pos,2};
+    NatID_RegID=isimip_NatID_RegID('',unique_NatID(country_i));
+    YDS(country_i).comment            = char(NatID_RegID.ISO3);
+    YDS(country_i).NatID              = NatID_RegID.NatID;
     YDS(country_i).assets.filename    = entity.assets.filename; % as expected by eg climada_EDS_DFC
-    country_info(country_i).pos = find(entity.assets.NatId==unique_NatId(country_i));
+    country_info(country_i).pos       = find(entity.assets.NatID==unique_NatID(country_i));
     YDS(country_i).lon                = entity.assets.lon(country_info(country_i).pos);
     YDS(country_i).lat                = entity.assets.lat(country_info(country_i).pos);
     YDS(country_i).damage_at_centroid = zeros(n_times,length(YDS(country_i).lon)); % init
@@ -216,8 +216,8 @@ for country_i=1:n_countries
     EDS(country_i).damage_at_centroid = []; % init
     EDS(country_i).Value              = 0; % init
     EDS(country_i).ED                 = 0; % init
-    EDS(country_i).comment            = entity.assets.ISO3_list{list_pos,1};
-    EDS(country_i).NatId              = entity.assets.ISO3_list{list_pos,2};
+    EDS(country_i).comment            = YDS(country_i).comment;
+    EDS(country_i).NatID              = YDS(country_i).NatID;
     EDS(country_i).annotation_name    = EDS(country_i).comment;
     EDS(country_i).assets.lon         = YDS(country_i).lon; % init
     EDS(country_i).assets.lat         = YDS(country_i).lat; % init

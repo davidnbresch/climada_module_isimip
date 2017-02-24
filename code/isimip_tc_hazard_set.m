@@ -97,6 +97,7 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,verbos
 % david.bresch@gmail.com, 20170121, annotation_str
 % david.bresch@gmail.com, 20170202, noparfor -> climada_global.parfor
 % david.bresch@gmail.com, 20170212, climada_progress2stdout
+% david.bresch@gmail.com, 20170224, NatID instead of NatId
 %-
 
 hazard=[]; % init
@@ -140,8 +141,8 @@ create_yearset=1; % default=1
 %
 % define the defaut folder for isimip TC track data
 isimip_data_dir=[climada_global.data_dir filesep 'isimip'];
-%NatId_filename=[isimip_data_dir filesep 'Nat_id_grid_0360as.nc']; % on land
-NatId_filename=[isimip_data_dir filesep 'Nat_id_grid_0360as_adv_10.nc']; % with buffer
+%NatID_filename=[isimip_data_dir filesep 'NatID_grid_0360as.nc']; % on land
+NatID_filename=[isimip_data_dir filesep 'NatID_grid_0360as_adv_1.nc']; % with buffer
 
 % prompt for tc_track if not given
 if isempty(tc_track) % local GUI
@@ -181,24 +182,24 @@ if isempty(fP),hazard_set_file=[climada_global.data_dir filesep 'hazards' filese
 
 % prompt for centroids if not given
 if isempty(centroids) % local GUI
-    if exist(NatId_filename,'file')
-        if verbose_mode,fprintf('NOTE: centroids from %s\n',NatId_filename);end
-        % special case for isimip, read global NatId file
-        nc.NatIdGrid = ncread(NatId_filename,'NatIdGrid');
-        nc.lon = ncread(NatId_filename,'lon');
-        nc.lat = ncread(NatId_filename,'lat');
+    if exist(NatID_filename,'file')
+        if verbose_mode,fprintf('NOTE: centroids from %s\n',NatID_filename);end
+        % special case for isimip, read global NatID file
+        nc.NatIDGrid = ncread(NatID_filename,'NatIdGrid');
+        nc.lon = ncread(NatID_filename,'lon');
+        nc.lat = ncread(NatID_filename,'lat');
         [gridlon0,gridlat0] = meshgrid(nc.lon,nc.lat);
         gridlon0=gridlon0';
         gridlat0=gridlat0';
-        land_point=~isnan(nc.NatIdGrid); % find land points
+        land_point=~isnan(nc.NatIDGrid); % find land points
         centroids.lon=gridlon0(land_point);
         centroids.lat=gridlat0(land_point);
-        centroids.centroid_ID=nc.NatIdGrid(land_point);
-        hazard.NatId=nc.NatIdGrid(land_point);
-        % see isimip_ISO3_list to get the mapping ISO3 - isimip country code
+        centroids.centroid_ID=nc.NatIDGrid(land_point);
+        hazard.NatID=nc.NatIDGrid(land_point);
+        % see isimip_NatID_RegID to get the mapping ISO3 - isimip country code (NatID)
     else
         % TEST centroids
-        if verbose_mode,fprintf('WARNING: file %s not found\n',NatId_filename);end
+        if verbose_mode,fprintf('WARNING: file %s not found\n',NatID_filename);end
         if verbose_mode,fprintf('WARNING: Special mode, TEST centroids grid created in %s\n',mfilename);end
         ii=0;
         for lon_i=-100:1:-50

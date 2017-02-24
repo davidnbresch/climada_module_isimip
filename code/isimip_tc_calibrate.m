@@ -5,7 +5,7 @@
 % NAME:
 %   isimip_tc_calibrate
 % PURPOSE:
-%   calibrate the global model for tropical cyclones based in ibtracs data
+%   calibrate the global model for tropical cyclones based on ibtracs data
 %
 %   previous call: isimip_gdp_entity
 %   next call: many...
@@ -21,7 +21,7 @@
 %   isimip_tc_calibrate(entity);
 % INPUTS:
 %   entity: an isimip entity, output from isimip_gdp_entity
-%       in essence a climada entity on isimip NatId grid with additional
+%       in essence a climada entity on isimip NatID grid with additional
 %       fields for special isimip use and hazard intensity joined.
 %       if ='params', just return default parameters, in res, i.e. the
 %           first output, already.
@@ -50,7 +50,7 @@
 %   res: the output, empty if not successful
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20160218, initial
-% David N. Bresch, david.bresch@gmail.com, 20160224, all done
+% David N. Bresch, david.bresch@gmail.com, 20160224, all done, NatID
 %-
 
 res=[]; % init output
@@ -118,7 +118,7 @@ if ~isempty(params.damage_data_file)
         % Date: {1x2220 cell}
         % ibtracs_ID: {1x2220 cell}
         % ISO: {1x2220 cell}
-        if isfield(damage_data,'CountryID'),damage_data.NatId=damage_data.CountryID;damage_data=rmfield(damage_data,'CountryID');end
+        if isfield(damage_data,'CountryID'),damage_data.NatID=damage_data.CountryID;damage_data=rmfield(damage_data,'CountryID');end
         
         % a unique ID, a number for faster comparison, hence convert 1950166N14262 to 1950166.14262
         n_damage_events=length(damage_data.ibtracs_ID);
@@ -187,30 +187,21 @@ if ~isempty(params.damage_data_file)
             title('reported total damages');
         end % params.check_plot
                 
-        if ~isempty(params.regions_file) % assign countries to regions
-            if exist(params.regions_file,'file')
-                regions_table=climada_csvread(params.regions_file);
-                % regions_table fields renamed
-                if isfield(regions_table,'ISO'),regions_table.ISO3=regions_table.ISO;regions_table=rmfield(regions_table,'ISO');end
-                if isfield(regions_table,'ID'),regions_table.NatId=regions_table.ID;regions_table=rmfield(regions_table,'ID');end
-                if isfield(regions_table,'Reg_ID'),regions_table.RegId=regions_table.Reg_ID;regions_table=rmfield(regions_table,'Reg_ID');end
-                if isfield(regions_table,'Reg_name'),regions_table.RegName=regions_table.Reg_name;regions_table=rmfield(regions_table,'Reg_name');end
-            end
-        end
+        NatID_RegID=isimip_NatID_RegID; % obtain all country NatIDs and region IDs
         
         % damages, map countries to regions
-        n_NatIds=length(regions_table.NatId);
-        damage_data.RegId  =damage_data.NatId*0-1; % init
-        damage_data.RegName=cell(1,length(damage_data.RegId)); % init
-        for NatId_i=1:n_NatIds
-            pos=find(damage_data.NatId == regions_table.NatId(NatId_i));
+        n_NatIDs=length(NatID_RegID.NatID);
+        damage_data.RegID  =damage_data.NatID*0-1; % init
+        damage_data.RegName=cell(1,length(damage_data.RegID)); % init
+        for NatID_i=1:n_NatIDs
+            pos=find(damage_data.NatID == NatID_RegID.NatID(NatID_i));
             if ~isempty(pos)
-                damage_data.RegId(pos)   = regions_table.RegId(NatId_i);
-                damage_data.RegName(pos) = regions_table.RegName(NatId_i);
+                damage_data.RegID(pos)   = NatID_RegID.TCRegID(NatID_i);
+                damage_data.RegName(pos) = NatID_RegID.TCRegName(NatID_i);
             end
-        end % NatId_i
-        pos=find(damage_data.RegId<0);
-        if ~isempty(pos),fprintf('WARNING: %i NatIds not matched to RegIds\n',length(pos));end
+        end % NatID_i
+        pos=find(damage_data.RegID<0);
+        if ~isempty(pos),fprintf('WARNING: %i NatIDs not matched to RegIDs\n',length(pos));end
         
         % match ibtracs ID_no
         matched=0;
@@ -258,29 +249,29 @@ if ~isempty(params.damage_data_file)
         n_EDS=length(EDS);
      
         % map EDS countries to regions
-        if isfield(EDS(1),'NatId') % EDS has a NatId, can be mapped to region
-            RegId_used=zeros(1,n_EDS);
-            NatId_used=zeros(1,n_EDS);
+        if isfield(EDS(1),'NatID') % EDS has a NatID, can be mapped to region
+            RegID_used=zeros(1,n_EDS);
+            NatID_used=zeros(1,n_EDS);
             ISO3_used=cell(1,n_EDS);
             RegName_used=cell(1,n_EDS);
             for EDS_i=1:n_EDS
-                pos=find(regions_table.NatId==EDS(EDS_i).NatId);
+                pos=find(NatID_RegID.NatID==EDS(EDS_i).NatID);
                 if length(pos)==1
-                    EDS(EDS_i).RegId   = regions_table.RegId(pos);
-                    EDS(EDS_i).RegName = regions_table.RegName{pos};
-                    RegId_used(EDS_i)  = EDS(EDS_i).RegId;
-                    NatId_used(EDS_i)  = EDS(EDS_i).NatId;
+                    EDS(EDS_i).RegID   = NatID_RegID.TCRegID(pos);
+                    EDS(EDS_i).RegName = NatID_RegID.TCRegName{pos};
+                    RegID_used(EDS_i)  = EDS(EDS_i).RegID;
+                    NatID_used(EDS_i)  = EDS(EDS_i).NatID;
                     ISO3_used{EDS_i}   = EDS(EDS_i).comment; % sorry comment for historic reasons
                     RegName_used{EDS_i}= EDS(EDS_i).RegName;
                 else
                     fprintf('WARNING: EDS(%i) for %s not mapped to a region\n',EDS_i,EDS(EDS_i).comment);
                 end
             end % EDS_i
-            [unique_RegId_used,i]=unique(RegId_used);
-            if unique_RegId_used(1)==0 && length(i)>1,unique_RegId_used=unique_RegId_used(2:end);i=i(2:end);end
-            fprintf('NOTE: RegId = 0 omitted\n');
+            [unique_RegID_used,i]=unique(RegID_used);
+            if unique_RegID_used(1)==0 && length(i)>1,unique_RegID_used=unique_RegID_used(2:end);i=i(2:end);end
+            fprintf('NOTE: RegID = 0 omitted\n');
             unique_RegName_used=RegName_used(i);
-            n_regions=length(unique_RegId_used);
+            n_regions=length(unique_RegID_used);
         else
             n_regions=0; % just global view
         end
@@ -307,16 +298,16 @@ if ~isempty(params.damage_data_file)
                 % sum up over countries within region_i
                 damage_sim=EDS(1).damage*0; % init empty
                 region_ISO3_str=''; % init
-                %fprintf('region %s (Id %i): ',unique_RegName_used{region_i},unique_RegId_used(region_i));
+                %fprintf('region %s (Id %i): ',unique_RegName_used{region_i},unique_RegID_used(region_i));
                 for EDS_i=1:n_EDS
-                    if EDS(EDS_i).RegId==unique_RegId_used(region_i)
+                    if EDS(EDS_i).RegID==unique_RegID_used(region_i)
                         damage_sim=damage_sim+EDS(EDS_i).damage;
                         region_ISO3_str=[region_ISO3_str EDS(EDS_i).comment ' '];
                     end
                 end % EDS_i
                 region_ISO3_str = deblank(region_ISO3_str);
                 RegName=unique_RegName_used{region_i};
-                pos=find(damage_data.RegId==unique_RegId_used(region_i));
+                pos=find(damage_data.RegID==unique_RegID_used(region_i));
                 damage_tot      = damage_data.damage_tot(pos);
                 damage_tot_year = damage_data.year(pos);
             end
