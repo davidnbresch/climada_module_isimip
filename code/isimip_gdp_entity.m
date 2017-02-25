@@ -108,10 +108,11 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %       intensity as field entity.hazard.intensity(event_i,centroids) and
 %       the field entity.hazard.yyyy(event_i) to contain the year of the
 %       event_i. Since we use climada_hazard_load, hazard_file does neither
-%       to contain the path nor the .mat extension, e.g.
+%       need to contain the path nor the .mat extension, e.g.
 %       ='GLB_0360as_TC_hist' is ok.
-%    hazard_match: if=1, match assets (population) and hazard, i.e. only
-%       keep data for years we have all three. Default=1
+%    hazard_match: if=1, match assets (population) and (historic) hazard, 
+%       i.e. only keep data for years we have all three. Default=1 (keeps 
+%       size manageable)
 % OUTPUTS:
 %   entity: a climada entity structure, see climada_entity_read for a full
 %       description of all fields
