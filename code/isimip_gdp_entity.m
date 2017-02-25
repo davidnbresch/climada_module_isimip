@@ -224,16 +224,19 @@ if strcmpi(ISO3,'params'),entity=params;return;end % special case, return the fu
 
 if isempty(params.val_filename),params.val_filename='0360as';end
 
+grid_resolution_str='';
 if strcmpi(params.val_filename,'0360as')
     params.val_filename  = val_filename0360as;
     params.pop_filename = pop_filename0360as;
     if isempty(params.con_filename),params.con_filename=con_filename0360as;end
     if isempty(params.NatID_filename),params.NatID_filename=NatID_filename0360as;end
+    grid_resolution_str='0360as';
 elseif strcmpi(params.val_filename,'0150as')
     params.val_filename  = val_filename0150as;
     params.pop_filename = pop_filename0150as;
     if isempty(params.con_filename),params.con_filename=con_filename0150as;end
     if isempty(params.NatID_filename),params.NatID_filename=NatID_filename0150as;end
+    grid_resolution_str='0150as';
 end
 
 % prepend isimip_data_dir in case only filenames are passed
@@ -300,6 +303,8 @@ if exist(params.pop_filename,'file')
     % currently hard-wired (as not properly defined in netCDF (there time just = 1..n)
     time_pop_yyyy=1860-1+(1:length(nc.time_pop));
     fprintf('WARNING: population years hard wired to %i..%i\n',time_pop_yyyy(1),time_pop_yyyy(end))
+else
+    time_pop_yyyy=[];
 end
 
 NatID_RegID=isimip_NatID_RegID; % get the mapping ISO3 - isimip country code
@@ -390,7 +395,7 @@ entity=climada_entity_load(entity_template);
 
 if strcmpi(ISO3,'ALL_IN_ONE')
     
-    entity.assets.filename=[climada_global.entities_dir filesep 'GLB_isimip_entity'];
+    entity.assets.filename=[climada_global.entities_dir filesep 'GLB_' grid_resolution_str '_entity'];
     
     entity.assets.NatID_RegID=NatID_RegID;
     entity.assets.NatID=nc.NatIDVect(nc.land_point); % constrain to land and convert to 1D
@@ -512,7 +517,7 @@ else
     
     if ~isempty(NatID_pos)
         
-        entity.assets.filename=[climada_global.entities_dir filesep ISO3_char '_entity'];
+        entity.assets.filename=[climada_global.entities_dir filesep strtrim(ISO3_char) '_' grid_resolution_str '_entity'];
         entity.assets.admin0_ISO3=ISO3;
         
         entity.assets.lon=vectlon(NatID_pos);
