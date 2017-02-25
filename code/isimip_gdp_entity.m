@@ -155,6 +155,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 % David N. Bresch, david.bresch@gmail.com, 20170215, ISO3 sorted, if a list
 % David N. Bresch, david.bresch@gmail.com, 20170217, pop_filename, hazard_file
 % David N. Bresch, david.bresch@gmail.com, 20170224, isimip_NatID_RegID instead of isimip_ISO3_list
+% David N. Bresch, david.bresch@gmail.com, 20170225, filename does contain resolution, such as 0360as
 %-
 
 entity=[]; % init output
