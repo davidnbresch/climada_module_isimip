@@ -17,7 +17,9 @@
 %   entity=climada_entity_load('BRBCUBDOMPRI'); % if repeated
 %   isimip_tc_calibrate(entity);
 %
-%   entity=climada_entity_load('GLB_isimip_entity'); % full globe
+%   params.hazard_file='GLB_0360as_TC_hist';
+%   entity=isimip_gdp_entity('ALL_IN_ONE',params);
+%   entity=climada_entity_load('GLB_0360as_entity'); % full globe
 %   isimip_tc_calibrate(entity);
 % INPUTS:
 %   entity: an isimip entity, output from isimip_gdp_entity
@@ -51,6 +53,7 @@
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20160218, initial
 % David N. Bresch, david.bresch@gmail.com, 20160224, all done, NatID
+% David N. Bresch, david.bresch@gmail.com, 20160304, store_to_entity, DFC added
 %-
 
 res=[]; % init output
@@ -70,6 +73,7 @@ if ~isfield(params,'regions_file'),params.regions_file='';end
 if ~isfield(params,'hazard_file'),params.hazard_file='';end
 if ~isfield(params,'check_plot'),params.check_plot=[];end
 if ~isfield(params,'inflation_reference_year'),params.inflation_reference_year=[];end
+if ~isfield(params,'store_to_entity'),params.store_to_entity=[];end
 
 % PARAMETERS
 %
@@ -85,7 +89,6 @@ end
 damage_data_file=[climada_global.data_dir filesep 'isimip' filesep 'matching_Natcat-damages_ibtracs_1980-2014.csv'];
 price_deflator_file=[climada_global.data_dir filesep 'isimip' filesep 'GDP_deflator_converted_base2005_1969-2016_source_BEA.csv'];
 regions_file=[climada_global.data_dir filesep 'isimip' filesep 'TC-damage-function-regions.csv'];
-
 %
 % populate default parameters in params
 if isempty(params.damage_data_file),params.damage_data_file=damage_data_file;end
@@ -93,6 +96,7 @@ if isempty(params.price_deflator_file),params.price_deflator_file=price_deflator
 if isempty(params.regions_file),params.regions_file=regions_file;end
 if isempty(params.check_plot),params.check_plot=1;end
 if isempty(params.inflation_reference_year),params.inflation_reference_year=2005;end
+if isempty(params.store_to_entity),params.store_to_entity=0;end
 
 % prepend isimip_data_dir in case only filenames are passed
 if ~exist(params.damage_data_file,'file'),params.damage_data_file=[isimip_data_dir filesep params.damage_data_file];end
@@ -166,11 +170,11 @@ if ~isempty(params.damage_data_file)
         for year_i=1:length(unique_years)
             inflator_pos=find(inflator_data.year==unique_years(year_i));
             damage_pos=find(damage_data.year==unique_years(year_i));
-            damage_data.inflator_factor(damage_pos)=inflator_data.inflator_factor(inflator_pos); % to keep track 
+            damage_data.inflator_factor(damage_pos)=inflator_data.inflator_factor(inflator_pos); % to keep track
         end % year_i
         damage_data.damage_tot=damage_data.hist_tot_losses.*damage_data.inflator_factor;
         damage_data.damage_ins=damage_data.hist_insured_losses.*damage_data.inflator_factor;
-
+        
         if params.check_plot>0 || params.check_plot==-1 % plot damage data
             figure('Name','reported total damages','Color',[1 1 1]);
             yyaxis left
@@ -186,7 +190,7 @@ if ~isempty(params.damage_data_file)
             legend({'inflated','historic'});
             title('reported total damages');
         end % params.check_plot
-                
+        
         NatID_RegID=isimip_NatID_RegID; % obtain all country NatIDs and region IDs
         
         % damages, map countries to regions
@@ -226,7 +230,18 @@ if ~isempty(params.damage_data_file)
             ceil(sum(damage_data.damage_tot(damage_data.hazard_matched))/sum(damage_data.damage_tot)*100));
         
         % only keep matched damage records
-        damage_data=climada_subarray(damage_data,damage_data.hazard_matched);        
+        damage_data=climada_subarray(damage_data,damage_data.hazard_matched);
+        
+        if params.store_to_entity
+            fprintf('> matched damage data stored into %s\n',entity.assets.filename);
+            entity.damage_data=damage_data;
+            save(entity.assets.filename,'entity','-v7.3'); % -v7.3 for size..
+        else
+            [fP,fN,fE]=fileparts(params.damage_data_file);
+            damage_data_save_file=[fP filesep fN '.mat'];
+            fprintf('> matched damage data stored as %s\n',damage_data_save_file);
+            save(damage_data_save_file,'damage_data');
+        end
         
         % calculate simulated damages
         if isfield(entity,'hazard')
@@ -244,10 +259,10 @@ if ~isempty(params.damage_data_file)
         % does not support regions, though
         %pos=find(entity.assets.Values_yyyy=params.inflation_reference_year);
         %if ~isempty(pos),entity.assets.Values=entity.assets.Value(pos,:);end
-        %EDS=climada_EDS_calc(entity,entity.hazard); 
+        %EDS=climada_EDS_calc(entity,entity.hazard);
         
         n_EDS=length(EDS);
-     
+        
         % map EDS countries to regions
         if isfield(EDS(1),'NatID') % EDS has a NatID, can be mapped to region
             RegID_used=zeros(1,n_EDS);
@@ -281,8 +296,8 @@ if ~isempty(params.damage_data_file)
             for region_i=1:n_regions;fprintf('%s ',unique_RegName_used{region_i}),end;fprintf('\n')
         end
         
-         % construct the year list for simulated damages
-         damage_sim_year=entity.hazard.yyyy(damage_data.hazard_index);
+        % construct the year list for simulated damages
+        damage_sim_year=entity.hazard.yyyy(damage_data.hazard_index);
         
         for region_i=0:n_regions
             
@@ -315,7 +330,7 @@ if ~isempty(params.damage_data_file)
             
             % reduce simulated damage to events we have reported damage data for
             damage_sim=damage_sim(damage_data.hazard_index);
-
+            
             % % global per event view: match calculated damages with reported ones
             % if params.check_plot>0 || params.check_plot==-2 % plot damage data
             %
@@ -394,6 +409,46 @@ if ~isempty(params.damage_data_file)
                 xlabel(['log10(reported damage) [USD ' num2str(params.inflation_reference_year) ']']);ylabel('log10(simulated damage) [USD]')
                 title(sprintf('%s years %i..%i',RegName,min(year_unique),max(year_unique)));
                 %title(sprintf('%s years %i..%i',region_ISO3_str,min(year_unique),max(year_unique)));
+                
+            end % params.check_plot
+            
+            if params.check_plot>0 || params.check_plot==-4 % plot damage data
+                
+                if region_i==0
+                    plot_4_fig=figure('Name',sprintf('ALL: DFC'),'Color',[1 1 1]);
+                elseif region_i>0
+                    if region_i==1
+                        plot_4_fig=figure('Name',sprintf('regions: DFC'),'Color',[1 1 1]);
+                    else
+                        figure(plot_4_fig)
+                    end
+                    subplot(3,3,region_i)
+                end
+                
+                % and the scatter plot
+                year_freq=max(year_unique)-min(year_unique)+1;
+                frequency=ones(1,length(damage_tot_yearsum))*1/year_freq;
+                
+                [sorted_damage_tot,exceedence_freq_tot]...
+                    = climada_damage_exceedence(damage_tot_yearsum,frequency);
+                nonzero_pos         = find(exceedence_freq_tot);
+                sorted_damage_tot   = sorted_damage_tot(nonzero_pos);
+                exceedence_freq_tot = exceedence_freq_tot(nonzero_pos);
+                return_period_tot   = 1./exceedence_freq_tot;
+                
+                [sorted_damage_sim,exceedence_freq_sim]...
+                    = climada_damage_exceedence(damage_sim_yearsum,frequency);
+                nonzero_pos         = find(exceedence_freq_sim);
+                sorted_damage_sim   = sorted_damage_sim(nonzero_pos);
+                exceedence_freq_sim = exceedence_freq_sim(nonzero_pos);
+                return_period_sim   = 1./exceedence_freq_sim;
+                
+                plot(return_period_tot,sorted_damage_tot);hold on
+                plot(return_period_sim,sorted_damage_sim);hold on
+                legend({'reported','simulated'});
+                ylabel(['damage) [USD ' num2str(params.inflation_reference_year) ']']);xlabel('years')
+                title(sprintf('%s years %i..%i',RegName,min(year_unique),max(year_unique)));
+                
             end % params.check_plot
             
         end % region_i
