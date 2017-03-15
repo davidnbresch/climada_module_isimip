@@ -618,9 +618,14 @@ if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
     % convert currency units
     entity.assets.Values=entity.assets.Values*Values_factor;
     
-    % set active assets to first entry
-    entity.assets.reference_year=entity.assets.Values_yyyy(1);
+    % set active assets to first entry (default)
     entity.assets.Value=entity.assets.Values(1,:);
+    
+    % if year 2005 exists, set default Value ro 2005, as this is the
+    % reference year for inflation
+    entity.assets.reference_year=entity.assets.Values_yyyy(1);
+    pos=find(entity.assets.Values_yyyy==2005);
+    if ~isempty(pos),entity.assets.Value=entity.assets.Values(pos,:);end
     
     % complete entity
     entity.assets.Cover      =entity.assets.Value;
