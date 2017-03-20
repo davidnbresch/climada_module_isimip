@@ -1,41 +1,52 @@
 function damage_data=isimip_damage_read(damage_data_file,price_deflator_file,hazard_ID_no,check_plot)
 % climada template
 % MODULE:
-%   module name
+%   isimip
 % NAME:
-%   climada_template
+%   isimip_damage_read
 % PURPOSE:
-%   <describe purpose and use here>
+%   read isimip reported damage records (from .xlsx)
 %
-%   previous call: <note the most usual previous call here>
-%   next call: <note the most usual next function call here>
+%   Note: use and adapt this code to read other damage data
+%
+%   previous call: -
+%   next call: isimip_tc_calibrate
 % CALLING SEQUENCE:
 %   damage_data=isimip_damage_read(damage_data_file,price_deflator_file,hazard_ID_no,check_plot)
 % EXAMPLE:
+%   damage_data=isimip_damage_read; % read default isimip damage table
 %   damage_data_file='matching_Natcat-damages_ibtracs_1980-2014.csv';
 %   price_deflator_file='GDP_deflator_converted_base2005_1969-2016_source_BEA.csv';
 %   hazard=climada_hazard_load('GLB_0360as_TC_hist')
 %   damage_data=isimip_damage_read(damage_data_file,price_deflator_file,hazard.ID_no);
 % INPUTS:
 %   damage_data_file: file with damage data, needs to have some fields, see
-%       documentation
+%       documentation. Path added, if not provided
 %   price_deflator_file: file to deflate/inflate historic damage data
-%       Needs to have some fields, see documentation
+%       Needs to have some fields, see documentation. Path added, if not provided
 % OPTIONAL INPUT PARAMETERS:
+%   hazard_ID_no(event_i): the ID_no for event i, we match reported damage
+%       and events according to this ID_no and only return matched records.
+%   check_plot_ if=1, plot raw and inflated damages (default=0).
 % OUTPUTS:
 %   damage_data: the output, a struct, empty if not successful, key fields are:
-%       damage_tot(i):  total economic damage record i
-%       damage_ins(i): insured damage record i
-%       ISO{i}: ISO3 country code of record i
-%       NatID(i): isimip NatID
-%       ID_no(i): ibtracs ID no, 1950166N14262 converted to 1950166.14262
+%       damage(i): damage for record i
 %       year(i): year of record i
+%       hazard_index(i): index into hazard.*(hazard_index(i)), if
+%           hazard_ID_no has been provided, otherwise not returned
+%      optional (in decreasing order of importance):
+%       ISO{i}: ISO3 country code of record i
+%       ID_no(i): ibtracs ID no, 1950166N14262 converted to 1950166114262
+%           (just converted to integer, after N->1, S->0)
+%       damage_ins(i): insured damage record i
+%       NatID(i): isimip NatID
 %       inflator_factor(i): de/inflation factor applied to record i
 %       RegID(i): region ID for record i
-%       hazard_index(i): index into hazard.*(hazard_index(i))
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20170305, initial
 % David N. Bresch, david.bresch@gmail.com, 20170314, new damage file format adopted
+% David N. Bresch, david.bresch@gmail.com, 20170315, switched to damage.damage to be fully consistent with climada
+% David N. Bresch, david.bresch@gmail.com, 20170320, ID_no as integer
 %-
 
 damage_data=[]; % init output
@@ -60,8 +71,6 @@ if ~exist('check_plot','var'),check_plot=0;end
 %
 % define all parameters here - no parameters to be defined in code below
 %
-inflation_reference_year=2005; % hard-wired, since only shown
-%
 % define the defaut folder for isimip TC track data
 isimip_data_dir=[climada_global.data_dir filesep 'isimip'];
 if ~isdir(isimip_data_dir)
@@ -71,7 +80,6 @@ end
 %
 if isempty(damage_data_file),damage_data_file=      [climada_global.data_dir filesep 'isimip' filesep ...
         'matching_Natcat-damages_ibtracs_1980-2014.csv'];end
-%        'matching_Natcat-damages_ibtracs_1980-2014_OLD.csv'];end
 if isempty(price_deflator_file),price_deflator_file=[climada_global.data_dir filesep 'isimip' filesep ...
         'GDP_deflator_converted_base2005_1969-2016_source_BEA.csv'];end
 
@@ -98,7 +106,7 @@ if ~isempty(damage_data_file)
         % ISO: {1x2220 cell}
         if isfield(damage_data,'CountryID'),damage_data.NatID=damage_data.CountryID;damage_data=rmfield(damage_data,'CountryID');end
         
-        % a unique ID, a number for faster comparison, hence convert 1950166N14262 to 1950166.14262
+        % a unique ID, a number for faster comparison, hence convert 1950166N14262 to 1950166014262
         n_damage_events=length(damage_data.ibtracs_ID);
         damage_data.ID_no=zeros(1,n_damage_events);
         %damage_data.year=zeros(1,n_damage_events); % OLD, really bad, only 2-digit year stored as dd/mm/yy       
@@ -106,7 +114,8 @@ if ~isempty(damage_data_file)
 
         for event_i=1:n_damage_events
             if length(damage_data.ibtracs_ID{event_i})>9
-                damage_data.ID_no(event_i)=str2double(damage_data.ibtracs_ID{event_i}(1:7))+str2double(damage_data.ibtracs_ID{event_i}(9:end))/100000;
+                %damage_data.ID_no(event_i)=str2double(damage_data.ibtracs_ID{event_i}(1:7))+str2double(damage_data.ibtracs_ID{event_i}(9:end))/100000;
+                damage_data.ID_no(event_i)=str2double(strrep(strrep(damage_data.ibtracs_ID{event_i},'S','1'),'N','0')); % N->0, S->1
             end % length(damage_data.ibtracs_ID{event_i})>9
             % OLD, really bad, only 2-digit year stored as dd/mm/yy
             %year2digit=str2double(damage_data.Date{event_i}(7:end));
@@ -118,7 +127,7 @@ if ~isempty(damage_data_file)
         end % event_i
         
         % now, we have
-        % damage_data.damage_tot(record_i): total damage for record_i
+        % damage_data.damage(record_i): total damage for record_i
         % damage_data.year(record_i): year
         % damage_data.ID_no(record_i): ibtracs ID for damage record
         % entity.hazard.ID_no(event_i): ibtracs ID for event_i
@@ -138,22 +147,22 @@ if ~isempty(damage_data_file)
             end % exist(price_deflator_file,'file')
         end % ~isempty(price_deflator_file)
         
-        % inlfate/deflate damages to reference year (see inflation_reference_year)
+        % inlfate/deflate damages to reference year (depends on the factors in the file)
         unique_years=unique(damage_data.year); % unique list of years
         for year_i=1:length(unique_years)
             inflator_pos=inflator_data.year==unique_years(year_i);
             damage_pos=damage_data.year==unique_years(year_i);
             damage_data.inflator_factor(damage_pos)=inflator_data.inflator_factor(inflator_pos); % to keep track
         end % year_i
-        damage_data.damage_tot=damage_data.hist_tot_losses.*damage_data.inflator_factor;
+        damage_data.damage=damage_data.hist_tot_losses.*damage_data.inflator_factor;
         damage_data.damage_ins=damage_data.hist_insured_losses.*damage_data.inflator_factor;
         
         if check_plot % plot damage data
             figure('Name','reported total damages','Color',[1 1 1]);
             yyaxis left
-            plot(damage_data.year,log10(damage_data.damage_tot)     ,'og');hold on % log10 plots
+            plot(damage_data.year,log10(damage_data.damage)     ,'og');hold on % log10 plots
             plot(damage_data.year,log10(damage_data.hist_tot_losses),'.b');
-            xlabel('year');ylabel(['log10(damage) [USD ' num2str(inflation_reference_year) ']']);
+            xlabel('year');ylabel(['log10(damage) [USD]']);
             yyaxis right
             plot(damage_data.year,damage_data.inflator_factor,'-r');hold on
             ylabel('inflation factor');
@@ -198,13 +207,13 @@ if ~isempty(damage_data_file)
             
             fprintf('%i of %i (%i%%) records matched with hazard events (%i%% of total damage value)\n',...
                 matched,n_records,ceil(matched/n_records*100),...
-                ceil(sum(damage_data.damage_tot(damage_data.hazard_matched))/sum(damage_data.damage_tot)*100));
+                ceil(sum(damage_data.damage(damage_data.hazard_matched))/sum(damage_data.damage)*100));
             
             % only keep matched damage records
             damage_data=climada_subarray(damage_data,damage_data.hazard_matched);
                         
         end % ~isempty(hazard_ID_no)
-       
+               
         [fP,fN]=fileparts(damage_data_file);
         damage_data_save_file=[fP filesep fN '.mat'];
         fprintf('> matched damage data stored as %s\n',damage_data_save_file);

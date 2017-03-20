@@ -54,6 +54,7 @@
 % David N. Bresch, david.bresch@gmail.com, 20160218, initial
 % David N. Bresch, david.bresch@gmail.com, 20160224, all done, NatID
 % David N. Bresch, david.bresch@gmail.com, 20160304, store_to_entity, DFC added
+% David N. Bresch, david.bresch@gmail.com, 20170320, ID_no as integer
 %-
 
 res=[]; % init output
@@ -187,8 +188,8 @@ if ~isempty(damage_data)
             for EDS_i=2:length(EDS)
                 damage_sim=damage_sim+EDS(EDS_i).damage;
             end % EDS_i
-            damage_tot      = damage_data.damage_tot;
-            damage_tot_year = damage_data.year;
+            damage      = damage_data.damage;
+            damage_year = damage_data.year;
             RegName='all';region_ISO3_str='all countries';
         else
             % sum up over countries within region_i
@@ -204,8 +205,8 @@ if ~isempty(damage_data)
             region_ISO3_str = deblank(region_ISO3_str);
             RegName=unique_RegName_used{region_i};
             pos=find(damage_data.RegID==unique_RegID_used(region_i));
-            damage_tot      = damage_data.damage_tot(pos);
-            damage_tot_year = damage_data.year(pos);
+            damage      = damage_data.damage(pos);
+            damage_year = damage_data.year(pos);
         end
         fprintf('%s: %s\n',RegName,region_ISO3_str);
         
@@ -229,7 +230,7 @@ if ~isempty(damage_data)
         %
         %     % plot per year (does not work, since events not summed up)
         %     % yyaxis left
-        %     % plot(damage_tot_year,log10(damage_tot),'.g');hold on
+        %     % plot(damage_year,log10(damage),'.g');hold on
         %     % xlabel('year');ylabel('log10(reported damage) [USD 2005]');
         %     % yyaxis right
         %     % plot(damage_sim_year,log10(damage_sim),'.r');hold on
@@ -238,9 +239,9 @@ if ~isempty(damage_data)
         %     % title(sprintf('%s',RegName));
         %
         %     % scatter plot
-        %     plot(log10(damage_tot),log10(damage_sim),'xr');hold on
-        %     plot(log10(damage_tot),log10(damage_tot),'-g');
-        %     log10_max_damage=max(max(log10(damage_tot)),max(log10(damage_sim)));
+        %     plot(log10(damage),log10(damage_sim),'xr');hold on
+        %     plot(log10(damage),log10(damage),'-g');
+        %     log10_max_damage=max(max(log10(damage)),max(log10(damage_sim)));
         %     plot([0 log10_max_damage],[0 log10_max_damage],':g');
         %     xlabel('log10(reported damage) [USD 2005]');ylabel('log10(simulated damage) [USD]')
         %     title(sprintf('%s years %i..%i',RegName,min(year_unique),max(year_unique)));
@@ -262,20 +263,20 @@ if ~isempty(damage_data)
             end
             
             % sum data up over years
-            year_unique=unique(damage_tot_year); % unique reported damage years
-            damage_tot_yearsum = year_unique*0;
+            year_unique=unique(damage_year); % unique reported damage years
+            damage_yearsum = year_unique*0;
             damage_sim_yearsum = year_unique*0;
             for year_i=1:length(year_unique)
-                pos=find(damage_tot_year==year_unique(year_i));
+                pos=find(damage_year==year_unique(year_i));
                 if ~isempty(pos)
-                    damage_tot_yearsum(year_i) = sum(damage_tot(pos));
+                    damage_yearsum(year_i) = sum(damage(pos));
                     damage_sim_yearsum(year_i) = sum(damage_sim(pos));
                 end
             end % year_i
             
             %             figure('Name',sprintf('%s: year reported versus simulated damages',region_ISO3_str),'Color',[1 1 1]);
             %             yyaxis left
-            %             plot(year_unique,log10(damage_tot_yearsum),'.g');hold on
+            %             plot(year_unique,log10(damage_yearsum),'.g');hold on
             %             xlabel('year');ylabel('log10(reported damage) [USD 2005]');
             %             yyaxis right
             %             plot(year_unique,log10(damage_sim_yearsum),'.r');hold on
@@ -284,9 +285,9 @@ if ~isempty(damage_data)
             %             title(region_ISO3_str);
             
             % and the scatter plot
-            plot(log10(damage_tot_yearsum),log10(damage_sim_yearsum),'xr');hold on
-            plot(log10(damage_tot_yearsum),log10(damage_tot_yearsum),'-g');
-            log10_max_damage=max(max(log10(damage_tot_yearsum)),max(log10(damage_sim_yearsum)));
+            plot(log10(damage_yearsum),log10(damage_sim_yearsum),'xr');hold on
+            plot(log10(damage_yearsum),log10(damage_yearsum),'-g');
+            log10_max_damage=max(max(log10(damage_yearsum)),max(log10(damage_sim_yearsum)));
             plot([0 log10_max_damage],[0 log10_max_damage],':g');
             xlabel(['log10(reported damage) [USD ' num2str(params.inflation_reference_year) ']']);ylabel('log10(simulated damage) [USD]')
             title(sprintf('%s years %i..%i',RegName,min(year_unique),max(year_unique)));
@@ -309,11 +310,11 @@ if ~isempty(damage_data)
             
             % and the scatter plot
             year_freq=max(year_unique)-min(year_unique)+1;
-            frequency=ones(1,length(damage_tot_yearsum))*1/year_freq;
+            frequency=ones(1,length(damage_yearsum))*1/year_freq;
             
-            [sorted_damage_tot,exceedence_freq_tot]=climada_damage_exceedence(damage_tot_yearsum,frequency);
+            [sorted_damage,exceedence_freq_tot]=climada_damage_exceedence(damage_yearsum,frequency);
             nonzero_pos         = find(exceedence_freq_tot);
-            sorted_damage_tot   = sorted_damage_tot(nonzero_pos);
+            sorted_damage   = sorted_damage(nonzero_pos);
             exceedence_freq_tot = exceedence_freq_tot(nonzero_pos);
             return_period_tot   = 1./exceedence_freq_tot;
             
@@ -323,9 +324,9 @@ if ~isempty(damage_data)
             exceedence_freq_sim = exceedence_freq_sim(nonzero_pos);
             return_period_sim   = 1./exceedence_freq_sim;
             
-            %plot(return_period_tot,sorted_damage_tot);hold on
+            %plot(return_period_tot,sorted_damage);hold on
             %plot(return_period_sim,sorted_damage_sim);hold on
-            plot(return_period_tot,log10(sorted_damage_tot));hold on
+            plot(return_period_tot,log10(sorted_damage));hold on
             plot(return_period_sim,log10(sorted_damage_sim));hold on
             legend({'reported','simulated'});
             %ylabel(['damage [USD ' num2str(params.inflation_reference_year) ']']);xlabel('years')

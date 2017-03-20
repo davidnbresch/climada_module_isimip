@@ -98,6 +98,7 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,verbos
 % david.bresch@gmail.com, 20170202, noparfor -> climada_global.parfor
 % david.bresch@gmail.com, 20170212, climada_progress2stdout
 % david.bresch@gmail.com, 20170224, NatID instead of NatId
+% david.bresch@gmail.com, 20170320, hazard.ID_no added
 %-
 
 hazard=[]; % init
@@ -333,6 +334,7 @@ for track_i=1:n_tracks
     hazard.dd(track_i)              = tc_track(track_i).dd(1);
     hazard.datenum(track_i)         = tc_track(track_i).datenum(1);
     hazard.name{track_i}            = tc_track(track_i).name;
+    hazard.ID_no(track_i)           = str2double(strrep(strrep(hazard.name{track_i},'S','1'),'N','0')); % N->0, S->1
     hazard.category(track_i)        = tc_track(track_i).category;
 end % track_i
 

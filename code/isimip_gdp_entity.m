@@ -163,6 +163,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 % David N. Bresch, david.bresch@gmail.com, 20170224, isimip_NatID_RegID instead of isimip_ISO3_list
 % David N. Bresch, david.bresch@gmail.com, 20170225, filename does contain resolution, such as 0360as
 % David N. Bresch, david.bresch@gmail.com, 201702304, pop2_* added
+% David N. Bresch, david.bresch@gmail.com, 201702320, hazard.ID_no as integer
 %-
 
 entity=[]; % init output
@@ -697,11 +698,12 @@ if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
                 end
             end % params.hazard_match
             
-            % a unique ID, a number for faster comparison, hence convert 1950166N14262 to 1950166.14262
+            % a unique ID, a number for faster comparison, hence convert 1950166N14262 to 1950166014262
             n_events=length(entity.hazard.name);
             entity.hazard.ID_no=zeros(1,n_events);
             for event_i=1:n_events
-                entity.hazard.ID_no(event_i)=str2double(entity.hazard.name{event_i}(1:7))+str2double(entity.hazard.name{event_i}(9:end))/100000;
+                %entity.hazard.ID_no(event_i)=str2double(entity.hazard.name{event_i}(1:7))+str2double(entity.hazard.name{event_i}(9:end))/100000; % 1950166N14262 to 1950166.14262
+                entity.hazard.ID_no(event_i)=str2double(strrep(strrep(entity.hazard.name{event_i},'S','1'),'N','0')); % N->0, S->1
             end % event_i
             
         else
