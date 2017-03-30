@@ -6,9 +6,7 @@ function gust=isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 %   isimip_windfield_holland
 % PURPOSE:
 %   given a TC track (lat/lon,CentralPressure,MaxSustainedWind), calculate
-%   the wind field at locations (=centroids). Based upon: 
-%   Greg J. Holland, 1980: An Analytic Model of the Wind and Pressure Profiles in
-%   Hurricanes. DOI: http://dx.doi.org/10.1175/1520-0493(1980)108<1212:AAMOTW>2.0.CO;2 
+%   the wind field at locations (=centroids). 
 %
 %   Using a FAST distance calculation (not haversine), which speeds
 %   calculations up by factor 2-3. See r_arr and dist in code.
@@ -28,7 +26,9 @@ function gust=isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 %   helper_advanced_windfield_global.m
 %
 %   so far adapted to windfield by holland1980, holland2008, holland2010 cf peduzzi2012
-%   can be easily expanded to different wind-fields eg chavez2015
+%   can be easily expanded to different wind-fields eg chavez2015.
+%   Greg J. Holland, 1980: An Analytic Model of the Wind and Pressure Profiles in
+%   Hurricanes. DOI: http://dx.doi.org/10.1175/1520-0493(1980)108<1212:AAMOTW>2.0.CO;2 
 %
 % CALLING SEQUENCE:
 %   gust = isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
