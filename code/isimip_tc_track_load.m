@@ -30,12 +30,14 @@ function [tc_track,tc_track_raw]=isimip_tc_track_load(track_filename,hemisphere,
 %   check_plot: whether show a check plot (=1), or not (=0, default)
 %       Note that plotting might often take longer than the full
 %       conversion...
+%       =-1 for no plot and no messages to stdout (silent)
 % OUTPUTS:
 %   tc_track: a tc_track structure, with fields
 %   tc_track_raw: the raw data, inspect the structure
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20160928, initial
 % David N. Bresch, david.bresch@gmail.com, 20160929, renamed to isimip_tc_track_load (from isimip_load_tc_tracks)
+% David N. Bresch, david.bresch@gmail.com, 20170402, check_plot=-1
 %-
 
 tc_track=[];tc_track_raw=[]; % init output
@@ -169,7 +171,7 @@ for track_i=1:n_tracks
     end % ~isempty(pos)
     
     % the progress management
-    if mod(track_i,mod_step)==0
+    if mod(track_i,mod_step)==0 && check_plot>=0
         mod_step          = 100;
         t_elapsed_event   = etime(clock,t0)/track_i;
         tracks_remaining  = n_tracks-track_i;
@@ -185,9 +187,9 @@ for track_i=1:n_tracks
     
 end % track_i
 
-fprintf(format_str,''); % move carriage to begin of line
+if check_plot>=0,fprintf(format_str,'');end % move carriage to begin of line
 
-if check_plot
+if check_plot>0
     fprintf('plotting %i tracks ...',length(tc_track))
     for track_i=1:length(tc_track)
         plot(tc_track(track_i).lon,tc_track(track_i).lat); hold on

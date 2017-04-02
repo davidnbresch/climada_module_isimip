@@ -61,6 +61,9 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,verbos
 %       OR: an entity, in which case the entity.assets.lat and
 %       entity.assets.lon are used as centroids.
 %       If empty, the code usses the default 0.1 degree isimip resolution
+%       NOTE: only coastal centroids (centroid_inland_max_dist_km) are used
+%           in windfield calculations, but the hazard strcuture is defined for
+%           all centroids as on input. 
 %   verbose_mode: default=1, =0: do not print anything to stdout
 %   annotation_str: free annotation string added to hazard
 % OUTPUTS:
@@ -99,6 +102,7 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,verbos
 % david.bresch@gmail.com, 20170212, climada_progress2stdout
 % david.bresch@gmail.com, 20170224, NatID instead of NatId
 % david.bresch@gmail.com, 20170320, hazard.ID_no added
+% david.bresch@gmail.com, 20170402, centroids >60N ignored in windfield calc
 %-
 
 hazard=[]; % init
@@ -123,7 +127,7 @@ centroid_inland_max_dist_km=500;
 %
 % since we store the hazard as sparse array, we need an a-priory estimation
 % of it's density
-hazard_arr_density=0.001; % 3% sparse hazard array density (estimated)
+hazard_arr_density=0.001; % =0.001, sparse hazard array density (estimated)
 %
 % define the reference year for this hazard set
 hazard_reference_year = climada_global.present_reference_year; % default for present hazard is normally 2015
@@ -181,22 +185,20 @@ end
 [fP,fN,fE]=fileparts(hazard_set_file);
 if isempty(fP),hazard_set_file=[climada_global.data_dir filesep 'hazards' filesep fN fE];end
 
-% prompt for centroids if not given
-if isempty(centroids) % local GUI
+if isempty(centroids)
     if exist(NatID_filename,'file')
         if verbose_mode,fprintf('NOTE: centroids from %s\n',NatID_filename);end
         % special case for isimip, read global NatID file
         nc.NatIDGrid = ncread(NatID_filename,'NatIdGrid');
-        nc.lon = ncread(NatID_filename,'lon');
-        nc.lat = ncread(NatID_filename,'lat');
+        nc.lon       = ncread(NatID_filename,'lon');
+        nc.lat       = ncread(NatID_filename,'lat');
         [gridlon0,gridlat0] = meshgrid(nc.lon,nc.lat);
-        gridlon0=gridlon0';
-        gridlat0=gridlat0';
+        gridlon0=gridlon0';gridlat0=gridlat0';
         land_point=~isnan(nc.NatIDGrid); % find land points
-        centroids.lon=gridlon0(land_point);
-        centroids.lat=gridlat0(land_point);
-        centroids.centroid_ID=nc.NatIDGrid(land_point);
-        hazard.NatID=nc.NatIDGrid(land_point);
+        centroids.lon         =gridlon0(land_point);
+        centroids.lat         =gridlat0(land_point);
+        centroids.centroid_ID =1:length(centroids.lon);
+        centroids.NatID       =nc.NatIDGrid(land_point);
         % see isimip_NatID_RegID to get the mapping ISO3 - isimip country code (NatID)
     else
         % TEST centroids
@@ -270,12 +272,15 @@ hazard.datenum          = zeros(1,n_tracks);
 hazard.scenario         = hazard_scenario;
 
 if isfield(centroids,'distance2coast_km')
-    coastal_pos=find(centroids.distance2coast_km<centroid_inland_max_dist_km);
+    %coastal_pos=find(centroids.distance2coast_km<centroid_inland_max_dist_km);
+    coastal_pos=find(centroids.distance2coast_km<centroid_inland_max_dist_km & centroids.lat<61); % coastal and max 60 deg North
     coastal_centroids.lon=centroids.lon(coastal_pos);
     coastal_centroids.lat=centroids.lat(coastal_pos);
     coastal_centroids.centroid_ID=centroids.centroid_ID(coastal_pos);
     n_coastal_centroids=length(coastal_centroids.lon);
-    if verbose_mode,fprintf('restricting to coastal %i km (%i%% of all centroids)\n',centroid_inland_max_dist_km,ceil(n_coastal_centroids/n_centroids*100));end
+    %if verbose_mode
+    fprintf('restricting to coastal %i km (%i%% of all centroids)\n',centroid_inland_max_dist_km,ceil(n_coastal_centroids/n_centroids*100));
+    %end
 else
     coastal_centroids=centroids;
     coastal_pos=1:n_centroids;
@@ -287,13 +292,13 @@ intensity = spalloc(n_tracks,n_centroids,...
     ceil(n_tracks*n_coastal_centroids*hazard_arr_density));
 %intensity = zeros(n_tracks,n_centroids); % FASTER ,but MEMORY?
 
-if verbose_mode
-    if climada_global.parfor
-        fprintf('processing %i tracks @ %i centroids (isimip, parfor)\n',n_tracks,n_coastal_centroids);
-    else
-        fprintf('processing %i tracks @ %i centroids (isimip)\n',n_tracks,n_coastal_centroids);
-    end
+%if verbose_mode
+if climada_global.parfor
+    fprintf('processing %i tracks @ %i centroids (isimip, parfor)\n',n_tracks,n_coastal_centroids);
+else
+    fprintf('processing %i tracks @ %i centroids (isimip)\n',n_tracks,n_coastal_centroids);
 end
+%end
 
 if n_tracks>10000
     default_min_TimeStep=2; % speeds up calculation by factor 2
@@ -312,8 +317,7 @@ else
     if verbose_mode,climada_progress2stdout;end    % init
     for track_i=1:n_tracks
         intensity(track_i,coastal_pos) = sparse(isimip_windfield_holland(tc_track(track_i),coastal_centroids,0,1,0));
-        
-         if verbose_mode,climada_progress2stdout(track_i,n_tracks,100,'tracks');end
+        if verbose_mode,climada_progress2stdout(track_i,n_tracks,100,'tracks');end
     end %track_i
     if verbose_mode,climada_progress2stdout(0);end % terminate
 end % climada_global.parfor
@@ -360,6 +364,7 @@ if isfield(centroids,'admin0_name'),hazard.admin0_name=centroids.admin0_name;end
 if isfield(centroids,'admin0_ISO3'),hazard.ADM0_A3=centroids.admin0_ISO3;end
 if isfield(centroids,'admin1_name'),hazard.admin1_name=centroids.admin1_name;end
 if isfield(centroids,'admin1_code'),hazard.admin1_code=centroids.admin1_code;end
+if isfield(centroids,'NatID'),hazard.NatID=centroids.NatID;end
 
 if n_tracks<2,create_yearset=0;end % just makes no sense
 
