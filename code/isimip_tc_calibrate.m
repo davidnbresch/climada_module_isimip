@@ -195,7 +195,7 @@ if ~isempty(damage_data)
             % sum up over countries within region_i
             damage_sim=EDS(1).damage*0; % init empty
             region_ISO3_str=''; % init
-            %fprintf('region %s (Id %i): ',unique_RegName_used{region_i},unique_RegID_used(region_i));
+            %fprintf('region %s (ID %i): ',unique_RegName_used{region_i},unique_RegID_used(region_i));
             for EDS_i=1:n_EDS
                 if EDS(EDS_i).RegID==unique_RegID_used(region_i)
                     damage_sim=damage_sim+EDS(EDS_i).damage;
