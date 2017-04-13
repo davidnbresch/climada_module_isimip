@@ -458,10 +458,8 @@ if verbose_mode,fprintf(' done\n');end
 hazard.annotation_str=annotation_str;
 
 if isempty(strfind(hazard_set_file,'NOSAVE'))
-    %if verbose_mode
     fprintf('saving TC wind hazard set as %s\n',hazard_set_file);
-    %end
-    save(hazard_set_file,'hazard','-v7.3') % for large data
+    save(hazard_set_file,'hazard',climada_global.save_file_version) % HDF5
 end
 
 return
