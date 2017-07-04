@@ -1,4 +1,4 @@
-function [tc_track,tc_track_raw]=isimip_tc_track_load(track_filename,hemisphere,maxlon,check_plot)
+function [tc_track,tc_track_raw]=isimip_tc_track_load(track_filename,hemisphere,maxlon,check_plot,rmstore_factor)
 % climada template
 % MODULE:
 %   module name
@@ -24,13 +24,19 @@ function [tc_track,tc_track_raw]=isimip_tc_track_load(track_filename,hemisphere,
 % OPTIONAL INPUT PARAMETERS:
 %   hemisphere: 'N' (default) or 'S', or 'both' (speeds up)
 %   maxlon: the maximum longitude, either =180 (default) or =360
-%       For North Atlantic, for example, 180 is much more suitable. 
+%       For North Atlantic, for example, 180 is much more suitable.
 %       360 makes mainly sense for Pacific (islands).
 %       Note that climda prefers to deal with -180..180 whenever possible.
 %   check_plot: whether show a check plot (=1), or not (=0, default)
 %       Note that plotting might often take longer than the full
 %       conversion...
 %       =-1 for no plot and no messages to stdout (silent)
+%   rmstore_factor: factor to multiply rmstore from Kerry's file when
+%       storing into tc_track.RadiusMaxWind. Default=1.0
+%       Some data files from Kerry reuqire this correction (factor 2), see
+%       also rmstore_factor_filelist in PARAMETERS section of this code.
+%       To check, you can compare tc_track_raw.rmstore (uncorrected) with
+%       tc_track.RadiusMaxWind (correction applied).
 % OUTPUTS:
 %   tc_track: a tc_track structure, with fields
 %   tc_track_raw: the raw data, inspect the structure
@@ -38,6 +44,7 @@ function [tc_track,tc_track_raw]=isimip_tc_track_load(track_filename,hemisphere,
 % David N. Bresch, david.bresch@gmail.com, 20160928, initial
 % David N. Bresch, david.bresch@gmail.com, 20160929, renamed to isimip_tc_track_load (from isimip_load_tc_tracks)
 % David N. Bresch, david.bresch@gmail.com, 20170402, check_plot=-1
+% David N. Bresch, david.bresch@gmail.com, 20170704, rmstore_factor added
 %-
 
 tc_track=[];tc_track_raw=[]; % init output
@@ -51,6 +58,7 @@ if ~exist('track_filename','var'),track_filename='';end
 if ~exist('hemisphere','var'),hemisphere='N';end
 if ~exist('maxlon','var'),maxlon=180;end
 if ~exist('check_plot','var'),check_plot=0;end
+if ~exist('rmstore_factor','var'),rmstore_factor=1;end
 
 % locate the module's (or this code's) data folder (usually  a folder
 % 'parallel' to the code folder, i.e. in the same level as code folder)
@@ -58,14 +66,33 @@ if ~exist('check_plot','var'),check_plot=0;end
 
 % PARAMETERS
 %
-% see TEST in code to break after e.g. 1000 tracks
+% the number of tracks per year
+n_track_per_year=600; % 600
 %
-% define the defaut folder for isimip TC track data
+% define the default folder for isimip TC track data
 isimip_data_dir=[climada_global.data_dir filesep 'isimip'];
 if ~isdir(isimip_data_dir)
     mkdir(climada_global.data_dir,'isimip'); % create it
     fprintf('NOTE: store your isimip input data in %s\n',isimip_data_dir);
-end 
+end
+%
+% Kerry track files in this list require a correction. The radius maximum
+% wind (rmstore) needs to be multiplied by factor 2 (see rmstore_factor).
+% Therefore, the code checks for this files and sets rmstore_factor=2.
+rmstore_factor_filelist={
+    'temp_ccsm420thcal.mat'
+    'temp_ccsm4rcp85_full.mat'
+    'temp_gfdl520thcal.mat'
+    'temp_gfdl5rcp85cal_full.mat'
+    'temp_hadgem20thcal.mat'
+    'temp_hadgemrcp85cal_full.mat'
+    'temp_miroc20thcal.mat'
+    'temp_mirocrcp85cal_full.mat'
+    'temp_mpi20thcal.mat'
+    'temp_mpircp85cal_full.mat'
+    'temp_mri20thcal.mat'
+    'temp_mrircp85cal_full.mat'
+    };
 
 % prompt for track_filename if not given
 if isempty(track_filename) % local GUI
@@ -96,16 +123,18 @@ tc_track_raw.filename=track_filename;
 tc_track_raw.rmstore  =(tc_track_raw.rmstore/1.852); % km to nautical miles
 fprintf('done\n');
 
+% check for RadiusMaxWind
+[~,fN,fE]=fileparts(track_filename);
+if sum(strcmp([fN fE],rmstore_factor_filelist))>0
+    rmstore_factor=2;
+    fprintf('NOTE: rmstore_factor set =%1.1i for %s\n',rmstore_factor,[fN fE]);
+end
+
 % figure number of tracks and 'years' represented
 n_tracks=size(tc_track_raw.latstore,1);
-n_years=n_tracks/600;
+n_years=n_tracks/n_track_per_year;
 fprintf('loaded %i tracks (each %i nodes), representing %i years\n',...
     n_tracks,size(tc_track_raw.latstore,2),n_years);
-
-% preparation for for loop progress update to stdout
-t0       = clock;
-mod_step = 100; % first time estimate after 10 events, then every 100
-format_str='%s';
 
 if     strcmpi(hemisphere,'N')
     hemisphere_latmin=  0;hemisphere_latmax=90;
@@ -115,6 +144,7 @@ else % both
     hemisphere_latmin=-90;hemisphere_latmax=90;
 end
 
+if check_plot>=0,climada_progress2stdout;end % init, see terminate below
 next_track=1;
 for track_i=1:n_tracks
     pos=find(abs(tc_track_raw.latstore(track_i,:))>0 & abs(tc_track_raw.longstore(track_i,:))>0);
@@ -129,11 +159,11 @@ for track_i=1:n_tracks
             tc_track(next_track).lat             =tc_track_raw.latstore(track_i,pos);
             tc_track(next_track).CentralPressure =tc_track_raw.pstore(track_i,pos);
             tc_track(next_track).MaxSustainedWind=tc_track_raw.vstore(track_i,pos);
-            tc_track(next_track).RadiusMaxWind   =tc_track_raw.rmstore(track_i,pos);
+            tc_track(next_track).RadiusMaxWind   =tc_track_raw.rmstore(track_i,pos)*rmstore_factor;
             
             % convert lon to climada convention -180..180 instead of 0..360
             tc_track(next_track).lon=climada_longitude_unify(tc_track(next_track).lon,maxlon,1);
-                        
+            
             % create date/time
             mm=tc_track_raw.monthstore(track_i,pos);
             dd=tc_track_raw.daystore(track_i,pos);
@@ -150,7 +180,7 @@ for track_i=1:n_tracks
                 end
             end
             tc_track(next_track).datenum=datenum(yyyy,mm,dd,hh,0,0);
-          
+            
             [tc_track(next_track).yyyy,tc_track(next_track).mm,...
                 tc_track(next_track).dd,tc_track(next_track).hh]=...
                 datevec(tc_track(next_track).datenum);
@@ -170,24 +200,10 @@ for track_i=1:n_tracks
         end
     end % ~isempty(pos)
     
-    % the progress management
-    if mod(track_i,mod_step)==0 && check_plot>=0
-        mod_step          = 100;
-        t_elapsed_event   = etime(clock,t0)/track_i;
-        tracks_remaining  = n_tracks-track_i;
-        t_projected_sec   = t_elapsed_event*tracks_remaining;
-        if t_projected_sec<60
-            msgstr = sprintf('converting ... est. %3.0f sec left (%i/%i tracks)',t_projected_sec,   track_i,n_tracks);
-        else
-            msgstr = sprintf('converting ... est. %3.1f min left (%i/%i tracks)',t_projected_sec/60,track_i,n_tracks);
-        end
-        fprintf(format_str,msgstr); % write progress to stdout
-        format_str=[repmat('\b',1,length(msgstr)) '%s']; % back to begin of line
-    end
+    if check_plot>=0,climada_progress2stdout(track_i,n_tracks,100,'tracks');end % update
     
 end % track_i
-
-if check_plot>=0,fprintf(format_str,'');end % move carriage to begin of line
+if check_plot>=0,climada_progress2stdout(0);end % terminate
 
 if check_plot>0
     fprintf('plotting %i tracks ...',length(tc_track))
@@ -199,6 +215,6 @@ if check_plot>0
 end % check_plot
 
 fprintf('saving tc_track as %s\n',save_filename)
-save(save_filename,'tc_track');
+save(save_filename,'tc_track',climada_global.save_file_version) % for HDF5 format (portability)
 
 end % isimip_tc_track_load

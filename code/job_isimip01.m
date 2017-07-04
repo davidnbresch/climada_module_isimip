@@ -19,6 +19,7 @@
 %   to scratch disk, see PARAMETERS
 % MODIFICATION HISTORY:
 % David N. Bresch, dbresch@ethz.ch, 20170403
+% David N. Bresch, dbresch@ethz.ch, 20170704, just checked
 %-
 
 % PARAMETERS
@@ -41,7 +42,6 @@ track_files={
     'temp_gfdl5rcp85cal_full'
     'temp_mpircp85cal_full'
     };
-
 
 startup % climada_global exists afterwards
 pwd % just to check where the job is running from
