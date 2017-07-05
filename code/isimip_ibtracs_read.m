@@ -207,7 +207,7 @@ if isdir(csv_filename) % figure whether we deal with a folder
         
         if save_flag
             fprintf('savig tc_track in %s\n',save_file);
-            save(save_file,'tc_track');
+            save(save_file,'tc_track',climada_global.save_file_version);
         end % save_flag
         
     else

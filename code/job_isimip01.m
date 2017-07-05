@@ -9,6 +9,10 @@
 %
 %   See PARAMETERS before running this
 %
+%   some hints to work with the cluster (explicit paths, edit this ;-)
+%   copy job to cluster:    scp -r Documents/_GIT/euler_jobs/job_isimip01b.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
+%   copy job logfiles back: scp -r dbresch@euler.ethz.ch:/cluster/scratch/dbresch/climada_data/hazards/*.mat Documents/_GIT/climada_data/hazards/.
+%   copy results back:  scp -r dbresch@euler.ethz.ch:
 % CALLING SEQUENCE:
 %   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip01
 % EXAMPLE:
@@ -20,6 +24,7 @@
 % MODIFICATION HISTORY:
 % David N. Bresch, dbresch@ethz.ch, 20170403
 % David N. Bresch, dbresch@ethz.ch, 20170704, just checked
+% David N. Bresch, dbresch@ethz.ch, 20170705, cluster hints added
 %-
 
 % PARAMETERS

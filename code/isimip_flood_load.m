@@ -55,6 +55,7 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 % David N. Bresch, david.bresch@gmail.com, 20160930, generalized, hazard.fraction added
 % Sven Willner, sven.willner@pik-potsdam.de, 20160930, reduced to one flood file
 % David N. Bresch, david.bresch@gmail.com, 20161002, small fix to print netCDF filename in stdout
+% David N. Bresch, david.bresch@gmail.com, 20170705, climada_global.save_file_version
 %-
 
 hazard=[];
@@ -247,7 +248,7 @@ fprintf(format_str,''); % move carriage to begin of line
 hazard.matrix_density=nnz(hazard.intensity)/numel(hazard.intensity);
 
 fprintf('saving hazard as %s\n',hazard_filename)
-save(hazard_filename,'hazard');
+save(hazard_filename,'hazard',climada_global.save_file_version);
 
 if check_plot
     if check_plot==1

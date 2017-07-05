@@ -162,8 +162,9 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 % David N. Bresch, david.bresch@gmail.com, 20170217, pop_filename, hazard_file
 % David N. Bresch, david.bresch@gmail.com, 20170224, isimip_NatID_RegID instead of isimip_ISO3_list
 % David N. Bresch, david.bresch@gmail.com, 20170225, filename does contain resolution, such as 0360as
-% David N. Bresch, david.bresch@gmail.com, 201702304, pop2_* added
-% David N. Bresch, david.bresch@gmail.com, 201702320, hazard.ID_no as integer
+% David N. Bresch, david.bresch@gmail.com, 20170304, pop2_* added
+% David N. Bresch, david.bresch@gmail.com, 20170320, hazard.ID_no as integer
+% David N. Bresch, david.bresch@gmail.com, 20170705, climada_global.save_file_version instead of hard-wired HDF5
 %-
 
 entity=[]; % init output
@@ -390,7 +391,7 @@ else
         if params.distance_to_coast,centroids.distance2coast_km(n_centroids+1:length(centroids.lon))=0;end % ocean points
         
         fprintf('> saving global isimip centroids in %s\n',full_centroids_file);
-        save(full_centroids_file,'centroids')
+        save(full_centroids_file,'centroids',climada_global.save_file_version) % hdf5
         
         if length(centroids.lon)>4000000 && params.distance_to_coast
             n_centroids=length(centroids.lon);centroids_full=centroids;
@@ -403,7 +404,7 @@ else
             centroids.comment=sprintf('as %s, but latitude -60..60 and dense points only closer than 500km to coast, coarse grid also inland',fN);
             fprintf('> saving reduced (%i insted of %i centroids) global isimip centroids in %s\n',...
                 n_centroids,length(pos),full_centroids_file_red);
-            save(full_centroids_file_red,'centroids')
+            save(full_centroids_file_red,'centroids',climada_global.save_file_version) % hdf5
             centroids=centroids_full; centroids_full=[]; % keep going with full set
         end
         
@@ -414,7 +415,7 @@ else
         centroids.centroid_ID=1:length(centroids.lat); % define the RAW GLOBAL centroid_ID
         full_centroids_file=[centroids_file fN 'RAW.mat'];
         fprintf('> saving RAW global isimip centroids in %s\n',full_centroids_file);
-        save(full_centroids_file,'centroids');
+        save(full_centroids_file,'centroids',climada_global.save_file_version);
     end
 end % exist(centroids_file,'file')
 
@@ -712,7 +713,7 @@ if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
     end % ~isempty(params.hazard_file)
     
     if verbose,fprintf('> saving entity as %s\n',entity.assets.filename);end
-    save(entity.assets.filename,'entity','-v7.3'); % -v7.3 for size...
+    save(entity.assets.filename,'entity',climada_global.save_file_version); % HDF5
     
     if params.check_plot
         climada_entity_plot(entity);
