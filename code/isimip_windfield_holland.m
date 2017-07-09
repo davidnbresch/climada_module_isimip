@@ -1,4 +1,4 @@
-function gust=isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
+function [gust,hazard]=isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 % TC windfield calculation
 % MODULE:
 %   isimip
@@ -31,8 +31,7 @@ function gust=isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 %   Hurricanes. DOI: http://dx.doi.org/10.1175/1520-0493(1980)108<1212:AAMOTW>2.0.CO;2 
 %
 % CALLING SEQUENCE:
-%   gust = isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
-%   [vfull,pcen,vmax]=isimip_windfield_holland(msize,res,cgps,ngps,penv,pcen,rmax,vmax,tint,prepcen,model)
+%   gust = isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)%
 % EXAMPLE:
 %   gust=isimip_windfield_holland; % TEST, does the same as next line
 %   gust=isimip_windfield_holland(climada_subarray(isimip_ibtracs_read('TEST'),30:33));
@@ -40,6 +39,13 @@ function gust=isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 %   tc_track=climada_tc_equal_timestep(tc_track,1); % make equal timestep, 1 hour
 %   gust=isimip_windfield_holland(tc_track)
 %   climada_color_plot(gust,centroids.lon,centroids.lat);
+%
+%   a bit special to plot single event footprint
+%   tc_track=climada_tc_track_load([climada_global.data_dir filesep 'tc_tracks' filesep 'ibtracs' filesep 'ibtracs.mat']);
+%   for ii=1:length(tc_track),iii=findstr('2005236N23285',tc_track(ii).ID_str);if iii==1,i=ii;end;end % Katrina
+%   %for ii=1:length(tc_track),iii=findstr('2013306N07162',tc_track(ii).ID_str);if iii==1,i=ii;end;end % Haiyan
+%   [gust,hazard] = isimip_windfield_holland(climada_tc_equal_timestep(tc_track(i)),'0360as');
+%   climada_hazard_plot_nogrid(hazard);title('2005236N23285');
 % INPUTS:
 %   tc_track: a structure with the single track information (length(tc_track)!=1)
 %       see e.g. climada_tc_read_unisys_tc_track
@@ -51,7 +57,9 @@ function gust=isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 %       climada_centroids_read):
 %       centroids.lat: the latitude of the centroids
 %       centroids.lon: the longitude of the centroids
-%       If empty: TEST mode, use three nodes of Andrew
+%       If empty together with tc_track: TEST mode, use three nodes of Andrew
+%       If ='0360as' or ='0150as', generate centroids to cover the track
+%       region (mainly used for nice footprint plots, also over water)
 % OPTIONAL INPUT PARAMETERS:
 %   silent_mode: default=1 (for speedup), do not print or plot
 %       if =-7, do show output to stdout and print windfield, only makes
@@ -59,6 +67,8 @@ function gust=isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 % OUTPUTS:
 %   gust: the 1-im peak gust windfield [m/s] at all centroids, NOT sparse 
 %       for speedup, i.e. convert like hazard.intensity()=sparse(gust)
+%   hazard: the single-event hazard set, if requested (not provied on
+%       output by default for speedup)
 % RESTRICTIONS:
 % MODIFICATION HISTORY:
 % Tobias Geiger, geiger@pik-potsdam.de, 2016, Copyright, python verison
@@ -67,6 +77,7 @@ function gust=isimip_windfield_holland(tc_track,centroids,~,silent_mode,~)
 % David N. Bresch, david.bresch@gmail.com, 20161223, traslation removed for TESTS
 % David N. Bresch, david.bresch@gmail.com, 20161224, TEST options finalized
 % David N. Bresch, david.bresch@gmail.com, 20161225, final output in m/s
+% David N. Bresch, david.bresch@gmail.com, 20170707, centroids='0360as' and hazard as optional  output
 %-
 
 if ~exist('tc_track' ,'var')
@@ -99,6 +110,10 @@ p1=950;p2=980;p3=1020; % in mb
 % no need ot comment out if no test
 test_lon=-83:0.1:-79;test_lat=24:0.1:28;
 %
+% the degrees we add 'around' the track in case we generate centroids
+% (case centroids='0360as'...)
+d=3; % default=3
+%
 % % TEST_START
 % global climada_global
 % if ~climada_init_vars,return;end % init/import global variables
@@ -130,6 +145,24 @@ if isempty(centroids) % generate test centroids
     [centroids.lon,centroids.lat] = meshgrid(test_lon,test_lat); % get 2-D
     centroids.lon=reshape(centroids.lon,[1 numel(centroids.lon)]); % make 1-D
     centroids.lat=reshape(centroids.lat,[1 numel(centroids.lat)]); % make 1-D
+end
+
+if ischar(centroids)
+    if strcmp(centroids,'0360as')
+        ddd=0.025;
+    elseif strcmp(centroids,'0150as')
+        ddd=0.0125;
+    else
+        fprintf('centroids=%s not implemented\n',centroids);
+        return
+    end
+    centroids=[];
+    xgv=min(tc_track.lon)-d:ddd:max(tc_track.lon)+d;
+    ygv=min(tc_track.lat)-d:ddd:max(tc_track.lat)+d;
+    [X,Y] = meshgrid(xgv,ygv);
+    centroids.lon=reshape(X,[1 numel(X)]); % make 1-D
+    centroids.lat=reshape(Y,[1 numel(Y)]); % make 1-D
+    
 end
 
 % use default EnvironmentalPressure, if not provided
@@ -407,6 +440,26 @@ if silent_mode==-7
 end % silent_mode==-7
 
 gust=gust*1.852/3.6; % from nautical miles/hour to km/h to m/s UNIT_TEST
+
+if nargout==2
+    % compile a single-event hazard set
+    hazard.peril_ID='TC';
+    hazard.units='m/s';
+    hazard.lon=centroids.lon;
+    hazard.lat=centroids.lat;
+    hazard.intensity=gust;
+    hazard.fraction=spones(hazard.intensity); % fraction 100%
+    hazard.centroid_ID=1:length(hazard.lon);
+    hazard.date=datestr(now);
+    hazard.filename=mfilename;
+    hazard.reference_year=tc_track.yyyy(1);
+    hazard.event_ID=1;
+    hazard.event_count=1;
+    hazard.orig_event_flag=1;
+    hazard.orig_event_count=1;
+    hazard.orig_years=tc_track.yyyy(1);
+    hazard.frequency=1;
+end
 
 end % isimip_windfield_holland
 

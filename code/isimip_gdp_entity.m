@@ -116,6 +116,12 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %    hazard_match: if=1, match assets (population) and (historic) hazard, 
 %       i.e. only keep data for years we have all three. Default=1 (keeps 
 %       size manageable)
+%    currency_unit: default=1, can be eg 1e6 or 1e9, in which case all
+%       Values are divided by this unit before storing to the file, to store
+%       hence millions or billions. Adds the field entity.assets.currency_unit  
+%       Note that other units than one on input (e.g. on the netCDF files)
+%       are first converted to units of one, then currency_unit gets
+%       applied.
 % OUTPUTS:
 %   entity: a climada entity structure, see climada_entity_read for a full
 %       description of all fields
@@ -165,6 +171,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 % David N. Bresch, david.bresch@gmail.com, 20170304, pop2_* added
 % David N. Bresch, david.bresch@gmail.com, 20170320, hazard.ID_no as integer
 % David N. Bresch, david.bresch@gmail.com, 20170705, climada_global.save_file_version instead of hard-wired HDF5
+% David N. Bresch, david.bresch@gmail.com, 20170706, currency_unit, gdp_1860-2100_0360as_yearly.nc and time_val_yyyy starting 1860
 %-
 
 entity=[]; % init output
@@ -188,8 +195,11 @@ if ~isfield(params,'distance_to_coast'),  params.distance_to_coast=[];end
 if ~isfield(params,'centroids_file'),     params.centroids_file='';end % output only
 if ~isfield(params,'hazard_file'),        params.hazard_file='';end
 if ~isfield(params,'hazard_match'),       params.hazard_match=[];end
+if ~isfield(params,'currency_unit'),      params.currency_unit=[];end
 
 % PARAMETERS
+%
+params.currency_unit=1e9
 %
 verbose=1; % default=1, to suppress output to stdout later
 %
@@ -202,7 +212,9 @@ end
 %
 % define default filenames for population or gdp, conversion and country number (NatID)
 %val_filename0360as =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0360as_yearly_zip.nc'];val_variable_name='var1';
-val_filename0360as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0360as_remapnn_yearly.nc'];
+%val_filename0360as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0360as_remapnn_yearly.nc']; % until 20170705
+val_filename0360as =[isimip_data_dir filesep 'gdp_1860-2100_0360as_yearly.nc'];
+
 val_variable_name='gdp_grid';
 con_filename0360as=[isimip_data_dir filesep 'GDP2Asset_converter_0360as_adv_1.nc'];
 con_variable_name='conversion_factor';
@@ -212,7 +224,8 @@ pop_variable_name='var1';
 NatID_filename0360as=[isimip_data_dir filesep 'NatID_grid_0360as_adv_1.nc'];
 %
 %val_filename0150as =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0150as_yearly_zip.nc4']; % val_variable_name='var1';
-val_filename0150as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc']; % val_variable_name='var1';
+val_filename0150as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc']; % val_variable_name='var1'; 
+
 con_filename0150as=[isimip_data_dir filesep 'GDP2Asset_converter_0150as.nc']; % con_factor
 pop_filename0150as =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0150as_yearly_zip.nc']; % pop_variable_name='gdp_grid';
 pop2_filename0150as =[isimip_data_dir filesep 'hyde_ssp2_1860-2015_0150as_yearly_zip.nc4']; % pop_variable_name='gdp_grid';
@@ -233,6 +246,7 @@ TEST_mode=0; % default=0
 if isempty(params.check_plot),        params.check_plot=0;end
 if isempty(params.distance_to_coast), params.distance_to_coast=1;end
 if isempty(params.hazard_match),      params.hazard_match=1;end
+if isempty(params.currency_unit),     params.currency_unit=1;end
 
 if strcmpi(ISO3,'params'),entity=params;return;end % special case, return the full params structure
 
@@ -298,8 +312,10 @@ if verbose,fprintf(' done\n');end
 % make sure time is useful
 time_val_yyyy=zeros(1,n_times); % init
 for i=1:n_times
-    time_val_yyyy(i)=str2double(datestr(nc.time(i)+datenum(1950,1,1)+1,'yyyy'));
+    %time_val_yyyy(i)=str2double(datestr(nc.time(i)+datenum(1950,1,1)+1,'yyyy')); % until 20170705
+    time_val_yyyy(i)=str2double(datestr(nc.time(i)+datenum(1860,1,1)+1,'yyyy'));
 end
+
 if time_val_yyyy(1)<1860 || time_val_yyyy(1)>2100 % strange content of nc.time
     time_val_yyyy=1980+(1:n_times);
     fprintf('WARNING: years hard wired to %i..%i\n',time_val_yyyy(1),time_val_yyyy(end))
@@ -617,8 +633,17 @@ if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
     
     entity.assets.Values_yyyy=time_val_yyyy;
     
-    % convert currency units
+    % convert currency units to ones
     entity.assets.Values=entity.assets.Values*Values_factor;
+    
+    % convert currency units to user requested unit
+    if abs(params.currency_unit-1.0)>0
+        entity.assets.Values=entity.assets.Values/params.currency_unit;
+        entity.assets.currency_unit=params.currency_unit;
+        fprintf('NOTE: Value unit set to %g\n',params.currency_unit);
+    else
+        entity.assets.currency_unit=1.0; % default in climada all in units of 1
+    end
     
     % set active assets to first entry (default)
     entity.assets.Value=entity.assets.Values(1,:);

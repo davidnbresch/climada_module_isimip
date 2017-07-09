@@ -19,7 +19,7 @@ function [tc_track,tc_track_raw]=isimip_tc_track_load(track_filename,hemisphere,
 %   tc_track=isimip_tc_track_load('temp_mpircp85cal','S',180,1)
 % INPUTS:
 %   track_filename: filename of the .mat file with the (Kerry Emanuel)
-%       tracks, default folder is ../climada_data/isimip
+%       tracks, default folder is ../climada_data/isimip/tc_tracks
 %       > promted for if not given
 % OPTIONAL INPUT PARAMETERS:
 %   hemisphere: 'N' (default) or 'S', or 'both' (speeds up)
@@ -107,7 +107,7 @@ end
 
 % complete path, if missing
 [fP,fN,fE]=fileparts(track_filename);
-if isempty(fP),fP=isimip_data_dir;end
+if isempty(fP),fP=[isimip_data_dir filesep 'tc_track'];end
 if isempty(fE),fE='.mat';end
 track_filename=[fP filesep fN fE];
 if ~exist(track_filename,'file')

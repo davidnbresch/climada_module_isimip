@@ -46,6 +46,9 @@ if ~exist('basin_name','var'),basin_name='';end % OR:
 % PARAMETERS
 %
 
+fprintf('DISCONTINUED, use climada_tc_track_load\n');
+return
+
 save_file=[climada_global.data_dir filesep 'isimip' filesep ...
     'ibtracs' filesep basin_name filesep 'ibtracs.mat'];
 
