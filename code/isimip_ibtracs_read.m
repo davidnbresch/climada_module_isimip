@@ -18,6 +18,8 @@ function [tc_track,save_file]=isimip_ibtracs_read(csv_filename,delimiter,save_fl
 %   after quality check, we end up with 5686 (three rejected due to too
 %   fast movement, >10 degree in 6h)
 %
+%   For the original data, see https://www.ncdc.noaa.gov/ibtracs/ 
+%
 %   next call: climada_tc_track_info % to check
 %              isimip_tc_hazard_set % to generate the hazard event set
 % CALLING SEQUENCE:
@@ -66,6 +68,7 @@ function [tc_track,save_file]=isimip_ibtracs_read(csv_filename,delimiter,save_fl
 % David N. Bresch, david.bresch@gmail.com, 20161226, allow for basin name, such as 'NA'
 % David N. Bresch, david.bresch@gmail.com, 20170121, allow for all tracks globally (currently basin name not operational), duplicates removed
 % David N. Bresch, david.bresch@gmail.com, 20170127, ..data/tc_tracks/ibtracs, data_provider, basin added
+% David N. Bresch, david.bresch@gmail.com, 20170715, ibtracc webpage added
 %-
 
 save_file='';
