@@ -8,6 +8,9 @@ function [tc_track,tc_track_raw]=isimip_tc_track_load(track_filename,hemisphere,
 %   load .mat file with (Kerry Emanuel) tracks and convert to climada
 %   tc_track strcuture for use in all climada TC functions
 %
+%   NOTE: saving the tc_track structure to a new .mat file is currently
+%   disabled, as this just wastes space on disk.
+%
 %   data reference: tobias.geiger@pik-potsdam.de
 %
 %   next call: climada_tc_hazard_set (or climada_tc_hazard_set_for)
@@ -27,7 +30,7 @@ function [tc_track,tc_track_raw]=isimip_tc_track_load(track_filename,hemisphere,
 %       track_filename as 'AAA'
 %       > promted for if not given
 % OPTIONAL INPUT PARAMETERS:
-%   hemisphere: 'N' (default) or 'S', or 'both' (speeds up)
+%   hemisphere: 'N' or 'S', or 'both' (default, speeds up)
 %   maxlon: the maximum longitude, either =180 (default) or =360
 %       For North Atlantic, for example, 180 is much more suitable.
 %       360 makes mainly sense for Pacific (islands).
@@ -61,7 +64,7 @@ if ~climada_init_vars,return;end % init/import global variables
 % poor man's version to check arguments
 % and to set default value where  appropriate
 if ~exist('track_filename','var'),track_filename='';end
-if ~exist('hemisphere','var'),hemisphere='N';end
+if ~exist('hemisphere','var'),hemisphere='both';end
 if ~exist('maxlon','var'),maxlon=180;end
 if ~exist('check_plot','var'),check_plot=0;end
 if ~exist('rmstore_factor','var'),rmstore_factor=1;end
@@ -124,7 +127,7 @@ if ~exist(track_filename,'file') % does really not exist
 end
 
 % the filanem to save the climada-style tc track to
-save_filename=[fP filesep fN '_tc_track' fE];
+save_filename=[fP filesep fN '_tc_track_' hemisphere fE];
 
 if exist(save_filename,'file')
     fprintf('loading from previously processed %s ...\n',save_filename);
@@ -218,8 +221,8 @@ else
     end % track_i
     if check_plot>=0,climada_progress2stdout(0);end % terminate
     
-    fprintf('saving tc_track as %s\n',save_filename)
-    save(save_filename,'tc_track',climada_global.save_file_version) % for HDF5 format (portability)
+%     fprintf('saving tc_track as %s\n',save_filename)
+%     save(save_filename,'tc_track',climada_global.save_file_version) % for HDF5 format (portability)
     
 end % save_filename
 
