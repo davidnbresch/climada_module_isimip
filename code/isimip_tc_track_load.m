@@ -54,6 +54,7 @@ function [tc_track,tc_track_raw]=isimip_tc_track_load(track_filename,hemisphere,
 % David N. Bresch, david.bresch@gmail.com, 20170402, check_plot=-1
 % David N. Bresch, david.bresch@gmail.com, 20170704, rmstore_factor added
 % David N. Bresch, david.bresch@gmail.com, 20170825, double() for datenum
+% David N. Bresch, david.bresch@gmail.com, 20170826, no new .mat file saved
 %-
 
 tc_track=[];tc_track_raw=[]; % init output
