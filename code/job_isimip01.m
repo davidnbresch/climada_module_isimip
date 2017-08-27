@@ -13,9 +13,10 @@
 %   to create check plots
 %
 %   some hints to work with the cluster (explicit paths, edit this ;-)
-%   copy job to cluster:    scp -r Documents/_GIT/euler_jobs/job_isimip01b.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
-%   copy job logfiles back: scp -r dbresch@euler.ethz.ch:/cluster/scratch/dbresch/climada_data/hazards/*.mat Documents/_GIT/climada_data/hazards/.
-%   copy results back:  scp -r dbresch@euler.ethz.ch:
+%   copy job to cluster:       scp -r Documents/_GIT/euler_jobs/job_isimip01.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
+%   run on cluster:            bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip01
+%   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/scratch/dbresch/climada_data/hazards/*.mat Documents/_GIT/climada_data/hazards/.
+%   copy results back polybox: scp -r dbresch@euler.ethz.ch:/cluster/scratch/dbresch/climada_data/hazards/*.mat /Users/bresch/polybox/isimip/hazards_v01/.
 % CALLING SEQUENCE:
 %   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip01
 % EXAMPLE:
@@ -99,7 +100,7 @@ delete(pool)
 % result_hazard_dir='/Users/bresch/polybox/isimip/hazards_v01';
 % fig_dir='/Users/bresch/Desktop/isimip';fig_ext='png';
 % if ~isdir(fig_dir),[fP,fN]=fileparts(fig_dir);mkdir(fP,fN);end % create it
-% dd=dir([result_hazard_dir filesep '*.mat']);
+% dd=dir([result_hazard_dir filesep 'temp*.mat']);
 % params.figure_scale=0; % no geographical scale on figure
 % params.blue_ocean=1; % no geographical scale on figure
 % for i=1:length(dd)
