@@ -96,9 +96,9 @@ delete(pool)
 
 %
 % % SPECIAL CODE2 to inspect results
-% % ----------------------------------
+% % --------------------------------
 % result_hazard_dir='/Users/bresch/polybox/isimip/hazards_v01';
-% fig_dir='/Users/bresch/Desktop/isimip';fig_ext='png';
+% fig_dir='/Users/bresch/Desktop/hazards_v01_plots';fig_ext='png';
 % if ~isdir(fig_dir),[fP,fN]=fileparts(fig_dir);mkdir(fP,fN);end % create it
 % dd=dir([result_hazard_dir filesep 'temp*.mat']);
 % params.figure_scale=0; % no geographical scale on figure
