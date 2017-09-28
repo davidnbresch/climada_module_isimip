@@ -155,7 +155,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %       entity.hazard.yyyy(event_i): the year of event_i, e.g.
 %           pos=find(entity.hazard.yyyy==entity.assets.Values_yyyy(1)) gives all events in first year of assets
 %       entity.hazard.name{event_i}: the ibtracsID (such as 1950058S20114)
-%       entity.hazard.ID_no(event_i): ibtracsID as number, such as 1971275N10176 -> 1971275.10176
+%       entity.hazard.ID_no(event_i): ibtracsID as number, such as 1971275N10176 -> 1971275010176 (N???>0, S???>1)
 %
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20161017, initial
@@ -199,7 +199,8 @@ if ~isfield(params,'currency_unit'),      params.currency_unit=[];end
 
 % PARAMETERS
 %
-params.currency_unit=1e9
+fprintf('WARNING: currency_unit set to 1.e9\n');
+params.currency_unit=1e9;
 %
 verbose=1; % default=1, to suppress output to stdout later
 %
@@ -728,7 +729,7 @@ if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
             n_events=length(entity.hazard.name);
             entity.hazard.ID_no=zeros(1,n_events);
             for event_i=1:n_events
-                %entity.hazard.ID_no(event_i)=str2double(entity.hazard.name{event_i}(1:7))+str2double(entity.hazard.name{event_i}(9:end))/100000; % 1950166N14262 to 1950166.14262
+                %entity.hazard.ID_no(event_i)=str2double(entity.hazard.name{event_i}(1:7))+str2double(entity.hazard.name{event_i}(9:end))/100000; % 1950166N14262 to 1950166014262 (N???>0, S???>1)
                 entity.hazard.ID_no(event_i)=str2double(strrep(strrep(entity.hazard.name{event_i},'S','1'),'N','0')); % N->0, S->1
             end % event_i
             

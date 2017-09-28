@@ -36,8 +36,8 @@ function damage_data=isimip_damage_read(damage_data_file,price_deflator_file,haz
 %           hazard_ID_no has been provided, otherwise not returned
 %      optional (in decreasing order of importance):
 %       ISO{i}: ISO3 country code of record i
-%       ID_no(i): ibtracs ID no, 1950166N14262 converted to 1950166114262
-%           (just converted to integer, after N->1, S->0)
+%       ID_no(i): ibtracs ID no, 1950166N14262 converted to 1950166014262
+%           (just converted to integer, after N->0, S->1)
 %       damage_ins(i): insured damage record i
 %       NatID(i): isimip NatID
 %       inflator_factor(i): de/inflation factor applied to record i
@@ -115,7 +115,7 @@ if ~isempty(damage_data_file)
         for event_i=1:n_damage_events
             if length(damage_data.ibtracs_ID{event_i})>9
                 %damage_data.ID_no(event_i)=str2double(damage_data.ibtracs_ID{event_i}(1:7))+str2double(damage_data.ibtracs_ID{event_i}(9:end))/100000;
-                damage_data.ID_no(event_i)=str2double(strrep(strrep(damage_data.ibtracs_ID{event_i},'S','1'),'N','0')); % N->0, S->1
+                damage_data.ID_no(event_i)=str2double(strrep(strrep(damage_data.ibtracs_ID{event_i},'S','1'),'N','0')); % S->1, N->0
             end % length(damage_data.ibtracs_ID{event_i})>9
             % OLD, really bad, only 2-digit year stored as dd/mm/yy
             %year2digit=str2double(damage_data.Date{event_i}(7:end));

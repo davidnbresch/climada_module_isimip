@@ -20,6 +20,13 @@ function [tc_track,save_file]=isimip_ibtracs_read(csv_filename,delimiter,save_fl
 %
 %   For the original data, see https://www.ncdc.noaa.gov/ibtracs/ 
 %
+%   See e.g. the browser
+%   http://www.atms.unca.edu/ibtracs/ibtracs_current/browse-ibtracs/browseIbtracs.php
+%   to search for the ID of a given historic event (by name, year, ...)
+%   then search for such as with: 
+%   for i=1:length(tc_track_hist),if find(tc_track(i).ID_no==1992230011325)
+%     fprintf('%i: %s\n',i,tc_track(i).ID_str);end;end
+%
 %   next call: climada_tc_track_info % to check
 %              isimip_tc_hazard_set % to generate the hazard event set
 % CALLING SEQUENCE:
@@ -59,8 +66,10 @@ function [tc_track,save_file]=isimip_ibtracs_read(csv_filename,delimiter,save_fl
 % OUTPUTS:
 %   tc_track: a climada TC track structure, see e.g. climada_tc_read_unisys_database
 %       plus the fields RadiusMaxWind, EnvironmentalPressure,
-%       data_provider, basin, ID_str. Note that ID_no is ID_str, with the
-%       number after N or S as decimals, such as 1971275N10176 -> 1971275.10176
+%       data_provider, basin, ID_str. Note that ID_no is ID_str, converted
+%       to a (long) integer, e.g. 1950166N14262 converted to 1950166014262
+%                                        *                          *
+%       (just converted to integer, after N->0, S->1)
 %   save_file: the file (with path) where the tc_track structure has been
 %       saved to if save_flag=1, ='' otherwise
 % David N. Bresch, david.bresch@gmail.com, 20161203, intial
@@ -69,6 +78,8 @@ function [tc_track,save_file]=isimip_ibtracs_read(csv_filename,delimiter,save_fl
 % David N. Bresch, david.bresch@gmail.com, 20170121, allow for all tracks globally (currently basin name not operational), duplicates removed
 % David N. Bresch, david.bresch@gmail.com, 20170127, ..data/tc_tracks/ibtracs, data_provider, basin added
 % David N. Bresch, david.bresch@gmail.com, 20170715, ibtracc webpage added
+% David N. Bresch, david.bresch@gmail.com, 20170922, ID_no as integer (N-->0)
+
 %-
 
 save_file='';
@@ -209,7 +220,7 @@ if isdir(csv_filename) % figure whether we deal with a folder
         if quality_check,tc_track=climada_tc_track_quality_check(tc_track);end
         
         if save_flag
-            fprintf('savig tc_track in %s\n',save_file);
+            fprintf('saving tc_track in %s\n',save_file);
             save(save_file,'tc_track',climada_global.save_file_version);
         end % save_flag
         
@@ -274,7 +285,9 @@ else
     
     % a unique ID, a number for faster comparison, hence convert 1950166N14262 to 1950166.14262
     tc_track(track_i).ID_str=res.ibtracsID{1};
-    tc_track(track_i).ID_no=str2double(res.ibtracsID{1}(1:7))+str2double(res.ibtracsID{1}(9:end))/100000;
+    %tc_track(track_i).ID_no=str2double(res.ibtracsID{1}(1:7))+str2double(res.ibtracsID{1}(9:end))/100000;
+    tc_track(track_i).ID_no=str2double(strrep(strrep(res.ibtracsID{1},'S','1'),'N','0')); % S->1, N->0
+
     
     % deal with missing pressure
     tc_track(track_i).CentralPressure(tc_track(track_i).CentralPressure<=0)=NaN;

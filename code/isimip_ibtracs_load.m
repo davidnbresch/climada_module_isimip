@@ -11,6 +11,14 @@ function [tc_track,save_file]=isimip_ibtracs_load(basin_name)
 %   A simple code to load tc_track structure of the repsective basin into
 %   memory, see isimip_ibtracs_read for details.
 %
+%   See e.g. the browser
+%   http://www.atms.unca.edu/ibtracs/ibtracs_current/browse-ibtracs/browseIbtracs.php
+%   to search for the ID of a given historic event (by name, year, ...),
+%   then search for such as with: 
+%   for i=1:length(tc_track_hist),if find(tc_track(i).ID_no==1992230011325)
+%     fprintf('%i: %s\n',i,tc_track(i).ID_str);end;end
+%
+%   previous call: isimip_ibtracs_read
 %   next call: isimip_tc_hazard_set
 % CALLING SEQUENCE:
 %   tc_track=isimip_ibtracs_load(basin_name)

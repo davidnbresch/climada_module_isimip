@@ -54,7 +54,7 @@
 % David N. Bresch, david.bresch@gmail.com, 20160218, initial
 % David N. Bresch, david.bresch@gmail.com, 20160224, all done, NatID
 % David N. Bresch, david.bresch@gmail.com, 20160304, store_to_entity, DFC added
-% David N. Bresch, david.bresch@gmail.com, 20170320, ID_no as integer
+% David N. Bresch, david.bresch@gmail.com, 20170320, ID_no as integer (N-->0)
 %-
 
 res=[]; % init output
