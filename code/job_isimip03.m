@@ -99,7 +99,6 @@ centroids_S.NatID=centroids_S.NatID(lat_pos);
 
 pool=parpool(N_pool_workers);
 for file_i=1:length(track_files)
-for file_i=2:length(track_files)
     
     tc_track=isimip_tc_track_load(track_files{file_i},'N',180,-1); % Northern hemisphere
     hazard_name=[track_files{file_i} '_N_0360as'];
