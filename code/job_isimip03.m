@@ -31,7 +31,7 @@
 % MODIFICATION HISTORY:
 % David N. Bresch, dbresch@ethz.ch, 20170825, copy from job_isimip01
 % David N. Bresch, dbresch@ethz.ch, 20170826, last executed
-% David N. Bresch, dbresch@ethz.ch, 20170930, last executed
+% David N. Bresch, dbresch@ethz.ch, 20171002, last executed (on Mac)
 %-
 
 % PARAMETERS
@@ -42,7 +42,7 @@ scratch_dir = '/cluster/scratch/dbresch/climada_data/hazards';
 %
 % the list of TC track files to be processed (see SPECIAL CODE below)
 track_files={
-    'Trial3_GB_dkgfdl_piControlcal'
+    'Trial3_GB_dkgfdl_piControlcal' % run on Mac N 5.2h, S 1.4h
     'Trial3_GB_dkipsl_piControlcal'
     'Trial3_GB_dkipsl_20thcal'
     'Trial3_GB_dkmiroc_piControlcal'
@@ -99,6 +99,7 @@ centroids_S.NatID=centroids_S.NatID(lat_pos);
 
 pool=parpool(N_pool_workers);
 for file_i=1:length(track_files)
+for file_i=2:length(track_files)
     
     tc_track=isimip_tc_track_load(track_files{file_i},'N',180,-1); % Northern hemisphere
     hazard_name=[track_files{file_i} '_N_0360as'];
@@ -113,7 +114,7 @@ for file_i=1:length(track_files)
 end % file_i
 delete(pool)
 
-%
+% %
 % % SPECIAL CODE2 to inspect results
 % % ----------------------------------
 % result_hazard_dir='/Users/bresch/polybox/isimip/hazards_v02';
