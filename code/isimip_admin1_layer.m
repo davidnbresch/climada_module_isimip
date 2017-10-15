@@ -7,7 +7,19 @@ function centroids=isimip_admin1_layer(centroids_file,country_ISO3,check_plot,sa
 % PURPOSE:
 %   add admin1 layer to isimip centroids
 %
-%   NOTE: this template also contains the use of climada_progress2stdout
+%   search for one admin1, here 'Jura' in Switzerland (CHE):
+%   centroids=isimip_admin1_layer('','CHE',2);admin1_name='Jura';
+%   for i=1:length(centroids.admin1_list)
+%       if strfind(centroids.admin1_list{i,1},admin1_name),pos=i;end;end
+%   fprintf('%s has ID %i (at position %i)\n',admin1_name,centroids.admin1_list{pos,2},pos);
+%   centroids.admin1_list(pos,:) % to check
+%
+%   but in case you run a multi-country list, you better use the 3rd entry, i.e.
+%   centroids=isimip_admin1_layer('',{'FRA','CHE'},2);admin1_name='Jura | CHE-160';
+%   for i=1:length(centroids.admin1_list)
+%       if strfind(centroids.admin1_list{i,3},admin1_name),pos=i;end;end
+%   fprintf('%s has ID %i (at position %i)\n',admin1_name,centroids.admin1_list{pos,2},pos);
+%   centroids.admin1_list(pos,:) % to check, as there is also a 'Jura | FRA-5312' ...
 %
 %   previous call: <note the most usual previous call here>
 %   next call: <note the most usual next function call here>
@@ -15,7 +27,7 @@ function centroids=isimip_admin1_layer(centroids_file,country_ISO3,check_plot,sa
 %   res=climada_template(param1,param2);
 % EXAMPLE:
 %   centroids=isimip_admin1_layer; % TEST, runs it for DEU
-%   centroids=isimip_admin1_layer('','DEU',1); % show plot for DEU
+%   centroids=isimip_admin1_layer('','DEU',2); % show plot for DEU
 %   centroids=isimip_admin1_layer('',{'DEU','FRA'});
 % INPUTS:
 %   centroids_file: the centroids, if empty (=''), the default isimip centroids are
@@ -41,6 +53,7 @@ function centroids=isimip_admin1_layer(centroids_file,country_ISO3,check_plot,sa
 %           in {:,2} and admin1 code in {:,3}
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20171006, initial
+% David N. Bresch, david.bresch@gmail.com, 20171015, small bug fixed (admin1_pos)
 %-
 
 %centroids=[]; % init output
@@ -66,10 +79,10 @@ admin1_shape_file=[module_data_dir filesep 'ne_10m_admin_1_states_provinces' fil
 plot_colors={'.r','.g','.b','.k','.m','.y'};
 
 % load centroids
-%centroids=climada_centroids_load(centroids_file);
+centroids=climada_centroids_load(centroids_file);
 
 % load shape file
-%admin1_shapes=climada_shaperead(admin1_shape_file);
+admin1_shapes=climada_shaperead(admin1_shape_file);
 
 if ischar(country_ISO3) % conert to cell, if single char
     country_ISO3_tmp=country_ISO3;
@@ -122,7 +135,7 @@ for admin1_i=1:n_shapes
     admin1_pos=climada_inpolygon(centroids.lon,centroids.lat,shape_X,shape_Y);
     
     if sum(admin1_pos)>0
-        centroids.admin1_ID(pos)=admin1_i;
+        centroids.admin1_ID(admin1_pos)=admin1_i;
         if check_plot>1,plot(centroids.lon(admin1_pos),centroids.lat(admin1_pos),...
                 plot_colors{mod(admin1_i,length(plot_colors)-1)+1},'MarkerSize',1);end
     else
@@ -134,6 +147,8 @@ for admin1_i=1:n_shapes
 end % admin1_i
 climada_progress2stdout(0) % terminate
 
+if check_plot,set(gcf,'Color',[1 1 1]);end % white figure background
+    
 if no_centroids_count>0
     fprintf('NOTE: %i admin1 shapes with no centroids\n',no_centroids_count);
 end
@@ -141,6 +156,7 @@ end
 % reformat
 centroids.admin1_list=admin1_name_list';
 for i=1:n_shapes
+    %centroids.admin1_list{i,1}=strrep(centroids.admin1_list{i,1},'?','_'); % get rid of strange characters
     centroids.admin1_list{i,2}=i;
     centroids.admin1_list{i,3}=admin1_name_code_list{i};
 end

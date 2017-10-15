@@ -26,7 +26,8 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %   land points does take (substantial) time. See PARAMETERS to switch
 %   distance_to_coast off. In the first run, it also saves a centroids
 %   file, in case more than 4 mio centroids, it also saves a reduced
-%   verison (see code for details).
+%   verison (see code for details). 
+%   HINT: Consider running isimip_admin1_layer to add admin1 information to centroids.
 %
 %   single/multi country mode (e.g. ISO3='DEU', ISO3={'DEU','FRA'}):
 %    Checks the country ID(s) (NatID) on NatID_filename and takes all gridcells
@@ -629,6 +630,9 @@ else
     end % ~isempty(NatID_pos)
     
 end % ALL_IN_ONE
+
+% just an INFO
+fprintf('HINT: consider running isimip_admin1_layer to add admin1 information to centroids\n');
 
 if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
     
