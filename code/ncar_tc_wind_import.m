@@ -1,4 +1,4 @@
-function hazard=ncar_tc_wind_import(filename,misdat_value)
+function hazard=ncar_tc_wind_import(filename,misdat_value,min_value)
 % climada NCAR TC windfield import
 % MODULE:
 %   isimip
@@ -27,6 +27,8 @@ function hazard=ncar_tc_wind_import(filename,misdat_value)
 %       > promted for if not given
 % OPTIONAL INPUT PARAMETERS:
 %   misdat_value: the value for missing data, default =-99.00
+%   min_value: minimum value to keep (since very low windspeeds do not
+%       result in any impact). Default=10 m/s, values<min_value are set =0
 % OUTPUTS:
 %   hazard: a climada hazard event set, see manual for all fields, core
 %       fields of this struct are:
@@ -43,6 +45,7 @@ if ~climada_init_vars,return;end % init/import global variables
 % poor man's version to check arguments
 if ~exist('filename','var'),filename=[];end
 if ~exist('misdat_value','var'),misdat_value=[];end
+if ~exist('min_value','var'),min_value=[];end
 
 % locate the module's (or this code's) data folder (usually  a folder
 % 'parallel' to the code folder, i.e. in the same level as code folder)
@@ -57,6 +60,7 @@ if isempty(filename),filename=[module_data_dir filesep 'isimip' filesep 'NCAR_fr
 %
 % default missing data value
 if isempty(misdat_value),misdat_value=-99.00;end
+if isempty(min_value),min_value=10;end % m/s
     
 if ~exist(filename,'file')
     fprintf('ERROR: file not found, aborted: %s\n',filename);
@@ -78,6 +82,7 @@ for file_i=1:length(filenames)
     hazard.lon = data.data(:,3)';
     hazard.lat = data.data(:,2)';
     data.data(data.data(:,1)==misdat_value,1)=0; % replace misdat by zero
+    data.data(data.data(:,1)<min_value,1)=0; % replace misdat by zero
     hazard.intensity=sparse(data.data(:,1)');
 end % file_i
 
