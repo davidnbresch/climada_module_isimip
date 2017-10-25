@@ -5,8 +5,8 @@
 %   job_isimip04
 % PURPOSE:
 %   generate isimip tropical cyclone (TC) hazard event sets based on Kerry
-%   Emmanuel TC track files for 2nd batch, i.e. files such as
-%   Trial1_GB_dkgfdl_20thcal.mat
+%   Emmanuel TC track files for 4th (corrected) batch, i.e. files such as
+%   Trial4_GB_dkgfdl_20thcal.mat etc.
 %
 %   See PARAMETERS before running this and run SPECIAL CODE (also below) in
 %   order to prepare the lostz of track files in ascending size order
@@ -29,9 +29,7 @@
 % OUTPUTS:
 %   to scratch disk, see PARAMETERS
 % MODIFICATION HISTORY:
-% David N. Bresch, dbresch@ethz.ch, 20170825, copy from job_isimip01
-% David N. Bresch, dbresch@ethz.ch, 20170826, last executed
-% David N. Bresch, dbresch@ethz.ch, 20171002, last executed (on Mac)
+% David N. Bresch, dbresch@ethz.ch, 20171025, copy from job_isimip03
 %-
 
 % PARAMETERS
