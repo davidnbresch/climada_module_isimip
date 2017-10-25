@@ -15,7 +15,9 @@
 %   to create check plots
 %
 %   some hints to work with the cluster (explicit paths, edit this ;-)
-%   copy job to cluster:       scp -r Documents/_GIT/euler_jobs/job_isimip03.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
+%   copy job to cluster:       bresch$ scp -r Documents/_GIT/climada_modules/isimip/code/job_isimip04.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
+%   copy single data to cluster:scp -r Documents/_GIT/climada_data/isimip/tc_tracks/Trial3_GB_dkgfdl_piControlcal dbresch@euler.ethz.ch:/cluster/home/dbresch/climada_data/isimip/tc_tracks/.
+%   copy all data to cluster:  scp -r Documents/_GIT/climada_data/isimip/tc_tracks dbresch@euler.ethz.ch:/cluster/home/dbresch/climada_data/isimip/.
 %   run on cluster:            bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
 %   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/scratch/dbresch/climada_data/hazards/*.mat Documents/_GIT/climada_data/hazards/.
 %   copy results back polybox: scp -r dbresch@euler.ethz.ch:/cluster/scratch/dbresch/climada_data/hazards/*.mat /Users/bresch/polybox/isimip/hazards_v04/.
@@ -40,11 +42,7 @@ scratch_dir = '/cluster/scratch/dbresch/climada_data/hazards';
 %
 % the list of TC track files to be processed (see SPECIAL CODE below)
 track_files={
-    'Trial3_GB_dkgfdl_piControlcal' % run on Mac N 5.2h, S 1.4h
-    'Trial3_GB_dkipsl_piControlcal'
-    'Trial3_GB_dkipsl_20thcal'
     'Trial3_GB_dkmiroc_piControlcal'
-    'Trial3_GB_dkmiroc_rcp26cal'
     };
 %
 % % SPECIAL CODE to sort track files by size (run this on command line to
