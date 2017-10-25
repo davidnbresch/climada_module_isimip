@@ -1,8 +1,8 @@
-% batch job for cluster: bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+% batch job for cluster: bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip03
 % MODULE:
 %   isimip
 % NAME:
-%   job_isimip04
+%   job_isimip03
 % PURPOSE:
 %   generate isimip tropical cyclone (TC) hazard event sets based on Kerry
 %   Emmanuel TC track files for 2nd batch, i.e. files such as
@@ -16,12 +16,12 @@
 %
 %   some hints to work with the cluster (explicit paths, edit this ;-)
 %   copy job to cluster:       scp -r Documents/_GIT/euler_jobs/job_isimip03.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
-%   run on cluster:            bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+%   run on cluster:            bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip03
 %   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/scratch/dbresch/climada_data/hazards/*.mat Documents/_GIT/climada_data/hazards/.
-%   copy results back polybox: scp -r dbresch@euler.ethz.ch:/cluster/scratch/dbresch/climada_data/hazards/*.mat /Users/bresch/polybox/isimip/hazards_v02/.
+%   copy results back polybox: scp -r dbresch@euler.ethz.ch:/cluster/scratch/dbresch/climada_data/hazards/*.mat /Users/bresch/polybox/isimip/hazards_v03/.
 %
 % CALLING SEQUENCE:
-%   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+%   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip03
 % EXAMPLE:
 %   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip03
 % INPUTS:
@@ -69,7 +69,7 @@ track_files={
 % dd_name=dd_name(pos);
 % fprintf('track files sorted ascening by size (%2.2g..%2.2g bytes):\n',dd_bytes(1),dd_bytes(end));
 % for i=1:length(dd_name),fprintf('''%s''\n',dd_name{i});end
-% fprintf('--> copy paste this into track_files in %s\n','job_isimip04');
+% fprintf('--> copy paste this into track_files in %s\n','job_isimip03');
 
 
 startup % climada_global exists afterwards
