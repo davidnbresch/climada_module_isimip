@@ -8,6 +8,8 @@
 %   Emmanuel TC track files for 4th (corrected) batch, i.e. files such as
 %   Trial4_GB_dkgfdl_20thcal.mat etc.
 %
+%   At the end, copy the hazard event sets to dkrz (isimip)
+%
 %   See PARAMETERS before running this and run SPECIAL CODE (also below) in
 %   order to prepare the lostz of track files in ascending size order
 %
@@ -15,17 +17,18 @@
 %   to create check plots
 %
 %   some hints to work with the cluster (explicit paths, edit this ;-)
-%   copy job to cluster:       bresch$ scp -r Documents/_GIT/climada_modules/isimip/code/job_isimip04.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
-%   copy single data to cluster:scp -r Documents/_GIT/climada_data/isimip/tc_tracks/Trial3_GB_dkgfdl_piControlcal dbresch@euler.ethz.ch:/cluster/home/dbresch/climada_data/isimip/tc_tracks/.
+%   copy job to cluster:       scp -r Documents/_GIT/climada_modules/isimip/code/job_isimip04.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
 %   copy all data to cluster:  scp -r Documents/_GIT/climada_data/isimip/tc_tracks dbresch@euler.ethz.ch:/cluster/home/dbresch/climada_data/isimip/.
+%   copy single data to cluster:scp -r Documents/_GIT/climada_data/isimip/tc_tracks/Trial3_GB_dkgfdl_piControlcal dbresch@euler.ethz.ch:/cluster/home/dbresch/climada_data/isimip/tc_tracks/.
 %   run on cluster:            bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+%
 %   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/scratch/dbresch/climada_data/hazards/*.mat Documents/_GIT/climada_data/hazards/.
 %   copy results back polybox: scp -r dbresch@euler.ethz.ch:/cluster/scratch/dbresch/climada_data/hazards/*.mat /Users/bresch/polybox/isimip/hazards_v04/.
-%
+%   copy results to dkrz:      scp -r /cluster/scratch/dbresch/climada_data/hazards/*.mat b380587@mistralpp.dkrz.de:/work/bb0820/scratch/b380587/.
 % CALLING SEQUENCE:
 %   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
 % EXAMPLE:
-%   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip03
+%   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
 % INPUTS:
 % OPTIONAL INPUT PARAMETERS:
 % OUTPUTS:
@@ -76,6 +79,13 @@ climada_global.parfor=1; % for parpool
 % prepare centroids (full globe leads to segmentation fault)
 centroids_S=climada_centroids_load('GLB_NatID_grid_0360as_adv_1');
 
+% % reduce centroids for TEST
+% centroids_S.lon=centroids_S.lon(1:100:end);
+% centroids_S.lat=centroids_S.lat(1:100:end);
+% centroids_S.centroid_ID=centroids_S.centroid_ID(1:100:end);
+% centroids_S.distance2coast_km=centroids_S.distance2coast_km(1:100:end);
+% centroids_S.NatID=centroids_S.centroid_ID;
+
 centroids_N = centroids_S; % Northern hemisphere
 lat_pos=find(centroids_N.lat>0);
 centroids_N.lon=centroids_N.lon(lat_pos);
@@ -97,17 +107,23 @@ pool=parpool(N_pool_workers);
 for file_i=1:length(track_files)
     
     tc_track=isimip_tc_track_load(track_files{file_i},'N',180,-1); % Northern hemisphere
+    %tc_track=tc_track(1:100) % small subset for TEST
     hazard_name=[track_files{file_i} '_N_0360as'];
     hazard_set_file=[scratch_dir filesep hazard_name];
     isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_N,0,hazard_name);
     
     tc_track=isimip_tc_track_load(track_files{file_i},'S',180,-1); % Southern hemisphere
+    %tc_track=tc_track(1:100) % small subset for TEST
     hazard_name=[track_files{file_i} '_S_0360as'];
     hazard_set_file=[scratch_dir filesep hazard_name];
     isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_S,0,hazard_name);
     
 end % file_i
 delete(pool)
+
+% copy results to dkrz (no closing ; to log success):
+% ---------------------
+%[status,result]=system('scp -r /cluster/scratch/dbresch/climada_data/hazards/*.mat b380587@mistralpp.dkrz.de:/work/bb0820/scratch/b380587/.')
 
 % %
 % % SPECIAL CODE2 to inspect results
