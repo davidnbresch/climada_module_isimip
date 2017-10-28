@@ -35,9 +35,14 @@
 %   to scratch disk, see PARAMETERS
 % MODIFICATION HISTORY:
 % David N. Bresch, dbresch@ethz.ch, 20171025, copy from job_isimip03
+% David N. Bresch, dbresch@ethz.ch, 20171027, scp added
+% David N. Bresch, dbresch@ethz.ch, 20171029, new simulation names
 %-
 
 % PARAMETERS
+%
+FAST_TEST=0; % defalt=0, if =1, set -R "rusage[mem=500]"
+%
 % one should only have to edit this section
 cd /cluster/home/dbresch/climada % to make sure the cluster finds climada
 scratch_dir = '/cluster/scratch/dbresch/climada_data/hazards';
@@ -45,7 +50,14 @@ scratch_dir = '/cluster/scratch/dbresch/climada_data/hazards';
 %
 % the list of TC track files to be processed (see SPECIAL CODE below)
 track_files={
-    'Trial3_GB_dkmiroc_piControlcal'
+    'Trial4_GB_dkgfdl_20thcal'
+    'Trial4_GB_dkmiroc_20thcal'
+    'Trial4_GB_dkipsl_20thcal'
+    'Trial4_GB_dkmiroc_piControlcal'
+    'Trial4_GB_dkgfdl_piControlcal' % _gb_ to _GB_
+    'Trial4_GB_dkipsl_piControlcal'
+    'Trial4_GB_dkmiroc_rcp26cal'
+    'Trial4_GB_dkipsl_rcp26cal'
     };
 %
 % % SPECIAL CODE to sort track files by size (run this on command line to
@@ -79,12 +91,15 @@ climada_global.parfor=1; % for parpool
 % prepare centroids (full globe leads to segmentation fault)
 centroids_S=climada_centroids_load('GLB_NatID_grid_0360as_adv_1');
 
-% % reduce centroids for TEST
-% centroids_S.lon=centroids_S.lon(1:100:end);
-% centroids_S.lat=centroids_S.lat(1:100:end);
-% centroids_S.centroid_ID=centroids_S.centroid_ID(1:100:end);
-% centroids_S.distance2coast_km=centroids_S.distance2coast_km(1:100:end);
-% centroids_S.NatID=centroids_S.centroid_ID;
+if FAST_TEST
+    fprintf('\n !!! FAST TEST mode - only a small subset of centroids and tracks !!!\n\n');
+    % reduce centroids for TEST
+    centroids_S.lon=centroids_S.lon(1:1000:end);
+    centroids_S.lat=centroids_S.lat(1:1000:end);
+    centroids_S.centroid_ID=centroids_S.centroid_ID(1:1000:end);
+    centroids_S.distance2coast_km=centroids_S.distance2coast_km(1:1000:end);
+    centroids_S.NatID=centroids_S.centroid_ID;
+end
 
 centroids_N = centroids_S; % Northern hemisphere
 lat_pos=find(centroids_N.lat>0);
@@ -107,13 +122,13 @@ pool=parpool(N_pool_workers);
 for file_i=1:length(track_files)
     
     tc_track=isimip_tc_track_load(track_files{file_i},'N',180,-1); % Northern hemisphere
-    %tc_track=tc_track(1:100) % small subset for TEST
+    if FAST_TEST,tc_track=tc_track(1:100);end % small subset for TEST
     hazard_name=[track_files{file_i} '_N_0360as'];
     hazard_set_file=[scratch_dir filesep hazard_name];
     isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_N,0,hazard_name);
     
     tc_track=isimip_tc_track_load(track_files{file_i},'S',180,-1); % Southern hemisphere
-    %tc_track=tc_track(1:100) % small subset for TEST
+    if FAST_TEST,tc_track=tc_track(1:100);end % small subset for TEST
     hazard_name=[track_files{file_i} '_S_0360as'];
     hazard_set_file=[scratch_dir filesep hazard_name];
     isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_S,0,hazard_name);
@@ -123,7 +138,8 @@ delete(pool)
 
 % copy results to dkrz (no closing ; to log success):
 % ---------------------
-%[status,result]=system('scp -r /cluster/scratch/dbresch/climada_data/hazards/*.mat b380587@mistralpp.dkrz.de:/work/bb0820/scratch/b380587/.')
+%[status,result]=system('scp -r    /cluster/scratch/dbresch/climada_data/hazards/*.mat b380587@mistralpp.dkrz.de:/work/bb0820/scratch/b380587/.')
+%[status,result] =system('scp -r -v /cluster/scratch/dbresch/climada_data/hazards/*.mat b380587@mistralpp.dkrz.de:/work/bb0820/scratch/b380587/.')
 
 % %
 % % SPECIAL CODE2 to inspect results
