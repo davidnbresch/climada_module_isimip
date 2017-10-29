@@ -36,7 +36,7 @@
 % MODIFICATION HISTORY:
 % David N. Bresch, dbresch@ethz.ch, 20171025, copy from job_isimip03
 % David N. Bresch, dbresch@ethz.ch, 20171027, scp added
-% David N. Bresch, dbresch@ethz.ch, 20171029, new simulation names
+% David N. Bresch, dbresch@ethz.ch, 20171029, new simulation names, job terminated 20171029_0908
 %-
 
 % PARAMETERS
@@ -144,7 +144,7 @@ delete(pool)
 % %
 % % SPECIAL CODE2 to inspect results
 % % ----------------------------------
-% result_hazard_dir='/Users/bresch/polybox/isimip/hazards_v02';
+% result_hazard_dir='/Users/bresch/polybox/isimip/hazards_v04';
 % fig_dir='/Users/bresch/Desktop/isimip';fig_ext='png';
 % if ~isdir(fig_dir),[fP,fN]=fileparts(fig_dir);mkdir(fP,fN);end % create it
 % dd=dir([result_hazard_dir filesep '*.mat']);
