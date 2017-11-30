@@ -58,10 +58,12 @@ end
 %
 nightlight_params.resolution_km=10; % 10x10km resolution
 %
-% define default climada tropical cyclone (TC) hazard set
-hazard_std_file       ='USA_UnitedStates_atl_TC';
-%hazard_std_file       ='JPN_Japan_wpa_TC';
-hazard_dummy_std_file ='TCNA_today_small'; % if hazard_std_file does not exist
+if treat_TC
+    % define default climada tropical cyclone (TC) hazard set
+    hazard_std_file       ='USA_UnitedStates_atl_TC';
+    %hazard_std_file       ='JPN_Japan_wpa_TC';
+    hazard_dummy_std_file ='TCNA_today_small'; % if hazard_std_file does not exist
+end
 %
 % isimip data files
 % -----------------
@@ -102,6 +104,9 @@ end
 figure;climada_entity_plot(entity) % the assets plot
 if treat_TC
     figure;climada_damagefunctions_plot(entity,'TC 001'); % the damage function plot
+end
+if treat_FL
+    figure;climada_damagefunctions_plot(entity,'FL 001'); % the damage function plot
 end
 
 % based on the entity, decide whether we prefer the range -180..180 or
