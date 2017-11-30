@@ -35,6 +35,8 @@
 % David N. Bresch, david.bresch@gmail.com, 20161010, IFC added
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20171129, added option to
 %   test only TC or FL separately
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20171130, use of function
+%   isimip_get_flood_hazard_filename
 %-
 
 global climada_global
@@ -88,7 +90,7 @@ if treat_TC
     hazard_rcp85_file      =[entity_file '_' tc_track_rcp85_file];
 end
 if treat_FL
-    hazard_FL_file         =[entity_file '_FL'];
+    hazard_FL_file         =isimip_get_flood_hazard_filename(flood_filename,entity);
 end
 
 % load (or, if necessary, construct) the asset base
@@ -202,7 +204,7 @@ if treat_FL
     if isempty(hazard_FL)
         fprintf('*** NOTE: generating FL hazard from %s\n\n',flood_filename);
         figure % new figure for the check_plot of isimip_flood_load
-        hazard_FL=isimip_flood_load(flood_filename,'auto',entity,1);
+        hazard_FL=isimip_flood_load(flood_filename,hazard_FL_file,entity,1);
     end
 
     % calculate the from ground up damage for each event at each centroid

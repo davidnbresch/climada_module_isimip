@@ -36,8 +36,7 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 %       there should be one event per year (i.e., yearly maxima)
 %   hazard_filename: the filename (with or without path) the generated
 %       hazard set is stored to. If='auto', the name is automatically
-%       generated, by appendign (1) entity name, (2) flood filename, and
-%       (3) '_FL' (still stored into ../hazards folder).
+%       generated using function 'isimip_get_flood_hazard_filename'
 %   entity: an entity struct to interpolate the flood footprints to, see
 %       climada_entity_load and climada_entity_read for a description
 % OPTIONAL INPUT PARAMETERS:
@@ -142,21 +141,22 @@ if ~exist(flood_filename,'file')
 end
 
 if strcmpi(hazard_filename,'auto') % assign automatically
-    [~,fN]=fileparts(entity.assets.filename);
-    [~,fN2]=fileparts(flood_filename);
-    hazard_filename=strrep(fN,'_entity','');
-    if ~isequal(years_range, [0 0])
-        hazard_filename=[climada_global.hazards_dir filesep fN2 '_' fN '_FL.mat'];
-    else
-        hazard_filename=[climada_global.hazards_dir filesep fN2 '_' fN '_' years_range(1) '-' years_range(2) '_FL.mat'];
-    end
+    hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,isimip_data_subdir,years_range);
+%     [~,fN]=fileparts(entity.assets.filename);
+%     [~,fN2]=fileparts(flood_filename);
+%     hazard_filename=strrep(fN,'_entity','');
+%     if ~isequal(years_range, [0 0])
+%         hazard_filename=[climada_global.hazards_dir filesep fN2 '_' fN '_FL.mat'];
+%     else
+%         hazard_filename=[climada_global.hazards_dir filesep fN2 '_' fN '_' years_range(1) '-' years_range(2) '_FL.mat'];
+%     end
 end
-
-% hazard_filename: complete path, if missing
-[fP,fN,fE]=fileparts(hazard_filename);
-if isempty(fP),fP=climada_global.hazards_dir;end
-if isempty(fE),fE='.mat';end
-hazard_filename=[fP filesep fN fE];
+% 
+% % hazard_filename: complete path, if missing
+% [fP,fN,fE]=fileparts(hazard_filename);
+% if isempty(fP),fP=climada_global.hazards_dir;end
+% if isempty(fE),fE='.mat';end
+% hazard_filename=[fP filesep fN fE];
 
 % load entity to obtsin centroids
 entity=climada_entity_load(entity);
