@@ -96,7 +96,7 @@ hazard_filename=strrep(fN,'_entity','');
 if isequal(years_range, [0 0])
     hazard_filename=[isimip_hazard_dir filesep fN2 '_' fN '_FL.mat'];
 else
-    hazard_filename=[isimip_hazard_dir filesep fN2 '_' fN '_' years_range(1) '-' years_range(2) '_FL.mat'];
+    hazard_filename=[isimip_hazard_dir filesep fN2 '_' fN '_' num2str(years_range(1)) '-' num2str(years_range(2)) '_FL.mat'];
 end
 
 % hazard_filename: complete path, if missing
