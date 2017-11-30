@@ -1,4 +1,4 @@
-function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_plot)
+function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_plot,isimip_data_subdir,years_range)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -33,10 +33,11 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 %       > promted for if not given
 %       fraction (variable name 'fldfrc') is in the range 0..1
 %       depth (variable name 'flddph') in units of meters [m]
+%       there should be one event per year (i.e., yearly maxima)
 %   hazard_filename: the filename (with or without path) the generated
-%       hazard set is stored to. If='auto', the name is autmatically
-%       generated, by appendign _FL to the entity name (still stored into
-%       ../hazards folder)
+%       hazard set is stored to. If='auto', the name is automatically
+%       generated, by appendign (1) entity name, (2) flood filename, and
+%       (3) '_FL' (still stored into ../hazards folder).
 %   entity: an entity struct to interpolate the flood footprints to, see
 %       climada_entity_load and climada_entity_read for a description
 % OPTIONAL INPUT PARAMETERS:
@@ -45,6 +46,13 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 %       conversion...
 %       if =2, also show the centroids as red dots
 %       if =3, also show the original data grid as blue dots (might take time...)
+%   isimip_data_subdir: the sub-directory within the isimip folder within
+%       climada_data/isimip where the raw isimip data (NetCDF file
+%       flood_filename) is located. This does not affect where the hazard is
+%       saved. If not specified, the file is assumed to be located directly
+%       within the climada_data/isimip folder.
+%   years_range: vector of length 2 containing the first and the last year
+%       to be loaded from the netcdf file. If empty or [0 0], loads all data.
 % OUTPUTS:
 %   hazard: a climada hazard structure, see manual
 %       in addition to the standard hazard.intensity, this hazard also
@@ -56,6 +64,8 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 % Sven Willner, sven.willner@pik-potsdam.de, 20160930, reduced to one flood file
 % David N. Bresch, david.bresch@gmail.com, 20161002, small fix to print netCDF filename in stdout
 % David N. Bresch, david.bresch@gmail.com, 20170705, climada_global.save_file_version
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20171130, add optional
+%   argument 'isimip_data_subdir', and improved treatment of the time axis
 %-
 
 hazard=[];
@@ -69,7 +79,18 @@ if ~exist('flood_filename','var'),         flood_filename=         '';end
 if ~exist('hazard_filename','var'),        hazard_filename=        '';end
 if ~exist('entity','var'),                 entity=                 '';end
 if ~exist('check_plot','var'),             check_plot=              1;end
+if ~exist('years_range','var'),               years_range=            [0 0];end
+if ~exist('isimip_data_subdir','var')
+    isimip_data_dir = [climada_global.data_dir filesep 'isimip'];
+else
+    isimip_data_dir = [climada_global.data_dir filesep 'isimip' filesep isimip_data_subdir];
+end
 
+% check validity of arguments
+if ~isequal(size(years_range), [1 2])
+    warning('** error ** years_range should be of size [1 2] *****')
+    return
+end
 
 % locate the module's (or this code's) data folder (usually  a folder
 % 'parallel' to the code folder, i.e. in the same level as code folder)
@@ -79,9 +100,8 @@ if ~exist('check_plot','var'),             check_plot=              1;end
 % PARAMETERS
 %
 % define the defaut folder for isimip TC track data
-isimip_data_dir=[climada_global.data_dir filesep 'isimip'];
 if ~isdir(isimip_data_dir)
-    mkdir(climada_global.data_dir,'isimip'); % create it
+    mkdir([climada_global.data_dir filesep 'isimip'],isimip_data_subdir); % create it
     fprintf('NOTE: store your isimip input data in %s\n',isimip_data_dir);
 end
 %
@@ -123,8 +143,13 @@ end
 
 if strcmpi(hazard_filename,'auto') % assign automatically
     [~,fN]=fileparts(entity.assets.filename);
+    [~,fN2]=fileparts(flood_filename);
     hazard_filename=strrep(fN,'_entity','');
-    hazard_filename=[climada_global.hazards_dir filesep hazard_filename '_FL.mat'];
+    if ~isequal(years_range, [0 0])
+        hazard_filename=[climada_global.hazards_dir filesep fN2 '_' fN '_FL.mat'];
+    else
+        hazard_filename=[climada_global.hazards_dir filesep fN2 '_' fN '_' years_range(1) '-' years_range(2) '_FL.mat'];
+    end
 end
 
 % hazard_filename: complete path, if missing
@@ -141,6 +166,13 @@ fprintf('reading lon, lat and time from %s ...',flood_filename);
 nc.lon      = ncread(flood_filename,'lon');
 nc.lat      = ncread(flood_filename,'lat');
 nc.time     = ncread(flood_filename,'time');
+nc.time_units = ncreadatt(flood_filename,'time','units');
+
+% Get info about NetCDF time axis (used later)
+n_events_orig   =length(nc.time); % number of events
+nc.time_units = strsplit(nc.time_units, ' ');
+nc.time_orig = cell2mat(strcat(nc.time_units(3), {' '}, nc.time_units(4)));
+nc.time_units = cell2mat(nc.time_units(1));
 fprintf(' done\n');
 
 % find the bounding box around the assets
@@ -148,9 +180,9 @@ lonmin=min(entity.assets.lon);lonmax=max(entity.assets.lon);
 latmin=min(entity.assets.lat);latmax=max(entity.assets.lat);
 
 % figure grid spacing
-dlon=abs(max(diff(nc.lon)));dlat=abs(max(diff(nc.lat)));
+dlon=max(abs(diff(nc.lon)));dlat=max(abs(diff(nc.lat)));
 
-% figure the index range to cover a bot more than the box around the assets
+% figure the index range to cover a bit more than the box around the assets
 [~,lon_index_min]=min(abs(nc.lon-(lonmin-2*dlon)));
 [~,lon_index_max]=min(abs(nc.lon-(lonmax+2*dlon)));
 [~,lat_index_min]=min(abs(nc.lat-(latmin-2*dlat)));
@@ -176,7 +208,38 @@ tile_lat=nc.lat(lat_index_min:lat_index_max);
 
 % populate the fields in hazard
 n_centroids=length(entity.assets.lon); % number of centroids
-n_events   =length(nc.time); % number of events
+% create dates for events
+if strcmp(nc.time_units, 'years')
+    hazard.mm=ones(1,n_events_orig);
+    hazard.dd=ones(1,n_events_orig);
+    hazard.yyyy=str2double(nc.time_orig(1:4))+nc.time';
+    hazard.datenum=datenum(hazard.yyyy,hazard.mm,hazard.dd);
+else
+    if strcmp(nc.time_units, 'seconds')
+        time_ratio = 3600*24;
+    elseif strcmp(nc.time_units, 'minutes')
+        time_ratio = 60*24;
+    elseif strcmp(nc.time_units, 'hours')
+        time_ratio = 24;
+    else
+        warning('** the time units in the NetCDF file are unexpected - assuming one every 366 days (roughly one year) ending in the reference year **')
+        time_ratio=1/366;
+        nc.time=(1:n_events_orig)-1;
+    end
+    nc.time_datenum = double(nc.time/time_ratio+datenum(nc.time_orig));
+    hazard.datenum=nc.time_datenum;
+end
+% subset of events within years_range
+if ~isequal(years_range, [0 0])
+    hazard.yyyy=str2num(datestr(hazard.datenum, 'yyyy'));
+    event_keep=(hazard.yyyy>=years_range(1) & hazard.yyyy<=years_range(2));
+    fprintf('keeping subset of years (%i out of %i)',sum(event_keep),length(hazard.yyyy));
+    hazard.datenum=hazard.datenum(event_keep);
+end
+hazard.yyyy=datestr(hazard.datenum, 'yyyy')
+hazard.mm=datestr(hazard.datenum, 'mm');
+hazard.dd=datestr(hazard.datenum, 'dd');
+n_events=length(hazard.yyyy);
 fprintf('generating FL hazard set for %i events at %i centroids\n',n_events,n_centroids);
 hazard.peril_ID='FL';
 hazard.units='m';
@@ -190,10 +253,13 @@ hazard.orig_event_count=n_events;
 hazard.event_count=n_events;
 hazard.event_ID=1:n_events;
 hazard.orig_event_flag=ones(1,n_events);
-hazard.yyyy=(1:n_events)+hazard.reference_year-nc.time(end)-1;
-hazard.mm=ones(1,n_events);
-hazard.dd=ones(1,n_events);
-hazard.datenum=datenum(hazard.yyyy,hazard.mm,hazard.dd);
+
+% 
+% hazard.yyyy=(1:n_events)+hazard.reference_year-nc.time(end)-1;
+% hazard.yyyy
+% hazard.mm=ones(1,n_events);
+% hazard.dd=ones(1,n_events);
+% hazard.datenum=datenum(hazard.yyyy,hazard.mm,hazard.dd);
 hazard.scenario='no climate change';
 hazard.name=cellstr(num2str(hazard.event_ID'))';
 hazard.frequency=ones(1,n_events)/n_events;
@@ -204,7 +270,7 @@ hazard.comment=sprintf('FL hazard event set, generated %s',hazard.date);
 hazard.intensity=spalloc(n_events,n_centroids,ceil(n_events*n_centroids*sparse_density));
 hazard.fraction =spalloc(n_events,n_centroids,ceil(n_events*n_centroids*sparse_density));
 
-% loop over each event, get depth (anf fraction) and store to centroids
+% loop over each event, get depth (and fraction) and store to centroids
 % template for-loop with waitbar or progress to stdout
 t0       = clock;
 mod_step = 1; % first time estimate after 10 events, then every 100
