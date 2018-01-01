@@ -67,8 +67,12 @@ fig_ext ='png';
 IBTrACS_ID='2007314N10093';
 entity='BGD_Bangladesh_Barisal_01x01';
 %interest_area=[90 90.2 22 22.2]; % SouthWest Barisal
-interest_area=[90.30 90.60 22.65 22.95]; % around Barisal city
+%interest_area=[90.30 90.60 22.65 22.95]; % around Barisal city
 marker_size=10; % for such a small area
+%
+% BIG
+entity='BGD_Bangladesh_01x01.mat';
+IBTrACS_ID='2007314N10093';
 
 if exist(ibtracs_save_file,'file')
     load(ibtracs_save_file) % contains tc_track
@@ -118,11 +122,15 @@ if ~isempty(IBTrACS_index)
     hazard_TC = climada_tc_hazard_set(tc_track(IBTrACS_index),'NOSAVE',entity);
     
     % generate the simply coarse-resolution (ETOPO)  TS surge field
-    hazard_TS_ETOP = climada_ts_hazard_set(hazard_TC,'NOSAVE');
+    hazard = climada_ts_hazard_set(hazard_TC,'NOSAVE');
+    hazard.filename=[climada_global.hazards_dir filesep '_BGD_Barisal_TS_ETOP.mat'];
+    save(hazard.filename,'hazard',climada_global.save_file_version);
+    hazard_TS_ETOP=hazard; clear hazard
     
     % generate the high-resolution (SRTM) TS surge field
-    check_plot=2; % set=2 for instructive plots, but takes time
-    hazard_TS_SRTM = climada_ts_hazard_set(hazard_TC,'NOSAVE','SRTM',check_plot,1);
+    hazard = climada_ts_hazard_set(hazard_TC,'NOSAVE','SRTM',0,1); % 0 for no check plot
+    hazard.filename=[climada_global.hazards_dir filesep '_BGD_Barisal_TS_SRTM.mat'];
+    save(hazard.filename,'hazard',climada_global.save_file_version);
     
     % check plots
     figure('Name','BGD_TS_batch','Color',[1 1 1]);
@@ -145,7 +153,7 @@ if ~isempty(IBTrACS_index)
     saveas(gcf,[fig_dir filesep 'BGD_TS_ETOP'],fig_ext);
     
     figure('Name','BGD_TS_batch','Color',[1 1 1]);
-    climada_hazard_plot(hazard_TS_SRTM,1,marker_size); % to check TS SRTM
+    climada_hazard_plot(hazard,1,marker_size); % to check TS SRTM
     title('surge field (TS) - SRTM');
     if ~isempty(interest_area),xlim(interest_area(1:2)),ylim(interest_area(3:4));end
     saveas(gcf,[fig_dir filesep 'BGD_TS_SRTM'],fig_ext);
