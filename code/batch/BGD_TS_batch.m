@@ -20,6 +20,9 @@
 %   IBTrACS_ID: either an original IBTrACS ID, such as '2007314N10093' or a
 %       climada-compatible one as (long) integer,such as 2007314010093 (just
 %       S->1, N->0)
+%       Usually obtained from
+%       http://www.atms.unca.edu/ibtracs/ibtracs_v03r07/browse-ibtracs/browseIbtracs.php 
+%       Aila: http://www.atms.unca.edu/ibtracs/ibtracs_v03r07/browse-ibtracs/index.php?name=v03r07-2009143N17089
 %   entity: a climada entity, used for centroids, loaded using
 %       climada_entity_load, hence either a filename (even w/o path) or a
 %       full entity structure.
@@ -31,6 +34,7 @@
 %   command window and figures
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20171231, intial
+% David N. Bresch, david.bresch@gmail.com, 20180102, save_figures
 %-
 
 global climada_global
@@ -62,17 +66,21 @@ if isempty(interest_area),interest_area=[90 90.2 22 22.2];end % SouthWest Barisa
 fig_dir =[climada_global.results_dir filesep 'BGD'];
 if ~isdir(fig_dir),[fP,fN]=fileparts(fig_dir);mkdir(fP,fN);end % create it
 fig_ext ='png';
+save_figures=1;
 %
 % TEST
-IBTrACS_ID='2007314N10093';
+IBTrACS_ID='2007314N10093';fig_name ='Sidr_BGD_Barisal'; % Sidr, 2007
+%IBTrACS_ID='2009143N17089';fig_name ='Aila_BGD_Barisal'; % Aila, 2009, track does not hit Bangladesh...
 entity='BGD_Bangladesh_Barisal_01x01';
 %interest_area=[90 90.2 22 22.2]; % SouthWest Barisal
-%interest_area=[90.30 90.60 22.65 22.95]; % around Barisal city
+interest_area=[90.30 90.60 22.65 22.95]; % with Barisal city in lower left
 marker_size=10; % for such a small area
 %
 % BIG
-entity='BGD_Bangladesh_01x01.mat';
-IBTrACS_ID='2007314N10093';
+% entity='BGD_Bangladesh_01x01.mat';
+% IBTrACS_ID='2007314N10093';
+% interest_area=[89 92 21 23.5];
+% marker_size=1;
 
 if exist(ibtracs_save_file,'file')
     load(ibtracs_save_file) % contains tc_track
@@ -99,15 +107,15 @@ if ~isempty(IBTrACS_index)
     fprintf('processing %s (ID_no %i):\n',tc_track(IBTrACS_index).ID_str,IBTrACS_ID_no);
     
     % load the high-resolution entity
-    entity=climada_entity_load(entity);
-    % scale Value to inhabintants of Barisal division (admin1) https://en.wikipedia.org/wiki/Barisal_Division
-    entity.assets.Value=entity.assets.Value/sum(entity.assets.Value)*8325666;
-    % scale with GDP per capita https://data.worldbank.org/indicator/NY.GDP.PCAP.CD
-    entity.assets.Value=entity.assets.Value*1358.8;
-    % scale with WOrdl bank income group (=1) +1
-    entity.assets.Value=entity.assets.Value*2;
-    
-    if isempty(entity),return;end
+    entity=climada_entity_load(entity);if isempty(entity),return;end
+    if ~isempty(findstr(entity.assets.filename,'BGD_Bangladesh_Barisal_01x01'))
+        % scale Value to inhabintants of Barisal division (admin1) https://en.wikipedia.org/wiki/Barisal_Division
+        f_pop=8325666; % scale with inhabintants of Barisal division (admin1) https://en.wikipedia.org/wiki/Barisal_Division
+        f_gdp=1358.8;  % scale with GDP per capita https://data.worldbank.org/indicator/NY.GDP.PCAP.CD
+        f_inc=2;  % scale with Wordl bank income group (=1) +1
+        fprintf('> scaling asset values with population %i, GDP/capita %5.0f and factor %i\n',f_pop,f_gdp,f_inc)
+        entity.assets.Value=entity.assets.Value/sum(entity.assets.Value)*f_pop*f_gdp*f_inc;
+    end
     
     % restrict to area of interest (especially for time/memory resons)
     if ~isempty(interest_area)
@@ -119,44 +127,74 @@ if ~isempty(IBTrACS_index)
     
     % generate the TC windfield
     % to improve temporal resolution, consider climada_global.tc.default_min_TimeStep
-    hazard_TC = climada_tc_hazard_set(tc_track(IBTrACS_index),'NOSAVE',entity);
+    climada_global.tc.default_min_TimeStep=.1;
+    hazard_TC = climada_tc_hazard_set(tc_track(IBTrACS_index),['_' fig_name '_TC'],entity);
     
     % generate the simply coarse-resolution (ETOPO)  TS surge field
-    hazard = climada_ts_hazard_set(hazard_TC,'NOSAVE');
-    hazard.filename=[climada_global.hazards_dir filesep '_BGD_Barisal_TS_ETOP.mat'];
-    save(hazard.filename,'hazard',climada_global.save_file_version);
-    hazard_TS_ETOP=hazard; clear hazard
+    hazard_TS_ETOP = climada_ts_hazard_set(hazard_TC,['_' fig_name '_TS_ETOP'],'ETOPO',1);
     
     % generate the high-resolution (SRTM) TS surge field
-    hazard = climada_ts_hazard_set(hazard_TC,'NOSAVE','SRTM',0,1); % 0 for no check plot
-    hazard.filename=[climada_global.hazards_dir filesep '_BGD_Barisal_TS_SRTM.mat'];
-    save(hazard.filename,'hazard',climada_global.save_file_version);
+    % to show the SRTM mapping, set 2nd last parameter to 2 (plot takes a long time)
+    hazard_TS_SRTM = climada_ts_hazard_set(hazard_TC,['_' fig_name '_TS_SRTM'],'SRTM',1,1);
     
     % check plots
+    % -----------
     figure('Name','BGD_TS_batch','Color',[1 1 1]);
-    climada_entity_plot(entity,marker_size); % to check assets
-    title('assets');
+    if ~save_figures,subplot(2,2,1);end
+    entity_params.unit_scale=1e9;entity_params.blue_ocean=1;entity_params.title_str='assets';
+    climada_entity_plot(entity,marker_size,entity_params); % to check assets
     if ~isempty(interest_area),xlim(interest_area(1:2)),ylim(interest_area(3:4));end
-    saveas(gcf,[fig_dir filesep 'BGD_assets'],fig_ext);
+    if save_figures,saveas(gcf,[fig_dir filesep 'BGD_assets'],fig_ext);end
     
-    %figure('Name','BGD_TS_batch','Color',[1 1 1]);
-    figure('Name','BGD_TS_batch','Color',[1 1 1]);
+    if ~save_figures
+        subplot(2,2,2);
+    else
+        figure('Name','BGD_TS_batch','Color',[1 1 1]);
+    end
     climada_hazard_plot(hazard_TC,1,marker_size); % to check TC
     title('wind field (TC)');
     if ~isempty(interest_area),xlim(interest_area(1:2)),ylim(interest_area(3:4));end
-    saveas(gcf,[fig_dir filesep 'BGD_TC'],fig_ext);
+    if save_figures,saveas(gcf,[fig_dir filesep fig_name '_TC'],fig_ext);end
     
-    figure('Name','BGD_TS_batch','Color',[1 1 1]);
+    if ~save_figures
+        subplot(2,2,3);
+    else
+        figure('Name','BGD_TS_batch','Color',[1 1 1]);
+    end
     climada_hazard_plot(hazard_TS_ETOP,1,marker_size); % to check TS ETOPO1
     title('surge field (TS) - ETOPO1');
     if ~isempty(interest_area),xlim(interest_area(1:2)),ylim(interest_area(3:4));end
-    saveas(gcf,[fig_dir filesep 'BGD_TS_ETOP'],fig_ext);
+    if save_figures,saveas(gcf,[fig_dir filesep fig_name '_TS_ETOP'],fig_ext);end
     
-    figure('Name','BGD_TS_batch','Color',[1 1 1]);
-    climada_hazard_plot(hazard,1,marker_size); % to check TS SRTM
+    if ~save_figures
+        subplot(2,2,4);
+    else
+        figure('Name','BGD_TS_batch','Color',[1 1 1]);
+    end
+    climada_hazard_plot(hazard_TS_SRTM,1,marker_size); % to check TS SRTM
     title('surge field (TS) - SRTM');
     if ~isempty(interest_area),xlim(interest_area(1:2)),ylim(interest_area(3:4));end
-    saveas(gcf,[fig_dir filesep 'BGD_TS_SRTM'],fig_ext);
+    if save_figures,saveas(gcf,[fig_dir filesep fig_name '_TS_SRTM'],fig_ext);end
+    
+    figure('Name','BGD_TS_batch difference','Color',[1 1 1]);
+    d_hazard_TS_SRTM=hazard_TS_SRTM;d_hazard_TS_SRTM.intensity=d_hazard_TS_SRTM.intensity-hazard_TS_ETOP.intensity;
+    params.difference=1;params.title_str='surge field (TS) difference SRTM minus ETOPO1';
+    climada_hazard_plot(d_hazard_TS_SRTM,1,marker_size,params); % to check TS SRTM
+    if ~isempty(interest_area),xlim(interest_area(1:2)),ylim(interest_area(3:4));end
+    if save_figures,saveas(gcf,[fig_dir filesep fig_name '_TS_SRTM-ETOP'],fig_ext);end
+    
+    figure('Name','BGD_TS_batch fraction','Color',[1 1 1]);
+    hazard_TS_SRTM.peril_ID='fraction';climada_hazard_plot(hazard_TS_SRTM,1,marker_size); % to check TS SRTM
+    title('surge field (TS) SRTM fraction');hazard_TS_SRTM.peril_ID='TS'; % reset!
+    if ~isempty(interest_area),xlim(interest_area(1:2)),ylim(interest_area(3:4));end
+    if save_figures,saveas(gcf,[fig_dir filesep fig_name '_TS_SRTM_fraction'],fig_ext);end
+    
+    % eoncode assets
+    entity=climada_assets_encode(entity,hazard_TC);
+    EDS   =climada_EDS_calc(entity,hazard_TC);
+    EDS(2)=climada_EDS_calc(entity,hazard_TS_ETOP);
+    EDS(3)=climada_EDS_calc(entity,hazard_TS_SRTM);
+    fprintf('modeled damage: TC %f TS ETOPO %f SRTM %f USD mio\n',EDS(1).ED/1e6,EDS(2).ED/1e6,EDS(3).ED/1e6)
     
 else
     fprintf('ID_no %i not found in %s\n',IBTrACS_ID_no,ibtracs_save_file);
