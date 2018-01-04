@@ -15,8 +15,8 @@
 %   copy data to cluster:      scp -r Documents/_GIT/climada_data/tc_tracks/ibtracs/ibtracs.mat dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/tc_tracks/ibtracs/.
 %   run on cluster:            bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_BGD_TS
 %
-%   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/_BGD_TS_ETOP.mat Documents/_GIT/climada_data/hazards/.
-%   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/_BGD_TS_SRTM.mat Documents/_GIT/climada_data/hazards/.
+%   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/_BGD_Barisal_TS_ETOP.mat Documents/_GIT/climada_data/hazards/_BGD_TS_ETOP_cluster.mat
+%   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/_BGD_Barisal_TS_SRTM.mat Documents/_GIT/climada_data/hazards/.
 %
 % CALLING SEQUENCE:
 %   bsub -R "rusage[mem=500]" -n 24 matlab -nodisplay -singleCompThread -r job_BGD_TS

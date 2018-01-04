@@ -131,11 +131,11 @@ if ~isempty(IBTrACS_index)
     hazard_TC = climada_tc_hazard_set(tc_track(IBTrACS_index),['_' fig_name '_TC'],entity);
     
     % generate the simply coarse-resolution (ETOPO)  TS surge field
-    hazard_TS_ETOP = climada_ts_hazard_set(hazard_TC,['_' fig_name '_TS_ETOP'],'ETOPO',1);
+    hazard_TS_ETOP = climada_ts_hazard_set(hazard_TC,['_' fig_name '_TS_ETOP'],'ETOPO',10);
     
     % generate the high-resolution (SRTM) TS surge field
-    % to show the SRTM mapping, set 2nd last parameter to 2 (plot takes a long time)
-    hazard_TS_SRTM = climada_ts_hazard_set(hazard_TC,['_' fig_name '_TS_SRTM'],'SRTM',1,1);
+    % to show the SRTM mapping, set 2nd last parameter to -10 (plot takes a long time)
+    hazard_TS_SRTM = climada_ts_hazard_set(hazard_TC,['_' fig_name '_TS_SRTM'],'SRTM', 10,1);
     
     % check plots
     % -----------
