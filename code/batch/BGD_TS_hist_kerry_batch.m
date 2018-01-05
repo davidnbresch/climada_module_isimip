@@ -5,12 +5,15 @@
 % NAME:
 %   BGD_TS_hist_kerry_batch
 % PURPOSE:
-%   generate entities and TC as well as TS hazard sets for Bangladesh
+%   generate entities and TC as well as TS hazard sets for Bangladesh (or
+%   in fact any other country), both in 0360as and 0150as (arcsec) resolution. 
 %
-%   highly recommended to set climada_global.parfor=1 for speedup
+%   Highly recommended to set climada_global.parfor=1 for speedup
 %
-%   First, TEST with 0360as (0150as), as already this needs to map  53'913'600 points
-%   to 2303 (11'008) points for SRTM, which takes abut 6 () minutes
+%   First, TEST with 0360as, as already this needs to map  53'913'600 points
+%   to 2'303 points for SRTM in Bangladesh, which takes abut 6 minutes. Please
+%   also conside to set FAST_TEST (see PARAMETERS) in order to run only a
+%   subset of all tracks for check first.
 %
 %   We use the abbreviation ETOP for ETOPO1, such that it has same length
 %   as SRTM (nicer for filenames)
@@ -27,6 +30,7 @@
 %   batch job, stdout
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20180104, initial
+% David N. Bresch, david.bresch@gmail.com, 20180105, figures also inivisbly produced
 %-
 
 global climada_global
@@ -42,9 +46,11 @@ module_data_dir=[fileparts(fileparts(fileparts(mfilename('fullpath')))) filesep 
 %
 % define the country (see climada_country_name)
 country_ISO3='BGD';
+country_ISO3='BRB';
 %
 % define entity resolution and spacing of regular ocean grid in degrees (and markersize to plot):
-entity_params.val_filename='0150as';dlonlat=0.1;markersize=2;
+% in a first got, set markersize=[] for it to be automatically determined, you might later adjust
+entity_params.val_filename='0150as';dlonlat=0.1;markersize=[];
 %entity_params.val_filename='0360as';dlonlat=0.2;markersize=3;
 %
 % FAST_TEST to only process a FAST_TEST number of tracks
@@ -60,6 +66,10 @@ SRTM_check_plots    = 10; % =0 to suppress plots, =10 for plots (to show SRTM he
 Kerry_check_plots   =  1; % =0 to suppress plots,  =1 for plots
 DFC_check_plots     =  1; % =0 to suppress plots,  =1 for plots
 fig_save            =  1; % whether we save the figures (=1, default) or not (=0)
+%
+% whether we show the figures on screen (='on') or not (='off'). In the
+% case of 'off', some figures (ETOP and SRTM check plots) are not generated
+fig_visible         ='off'; % default='on', ='off' for processing w/o figures
 %
 % more technical PARAMETERS follow:
 % to improve temporal resolution, consider climada_global.tc.default_min_TimeStep
@@ -79,14 +89,18 @@ track_files={
     'Trial1_GB_dkmiroc_rcp60cal'
     };
 %
-fig_dir =[climada_global.results_dir filesep 'isimip_BGD'];
+fig_dir =[climada_global.results_dir filesep 'isimip_' country_ISO3];
 if ~isdir(fig_dir),[fP,fN]=fileparts(fig_dir);mkdir(fP,fN);end % create it
 fig_ext ='png';
 
+if fig_save,fprintf('> saving all figures to %s\n\n',fig_dir);end
 
 % define a unique name (used to name hazard event sets
 unique_name=[country_ISO3 '_' entity_params.val_filename];
 
+% suppress check_plots (since generated in functions) if figures not visible
+if strcmpi(fig_visible,'off'),ETOP_check_plots=0;SRTM_check_plots=0;end
+    
 clear centroids EDS % aviod troubles with preceding calls (since a batch job)
 
 t0=clock;
@@ -130,13 +144,13 @@ open_water_points           = centroids.elevation_m<0 & ~centroids.on_land; % ze
 centroids.distance2coast_km(open_water_points) = -centroids.distance2coast_km(open_water_points); % open water points neg. distance
 
 if centroids_check_plot
-    figure('Name','centroids')
+    fig_centroids=figure('Name','centroids','Visible',fig_visible);
     climada_entity_plot(entity,7);
     hold on
     plot(centroids.lon,centroids.lat,'xr','MarkerSize',2*3); % larger marker, since overlays
     plot(centroids.lon(open_water_points),centroids.lat(open_water_points),'ob','MarkerSize',3);
     plot(centroids.lon(centroids.on_land),centroids.lat(centroids.on_land),'.g','MarkerSize',1);
-    if fig_save,saveas(gcf,[fig_dir filesep unique_name '_centroids'],fig_ext);delete(gcf);end % save and delete figure
+    if fig_save,saveas(fig_centroids,[fig_dir filesep unique_name '_centroids'],fig_ext);delete(fig_centroids);end % save and delete figure
 end
 
 
@@ -161,8 +175,9 @@ end
 
 % generate the TC windfield
 hazard_TC      = climada_tc_hazard_set(tc_track,[unique_name '_TC_hist'],centroids);
-climada_hazard_plot(hazard_TC,0,markersize);
-if fig_save,saveas(gcf,[fig_dir filesep unique_name '_TC'],fig_ext);delete(gcf);end % save and delete figure
+fig_TC=figure('Name','TC','Visible',fig_visible);
+climada_hazard_plot(hazard_TC,0,markersize);title([strrep(unique_name,'_',' ') ' TC maxintens']);
+if fig_save,saveas(fig_TC,[fig_dir filesep unique_name '_TC'],fig_ext);delete(fig_TC);end % save and delete figure
 
     
 % generate the simply coarse-resolution (ETOPO)  TS surge field
@@ -176,8 +191,12 @@ if ETOP_check_plots
     else
         close all
     end
-       climada_hazard_plot(hazard_TS_ETOP,0,markersize);
-    if fig_save,saveas(gcf,[fig_dir filesep unique_name '_TS_ETOP_maxintens'],fig_ext);delete(gcf);end % save and delete figure
+    climada_hazard_plot(hazard_TS_ETOP,0,markersize);
+    if fig_save,saveas(gcf,     [fig_dir filesep unique_name '_TS_ETOP_maxintens'],fig_ext);delete(gcf);end % save and delete figure
+else
+    fig_ETOP=figure('Name','ETOP','Visible',fig_visible);
+    climada_hazard_plot(hazard_TS_ETOP,0,markersize);title([strrep(unique_name,'_',' ') ' TS ETOP maxintens']);
+    if fig_save,saveas(fig_ETOP,[fig_dir filesep unique_name '_TS_ETOP_maxintens'],fig_ext);delete(fig_ETOP);end % save and delete figure
 end
 
 % generate the high-resolution (SRTM) TS surge field
@@ -188,7 +207,11 @@ if SRTM_check_plots
     if fig_save,saveas(gcf,[fig_dir filesep unique_name '_TS_SRTM_maxintens'],fig_ext);delete(gcf);end % save and delete figure
     if fig_save,saveas(gcf,[fig_dir filesep unique_name '_TS_SRTM_elevation'],fig_ext);delete(gcf);end % save and delete figure
     climada_hazard_plot(hazard_TS_SRTM,0,markersize);
-    if fig_save,saveas(gcf,[fig_dir filesep unique_name '_TS_SRTM_maxintens'],fig_ext);delete(gcf);end % save and delete figure
+    if fig_save,saveas(gcf,     [fig_dir filesep unique_name '_TS_SRTM_maxintens'],fig_ext);delete(gcf);end % save and delete figure
+else
+    fig_SRTM=figure('Name','SRTM','Visible',fig_visible);
+    climada_hazard_plot(hazard_TS_SRTM,0,markersize);title([strrep(unique_name,'_',' ') ' TS SRTM maxintens']);
+    if fig_save,saveas(fig_SRTM,[fig_dir filesep unique_name '_TS_SRTM_maxintens'],fig_ext);delete(fig_SRTM);end % save and delete figure
 end
 
 entity    =climada_assets_encode(entity,hazard_TC); % encode once
@@ -215,10 +238,12 @@ for file_i=1:length(track_files)
     hazard_TS_SRTM_kerry = climada_ts_hazard_set(hazard_TC_kerry,hazard_name_SRTM,'SRTM', 0,1,SRTM_elevation);
     
     if Kerry_check_plots
-        climada_hazard_plot(hazard_TS_ETOP_kerry,0,markersize);
-        if fig_save,saveas(gcf,[fig_dir filesep hazard_name_ETOP],fig_ext);delete(gcf);end % save and delete figure
-        climada_hazard_plot(hazard_TS_SRTM_kerry,0,markersize);
-        if fig_save,saveas(gcf,[fig_dir filesep hazard_name_SRTM],fig_ext);delete(gcf);end % save and delete figure
+        fig_Kerry_ETOP=figure('Name','Kerry ETOP','Visible',fig_visible);
+        climada_hazard_plot(hazard_TS_ETOP_kerry,0,markersize);title([strrep(hazard_name_ETOP,'_',' ') ' maxintens']);
+        if fig_save,saveas(fig_Kerry_ETOP,[fig_dir filesep hazard_name_ETOP],fig_ext);delete(fig_Kerry_ETOP);end % save and delete figure
+        fig_Kerry_SRTM=figure('Name','Kerry SRTM','Visible',fig_visible);
+        climada_hazard_plot(hazard_TS_SRTM_kerry,0,markersize);title([strrep(hazard_name_SRTM,'_',' ') ' maxintens']);
+        if fig_save,saveas(fig_Kerry_SRTM,[fig_dir filesep hazard_name_SRTM],fig_ext);delete(fig_Kerry_SRTM);end % save and delete figure
     end
     
     EDS(end+1)=climada_EDS_calc(entity,hazard_TC_kerry,     hazard_name_TC);
@@ -234,10 +259,11 @@ end % file_i
 
 if DFC_check_plots
     % for a show all EDSs
+    fig_DFC=figure('Name','DFC','Visible',fig_visible);
     climada_EDS_DFC(EDS);title(strrep(unique_name,'_',' '))
-    if fig_save,saveas(gcf,[fig_dir filesep unique_name '_DFC'],fig_ext);delete(gcf);end % save and delete figure
+    if fig_save,saveas(fig_DFC,[fig_dir filesep unique_name '_DFC'],fig_ext);delete(fig_DFC);end % save and delete figure
 end
 
-fprintf('all calculations took %f sec.\n',etime(t0,clock));
+fprintf('all calculations took %f sec.\n',etime(clock,t0));
 
 %end % BGD_TS_hist_kerry_batch

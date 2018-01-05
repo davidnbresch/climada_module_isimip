@@ -63,7 +63,7 @@ ibtracs_save_file=[climada_global.data_dir filesep 'tc_tracks' filesep 'ibtracs'
 %if isempty(interest_area),interest_area=[89.8 90.8 21.8 23];end % all Barisal
 if isempty(interest_area),interest_area=[90 90.2 22 22.2];end % SouthWest Barisal
 %
-fig_dir =[climada_global.results_dir filesep 'BGD'];
+fig_dir =[climada_global.results_dir filesep 'isimip_BGD'];
 if ~isdir(fig_dir),[fP,fN]=fileparts(fig_dir);mkdir(fP,fN);end % create it
 fig_ext ='png';
 save_figures=1;
@@ -77,6 +77,7 @@ interest_area=[90.30 90.60 22.65 22.95]; % with Barisal city in lower left
 marker_size=10; % for such a small area
 %
 % BIG
+% IBTrACS_ID='2007314N10093';fig_name ='Sidr_BGD_Bangladesh'; % Sidr, 2007
 % entity='BGD_Bangladesh_01x01.mat';
 % IBTrACS_ID='2007314N10093';
 % interest_area=[89 92 21 23.5];
@@ -115,6 +116,7 @@ if ~isempty(IBTrACS_index)
         f_inc=2;  % scale with Wordl bank income group (=1) +1
         fprintf('> scaling asset values with population %i, GDP/capita %5.0f and factor %i\n',f_pop,f_gdp,f_inc)
         entity.assets.Value=entity.assets.Value/sum(entity.assets.Value)*f_pop*f_gdp*f_inc;
+        entity.assets.Cover=entity.assets.Value;
     end
     
     % restrict to area of interest (especially for time/memory resons)
