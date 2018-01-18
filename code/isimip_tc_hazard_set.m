@@ -183,7 +183,9 @@ end
 
 % complete path, if missing
 [fP,fN,fE]=fileparts(hazard_set_file);
-if isempty(fP),hazard_set_file=[climada_global.data_dir filesep 'hazards' filesep fN fE];end
+if isempty(fE),fE='.mat';end
+if isempty(fP),fP=climada_global.data_dir;end
+hazard_set_file=[fP filesep 'hazards' filesep fN fE];
 
 if isempty(centroids)
     if exist(NatID_filename,'file')
@@ -229,6 +231,7 @@ if isfield(centroids,'assets')
     if isfield(entity.assets,'admin0_ISO3'),centroids.admin0_ISO3=entity.assets.admin0_ISO3;end
     if isfield(entity.assets,'admin1_name'),centroids.admin1_name=entity.assets.admin1_name;end
     if isfield(entity.assets,'admin1_code'),centroids.admin1_code=entity.assets.admin1_code;end
+    if isfield(entity.assets,'on_land'),centroids.on_land=entity.assets.on_land;end
     clear entity
 end
 
@@ -358,6 +361,7 @@ hazard.units             = 'm/s';
 
 % add optional fields
 if isfield(centroids,'distance2coast_km'),hazard.distance2coast_km=centroids.distance2coast_km;end
+if isfield(centroids,'on_land'),hazard.on_land=centroids.on_land;end
 if isfield(centroids,'elevation_m'),hazard.elevation_m=centroids.elevation_m;end
 if isfield(centroids,'country_name'),hazard.country_name=centroids.country_name;end
 if isfield(centroids,'admin0_name'),hazard.admin0_name=centroids.admin0_name;end
@@ -457,7 +461,7 @@ if verbose_mode,fprintf(' done\n');end
 
 hazard.annotation_str=annotation_str;
 
-if isempty(strfind(hazard_set_file,'NOSAVE'))
+if ~contains(hazard_set_file,'NOSAVE')
     fprintf('saving TC wind hazard set as %s\n',hazard_set_file);
     save(hazard_set_file,'hazard',climada_global.save_file_version) % HDF5
 end

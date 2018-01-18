@@ -225,11 +225,14 @@ pop2_filename0360as =[isimip_data_dir filesep 'hyde_ssp2_1860-2015_0360as_yearly
 pop_variable_name='var1';
 NatID_filename0360as=[isimip_data_dir filesep 'NatID_grid_0360as_adv_1.nc'];
 %
-%val_filename0150as =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0150as_yearly_zip.nc4']; % val_variable_name='var1';
-val_filename0150as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc']; % val_variable_name='var1'; 
+val_filename0150as =[isimip_data_dir filesep  'gdp_1860-2100_0150as_yearly.nc']; % val_variable_name='var1';
+if ~exist(val_filename0150as,'file')
+    fprintf('ERROR: wait for %s to be provided by Tobias\n',val_filename0150as);
+end
+%val_filename0150as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc']; % val_variable_name='var1'; 
 
 con_filename0150as=[isimip_data_dir filesep 'GDP2Asset_converter_0150as.nc']; % con_factor
-pop_filename0150as =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0150as_yearly_zip.nc']; % pop_variable_name='gdp_grid';
+pop_filename0150as =[isimip_data_dir filesep  'hyde_ssp2_1860-2100_0150as_yearly_zip.nc']; % pop_variable_name='gdp_grid';
 pop2_filename0150as =[isimip_data_dir filesep 'hyde_ssp2_1860-2015_0150as_yearly_zip.nc4']; % pop_variable_name='gdp_grid';
 NatID_filename0150as=[isimip_data_dir filesep 'NatID_grid_0150as.nc'];
 %
