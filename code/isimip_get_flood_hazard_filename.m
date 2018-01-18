@@ -1,4 +1,4 @@
-function hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,isimip_data_subdir,years_range)
+function hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,isimip_simround,years_range)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -14,7 +14,7 @@ function hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,
 % CALLING SEQUENCE:
 %   hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,check_plot,isimip_data_subdir,years_range)
 % EXAMPLE:
-%   isimip_data_subdir='2b';
+%   isimip_simround='2b';
 %   flood_filename='merged_LPJmL_miroc5_historical_flopros_gev_0.1.nc';
 %   entity=climada_entity_load('USA_UnitedStates_Florida');
 %   hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,isimip_data_subdir)
@@ -28,7 +28,7 @@ function hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,
 %   entity: an entity struct to interpolate the flood footprints to, see
 %       climada_entity_load and climada_entity_read for a description
 % OPTIONAL INPUT PARAMETERS:
-%   isimip_data_subdir: the sub-directory within the isimip folder within
+%   isimip_simround: the sub-directory within the isimip folder within
 %       climada_data/isimip where the raw isimip data (NetCDF file
 %       flood_filename) is located. This does not affect where the hazard is
 %       saved. If not specified, the file is assumed to be located directly
@@ -39,6 +39,8 @@ function hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,
 %   hazard_filename: a file name for the .mat hazard file on entity grid.
 % MODIFICATION HISTORY:
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20171130, initial
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180118, changed a few
+% things to be consistent.
 %-
 
 global climada_global
@@ -49,13 +51,12 @@ if ~climada_init_vars,return;end % init/import global variables
 if ~exist('flood_filename','var'),         flood_filename=         '';end
 if ~exist('entity','var'),                 entity=                 '';end
 if ~exist('years_range','var'),            years_range=         [0 0];end
-if ~exist('isimip_data_subdir','var')
-    isimip_data_dir = [climada_global.data_dir filesep 'isimip'];
-    isimip_hazard_dir = [climada_global.hazards_dir filesep 'isimip'];
-else
-    isimip_data_dir = [climada_global.data_dir filesep 'isimip' filesep isimip_data_subdir];
-    isimip_hazard_dir = [climada_global.hazards_dir filesep 'isimip' filesep isimip_data_subdir];
-end
+if ~exist('isimip_simround','var'),        isimip_simround=        '';end
+
+% define paths
+isimip_data_dir = [climada_global.data_dir filesep 'isimip' filesep isimip_simround];
+isimip_hazard_dir = [climada_global.hazards_dir filesep 'isimip' filesep isimip_simround];
+
 
 % check validity of arguments
 if ~isequal(size(years_range), [1 2])
@@ -92,7 +93,9 @@ end
 
 [~,fN]=fileparts(entity.assets.filename);
 [~,fN2]=fileparts(flood_filename);
-hazard_filename=strrep(fN,'_entity','');
+% fN2 should start with 'flddph', in which case replace with 'FLOOD'
+fN2=strrep(fN2, 'flddph', 'FLOOD');
+fN=strrep(fN,'_entity','');
 if isequal(years_range, [0 0])
     hazard_filename=[isimip_hazard_dir filesep fN2 '_' fN '_FL.mat'];
 else

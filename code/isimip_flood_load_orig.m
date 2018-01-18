@@ -1,4 +1,4 @@
-function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_plot,isimip_simround,years_range)
+function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_plot,isimip_data_subdir,years_range)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -45,7 +45,7 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 %       conversion...
 %       if =2, also show the centroids as red dots
 %       if =3, also show the original data grid as blue dots (might take time...)
-%   isimip_simround: the sub-directory within the isimip folder within
+%   isimip_data_subdir: the sub-directory within the isimip folder within
 %       climada_data/isimip where the raw isimip data (NetCDF file
 %       flood_filename) is located. This does not affect where the hazard is
 %       saved. If not specified, the file is assumed to be located directly
@@ -65,8 +65,6 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 % David N. Bresch, david.bresch@gmail.com, 20170705, climada_global.save_file_version
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20171130, add optional
 %   argument 'isimip_data_subdir', and improved treatment of the time axis
-% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180118, fixes to use
-% ISIMIP-2a (previous version kept as isimip_flood_load_orig.m
 %-
 
 hazard=[];
@@ -81,11 +79,11 @@ if ~exist('hazard_filename','var'),        hazard_filename=        '';end
 if ~exist('entity','var'),                 entity=                 '';end
 if ~exist('check_plot','var'),             check_plot=              1;end
 if ~exist('years_range','var'),            years_range=         [0 0];end
-if ~exist('isimip_simround','var')      isimip_simround=   '';end
-if isequal(isimip_simround, '')
+if ~exist('isimip_data_subdir','var')      isimip_data_subdir=   '';end
+if isimip_data_subdir == ''
     isimip_data_dir = [climada_global.data_dir filesep 'isimip'];
 else
-    isimip_data_dir = [climada_global.data_dir filesep 'isimip' filesep isimip_simround];
+    isimip_data_dir = [climada_global.data_dir filesep 'isimip' filesep isimip_data_subdir];
 end
 
 % check validity of arguments
@@ -101,22 +99,37 @@ end
 
 % PARAMETERS
 %
+% define the defaut folder for isimip TC track data
+if ~isdir(isimip_data_dir)
+    mkdir([climada_global.data_dir filesep 'isimip'],isimip_data_subdir); % create it
+    fprintf('NOTE: store your isimip input data in %s\n',isimip_data_dir);
+end
 %
 sparse_density=.01; % density of hazard.intensity (sparse, guess to allocate)
 %
 % interpolation method, see help interpn
 interpn_method='linear'; % default 'linear', also: 'nearest','spline','cubic'
 
-% check that flood_filename is given
-if isequal(flood_filename,'') % local GUI
-    fprintf('Error: flood_filename is not given')
-    return; % cancel
+% prompt for flood_filename if not given
+if isempty(flood_filename) % local GUI
+    flood_filename=[isimip_data_dir filesep '*.nc'];
+    [filename, pathname] = uigetfile(flood_filename, 'Select flood file:');
+    if isequal(filename,0) || isequal(pathname,0)
+        return; % cancel
+    else
+        flood_filename=fullfile(pathname,filename);
+    end
 end
 
-% check that hazard_filename is given
-if isequal(hazard_filename,'') % local GUI
-    fprintf('Error: hazard_filename is not given')
-    return; % cancel
+% prompt for hazard_filename if not given
+if isempty(hazard_filename) % local GUI
+    hazard_filename=[climada_global.hazards_dir filesep '*.mat'];
+    [filename, pathname] = uiputfile(hazard_filename, 'Save hazard as:');
+    if isequal(filename,0) || isequal(pathname,0)
+        return; % cancel
+    else
+        hazard_filename=fullfile(pathname,filename);
+    end
 end
 
 % flood_filename: complete path, if missing
@@ -129,7 +142,7 @@ if ~exist(flood_filename,'file')
 end
 
 if strcmpi(hazard_filename,'auto') % assign automatically
-    hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,isimip_simround,years_range);
+    hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,isimip_data_subdir,years_range);
 %     [~,fN]=fileparts(entity.assets.filename);
 %     [~,fN2]=fileparts(flood_filename);
 %     hazard_filename=strrep(fN,'_entity','');
@@ -148,7 +161,6 @@ end
 
 % load entity to obtsin centroids
 entity=climada_entity_load(entity);
-
 
 fprintf('reading lon, lat and time from %s ...',flood_filename);
 % if troubles, use ncinfo(flood_fraction_filename,'var') ...
@@ -225,8 +237,9 @@ if ~isequal(years_range, [0 0])
     event_keep_which=find(event_keep);
     fprintf('keeping subset of years (%i out of %i)',sum(event_keep),length(hazard.yyyy));
     hazard.datenum=hazard.datenum(event_keep);
+    warning('** to be fixed: event_keep must be used in the loading event loop... Otherwise the first n events are loaded but these are likely the wrong ones **');
 end
-hazard.yyyy=datestr(hazard.datenum, 'yyyy');
+hazard.yyyy=datestr(hazard.datenum, 'yyyy')
 hazard.mm=datestr(hazard.datenum, 'mm');
 hazard.dd=datestr(hazard.datenum, 'dd');
 n_events=length(hazard.yyyy);
@@ -268,17 +281,11 @@ format_str='%s';
 
 for event_i=1:n_events
     
-    event_i_nc=event_keep_which(event_i);
+    event_i_nc=event_keep_which(i)
     % get single timestep and reduced 'tile'
+    nc.fraction = ncread(flood_filename,'fldfrc',[lon_index_min lat_index_min event_i_nc],[index_dlon+1 index_dlat+1 1]); % lon, lat, time
     nc.depth    = ncread(flood_filename,'flddph',[lon_index_min lat_index_min event_i_nc],[index_dlon+1 index_dlat+1 1]); % lon, lat, time
-    try
-        % try to load the flood fraction from the same file first
-        nc.fraction = ncread(flood_filename,'fldfrc',[lon_index_min lat_index_min event_i_nc],[index_dlon+1 index_dlat+1 1]); % lon, lat, time
-    catch exception
-        % it it doesn't work, try the corresponding file with 'fldfrc'
-        % instead of 'flddph' in the file name.
-        nc.fraction = ncread(strrep(flood_filename,'flddph','fldfrc'),'fldfrc',[lon_index_min lat_index_min event_i_nc],[index_dlon+1 index_dlat+1 1]); % lon, lat, time
-    end
+    
     % interpolate to centroids
     depth_tile   =interpn(tile_lon,tile_lat,nc.depth,hazard.lon,hazard.lat,interpn_method);
     depth_tile(isnan(depth_tile))      =0; % replace NaN with zeros
@@ -323,7 +330,7 @@ if check_plot
     if check_plot>2
         % also plot the original grid of the nc data file
         fprintf('adding original data grid (takes some time ...');
-        [X,Y] = meshgrid(tile_lon,tile_lat);hold on;plot(X,Y,'.r','MarkerSize',0.01);
+        [X,Y] = meshgrid(tile_lon,tile_lat);hold on;plot(X,Y,'.r','MarkerSize',1);
         fprintf(' done\n');
         legend({'hazard intensity','centroids','data grid'});
     end % check_plot
