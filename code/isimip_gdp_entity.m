@@ -173,6 +173,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 % David N. Bresch, david.bresch@gmail.com, 20170320, hazard.ID_no as integer
 % David N. Bresch, david.bresch@gmail.com, 20170705, climada_global.save_file_version instead of hard-wired HDF5
 % David N. Bresch, david.bresch@gmail.com, 20170706, currency_unit, gdp_1860-2100_0360as_yearly.nc and time_val_yyyy starting 1860
+% David N. Bresch, david.bresch@gmail.com, 20180201, locate files
 %-
 
 entity=[]; % init output
@@ -218,9 +219,9 @@ end
 val_filename0360as =[isimip_data_dir filesep 'gdp_1860-2100_0360as_yearly.nc'];
 
 val_variable_name='gdp_grid';
-con_filename0360as=[isimip_data_dir filesep 'GDP2Asset_converter_0360as_adv_1.nc'];
+con_filename0360as=  [isimip_data_dir filesep 'GDP2Asset_converter_0360as_adv_1.nc'];
 con_variable_name='conversion_factor';
-pop_filename0360as =[isimip_data_dir filesep 'hyde_ssp2_1860-2100_0360as_yearly_zip.nc'];
+pop_filename0360as = [isimip_data_dir filesep 'hyde_ssp2_1860-2100_0360as_yearly_zip.nc'];
 pop2_filename0360as =[isimip_data_dir filesep 'hyde_ssp2_1860-2015_0360as_yearly_zip.nc4']; % pop_variable_name='gdp_grid';
 pop_variable_name='var1';
 NatID_filename0360as=[isimip_data_dir filesep 'NatID_grid_0360as_adv_1.nc'];
@@ -228,11 +229,13 @@ NatID_filename0360as=[isimip_data_dir filesep 'NatID_grid_0360as_adv_1.nc'];
 val_filename0150as =[isimip_data_dir filesep  'gdp_1860-2100_0150as_yearly.nc']; % val_variable_name='var1';
 if ~exist(val_filename0150as,'file')
     fprintf('ERROR: wait for %s to be provided by Tobias\n',val_filename0150as);
+    val_filename0150as =[isimip_data_dir filesep  'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc']; % patch 20180201
+    fprintf('--> PATCH, using %s for the time being\n',val_filename0150as);                       % patch 20180201
 end
 %val_filename0150as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc']; % val_variable_name='var1'; 
 
-con_filename0150as=[isimip_data_dir filesep 'GDP2Asset_converter_0150as.nc']; % con_factor
-pop_filename0150as =[isimip_data_dir filesep  'hyde_ssp2_1860-2100_0150as_yearly_zip.nc']; % pop_variable_name='gdp_grid';
+con_filename0150as=  [isimip_data_dir filesep 'GDP2Asset_converter_0150as.nc']; % con_factor
+pop_filename0150as = [isimip_data_dir filesep 'hyde_ssp2_1860-2100_0150as_yearly_zip.nc4']; % pop_variable_name='gdp_grid';
 pop2_filename0150as =[isimip_data_dir filesep 'hyde_ssp2_1860-2015_0150as_yearly_zip.nc4']; % pop_variable_name='gdp_grid';
 NatID_filename0150as=[isimip_data_dir filesep 'NatID_grid_0150as.nc'];
 %
