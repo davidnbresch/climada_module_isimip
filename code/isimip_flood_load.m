@@ -1,4 +1,5 @@
-function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_plot,isimip_simround,years_range)
+function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_plot,isimip_simround,years_range,interpn_method)
+
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -52,6 +53,13 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 %       within the climada_data/isimip folder.
 %   years_range: vector of length 2 containing the first and the last year
 %       to be loaded from the netcdf file. If empty or [0 0], loads all data.
+%   interpn_method: interpolation method to map hazard onto the entity
+%       structure (i.e., centroids). The default value is 'linear' and
+%       should be used if the hazard it at a lower resolution than the
+%       entity, however it should be set to 'nearest' when using centroids
+%       on the same grid (e.g., from a file at a as0150 resolution such as
+%       'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc'. Possible values are:
+%       'linear', 'nearest','spline','cubic'.
 % OUTPUTS:
 %   hazard: a climada hazard structure, see manual
 %       in addition to the standard hazard.intensity, this hazard also
@@ -81,6 +89,7 @@ if ~exist('hazard_filename','var'),        hazard_filename=        '';end
 if ~exist('entity','var'),                 entity=                 '';end
 if ~exist('check_plot','var'),             check_plot=              1;end
 if ~exist('years_range','var'),            years_range=         [0 0];end
+if ~exist('interpn_method','var')          interpn_method=   'linear';end
 if ~exist('isimip_simround','var')      isimip_simround=   '';end
 if isequal(isimip_simround, '')
     isimip_data_dir = [climada_global.data_dir filesep 'isimip'];
@@ -103,9 +112,6 @@ end
 %
 %
 sparse_density=.01; % density of hazard.intensity (sparse, guess to allocate)
-%
-% interpolation method, see help interpn
-interpn_method='linear'; % default 'linear', also: 'nearest','spline','cubic'
 
 % check that flood_filename is given
 if isequal(flood_filename,'') % local GUI

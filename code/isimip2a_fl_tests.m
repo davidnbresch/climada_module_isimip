@@ -67,7 +67,7 @@ if isempty(entity)
     fprintf('*** NOTE: generating asset base %s\n\n',entity_file);
     nightlight_params.entity_filename=entity_file; % pass on
     entity=climada_nightlight_entity(country_ISO3,admin1_name,nightlight_params); % create assets from nightlight
-    entity.assets.Value=entity.assets.Value*893189e6*5; % scale to GDP*income_group_factor
+%     entity.assets.Value=entity.assets.Value*893189e6*5; % scale to GDP*income_group_factor
     entity.assets.Cover=entity.assets.Value; % technical step, ignore
     save(entity.assets.filename,'entity');
 end
@@ -120,7 +120,7 @@ hazard_FL=climada_hazard_load(hazard_FL_file);
 if isempty(hazard_FL)
     fprintf('*** NOTE: generating FL hazard from %s\n\n',flood_filename);
     figure % new figure for the check_plot of isimip_flood_load
-    hazard_FL=isimip_flood_load(flood_filename,hazard_FL_file,entity,1,isimip_simround,years_range);
+    hazard_FL=isimip_flood_load(flood_filename,hazard_FL_file,entity,1,isimip_simround,years_range,'nearest');
 end
 
 % calculate the from ground up damage for each event at each centroid
