@@ -518,8 +518,8 @@ else
         if climada_global.parfor
             fprintf('processing %i countries (parfor, producing single country entity files)\n\n',n_NatIDs);
             NatID_RegID_ISO3=NatID_RegID.ISO3; % for parfor
-            parfor iso3_i=1:10
-            %parfor iso3_i=1:n_NatIDs
+            %parfor iso3_i=1:10
+            parfor iso3_i=1:n_NatIDs
                 ISO3 = NatID_RegID_ISO3{iso3_i};
                 fprintf('- %s:\n',ISO3)
                 isimip_gdp_entity(ISO3,params);
