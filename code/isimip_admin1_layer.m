@@ -5,7 +5,9 @@ function centroids=isimip_admin1_layer(centroids_file,country_ISO3,check_plot,sa
 % NAME:
 %   isimip_admin1_layer
 % PURPOSE:
-%   add admin1 layer to isimip centroids
+%   add admin1 layer to isimip centroids or an entity. The use with an
+%   entity might in fact by now be the default use, i.e.
+%   entity=isimip_admin1_layer(entity,'ALL')
 %
 %   search for one admin1, here 'Jura' in Switzerland (CHE):
 %   centroids=isimip_admin1_layer('','CHE',2);admin1_name='Jura';
@@ -29,10 +31,12 @@ function centroids=isimip_admin1_layer(centroids_file,country_ISO3,check_plot,sa
 %   centroids=isimip_admin1_layer; % TEST, runs it for DEU
 %   centroids=isimip_admin1_layer('','DEU',2); % show plot for DEU
 %   centroids=isimip_admin1_layer('',{'DEU','FRA'});
+%   entity=isimip_admin1_layer(entity,'ALL'); % add admin1 to an entity
 % INPUTS:
 %   centroids_file: the centroids, if empty (=''), the default isimip centroids are
 %       used (i.e. GLB_NatID_grid_0360as_adv_1)
 %       if ='ALL', run all countries
+%       OR a centroids structure or an entity structure
 %   country_ISO3: a single country ISO3 code (like 'USA') or a list of
 %       codes (like {'DEU','FRA'})
 % OPTIONAL INPUT PARAMETERS:
@@ -54,6 +58,7 @@ function centroids=isimip_admin1_layer(centroids_file,country_ISO3,check_plot,sa
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20171006, initial
 % David N. Bresch, david.bresch@gmail.com, 20171015, small bug fixed (admin1_pos)
+% David N. Bresch, david.bresch@gmail.com, 20180306, process entities, too
 %-
 
 %centroids=[]; % init output
@@ -78,8 +83,20 @@ admin1_shape_file=[module_data_dir filesep 'ne_10m_admin_1_states_provinces' fil
 %
 plot_colors={'.r','.g','.b','.k','.m','.y'};
 
+if ~isstruct(centroids_file)
 % load centroids
 centroids=climada_centroids_load(centroids_file);
+else
+    % contains in fact centroids or an entity, check
+    if isfield(centroids_file,'assets')
+        % an entity
+        centroids.lon=centroids_file.assets.lon;
+        centroids.lat=centroids_file.assets.lat;
+        centroids.filename='ENTITY';
+    else
+        centroids=centroids_file;
+    end
+end
 
 % load shape file
 admin1_shapes=climada_shaperead(admin1_shape_file);
@@ -162,6 +179,14 @@ for i=1:n_shapes
 end
 
 centroids.admin1_comment='admin1_name_list(centroids.admin1_ID(i)) is admin1 name for centroids i';
+
+if strcmpi(centroids.filename,'entity')
+    % store back to entity
+    centroids_file.assets.admin1_ID   = centroids.admin1_ID;
+    centroids_file.assets.admin1_list = centroids.admin1_list;
+    clear centroids
+    centroids=centroids_file; % contains the entity
+end
 
 if save_it
     fprintf('saving to %s\n',centroids.filename)
