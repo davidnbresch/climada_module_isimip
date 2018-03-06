@@ -185,6 +185,10 @@ function [entity,params]=isimip_gdp_entity_TEST(ISO3,params)
 % David N. Bresch, david.bresch@gmail.com, 20180305, verbose=0 for 'all'
 %-
 
+mfilename('fullpath')
+pwd
+ls
+
 entity=[]; % init output
 
 global climada_global
