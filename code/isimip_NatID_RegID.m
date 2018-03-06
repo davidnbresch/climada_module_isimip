@@ -48,7 +48,7 @@ end
 
 % PARAMETERS
 %
-NatID_RegID_filename=[isimip_data_dir filesep 'NatID_RegID.xlsx'];
+NatID_RegID_filename=[isimip_data_dir filesep 'NatID_RegID.xlsx']
 
 [ok,NatID_RegID_filename_mat]=climada_check_matfile(NatID_RegID_filename);
 if ok
