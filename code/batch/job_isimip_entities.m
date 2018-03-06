@@ -12,7 +12,7 @@
 %
 %   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/entities/*.mat Documents/_GIT/climada_data/entities/.
 % CALLING SEQUENCE:
-%   bsub -R "rusage[mem=1000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip_entities
+%   bsub -R "rusage[mem=1000]" -n 24 matlab -nodisplay -singleCompThread -r job_ispwdimip_entities
 % EXAMPLE:
 %   bsub -R "rusage[mem=1000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip_entities
 % INPUTS:
@@ -35,12 +35,12 @@ cd /cluster/home/dbresch/climada % to make sure the cluster finds climada
 
 startup % climada_global exists afterwards
 pwd % just to check where the job is running from
-N_pool_workers=24; % for parpool
-climada_global.parfor=1; % for parpool
-pool=parpool(N_pool_workers);
+% N_pool_workers=24; % for parpool
+% climada_global.parfor=1; % for parpool
+% pool=parpool(N_pool_workers);
 
-isimip_gdp_entity('all',resolution);
+isimip_gdp_entity_TEST('all',resolution);
 
-delete(pool)
+%delete(pool)
 
 exit % the cluster appreciates this, gives back memory etc.
