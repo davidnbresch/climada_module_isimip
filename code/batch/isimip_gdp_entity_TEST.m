@@ -192,7 +192,7 @@ ls
 entity=[]; % init output
 
 global climada_global
-climada_global
+climada_global.data_dir
 if ~climada_init_vars,return;end % init/import global variables
 
 % poor man's version to check arguments
