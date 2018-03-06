@@ -529,10 +529,10 @@ else
         n_NatIDs=length(NatID_RegID.NatID);
         params.verbose           = 0;
         params.check_plot        = 0;
+        if TEST_mode,n_NatIDs=5;end % for TESTs only
         if climada_global.parfor
             fprintf('processing %i countries (parfor, producing single country entity files)\n\n',n_NatIDs);
             NatID_RegID_ISO3=NatID_RegID.ISO3; % for parfor
-            if TEST_mode,n_NatIDs=5;end % for TESTs only
             parfor iso3_i=1:n_NatIDs
                 ISO3 = NatID_RegID_ISO3{iso3_i};
                 fprintf('- %s:\n',ISO3)
@@ -546,8 +546,8 @@ else
                 fprintf('- %s:\n',ISO3)
                 entity=isimip_gdp_entity(ISO3,params);
             end % iso3_i
+            if params.verbose,fprintf('only last entity returned, see climada_entity_load\n');end
         end % parfor
-        if params.verbose,fprintf('only last entity returned, see climada_entity_load\n');end
         return
     end
     
