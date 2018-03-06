@@ -52,7 +52,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 % EXAMPLE:
 %   entity=isimip_gdp_entity('DEU') % single country entity
 %   entity=isimip_gdp_entity({'DEU','FRA','ITA'}) % multi country entity
-%   entity=isimip_gdp_entity('all') % single country entity for each country worldwide (do NOT try this first ;-)
+%   entity=isimip_gdp_entity('all','0150as') % single country entity for each country worldwide in 0150as resolution (do NOT try this first ;-)
 %   entity=isimip_gdp_entity('ALL_IN_ONE') % one global entity
 %   params=isimip_gdp_entity('params') % get default parameters
 %   % to check population for year 2030:
@@ -79,6 +79,9 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %           first output, already.
 % OPTIONAL INPUT PARAMETERS:
 %   params: a structure with fields (see also ISO3='params' above):
+%    SPECIAL: if params is NOT a structure, it can be used to just define
+%       the resolution, i.e. '0150as' or '0360as' (same effect as setting
+%       params.val_filename='0360as' and then pass params, just easier).
 %    val_filename: filename of the .nc file with the (annual) GDP values
 %       ='0360as': use 0.1 degree default file (default, set in PARAMETERS)
 %       ='0150as': use 2.5 minutes default file (set in PARAMETERS)
@@ -192,6 +195,11 @@ if ~climada_init_vars,return;end % init/import global variables
 if ~exist('ISO3','var'),   ISO3   = '';end
 if ~exist('params','var'), params = struct;end
 
+if ischar(params) % special case, where we pass only the resolution in params
+    val_filename=params;clear params;params = struct;
+    params.val_filename=val_filename;clear val_filename;
+end
+
 % check for some parameter fields we need
 if ~isfield(params,'val_filename'),       params.val_filename='';end
 if ~isfield(params,'con_filename'),       params.con_filename='';end
@@ -207,6 +215,9 @@ if ~isfield(params,'currency_unit'),      params.currency_unit=[];end
 if ~isfield(params,'verbose'),            params.verbose=[];end
 
 % PARAMETERS
+%
+% to TEST the code, i.e. reads only a few (3) timesteps
+TEST_mode=1; % default=0
 %
 if isempty(params.currency_unit)
     fprintf('WARNING: currency_unit set to 1.e9\n');
@@ -240,9 +251,9 @@ NatID_filename0360as=[isimip_data_dir filesep 'NatID_grid_0360as_adv_1.nc'];
 %
 val_filename0150as =[isimip_data_dir filesep  'gdp_1860-2100_0150as_yearly.nc']; % val_variable_name='var1';
 if ~exist(val_filename0150as,'file')
-    if findstr(params.val_filename,'0150as'),fprintf('ERROR: wait for %s to be provided by Tobias\n',val_filename0150as);end
+    if strfind(params.val_filename,'0150as'),fprintf('ERROR: wait for %s to be provided by Tobias\n',val_filename0150as);end
     val_filename0150as =[isimip_data_dir filesep  'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc'];                        % patch 20180201
-    if findstr(params.val_filename,'0150as'),fprintf('--> PATCH, using %s for the time being\n',val_filename0150as);end % patch 20180201
+    if strfind(params.val_filename,'0150as'),fprintf('--> PATCH, using %s for the time being\n',val_filename0150as);end % patch 20180201
 end
 %val_filename0150as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc']; % val_variable_name='var1'; 
 
@@ -258,9 +269,6 @@ entity_template=[climada_global.entities_dir filesep 'entity_template'];
 %
 % admin0 shape file (for fallback selection option):
 admin0_shape_file=climada_global.map_border_file;
-%
-% to TEST the code, i.e. reads only a few (3) timesteps
-TEST_mode=0; % default=0
 %
 % populate default parameters in params
 if isempty(params.check_plot),        params.check_plot=0;end
@@ -769,7 +777,14 @@ if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
         end
     end % ~isempty(params.hazard_file)
     
-    %if params.verbose,fprintf('> saving entity as %s\n',entity.assets.filename);end
+    % fix the rounding errors in the centroid coordinates
+    if strfind(params.val_filename,       '0360as')
+        entity = fix_coords_isimip(entity,'0360as');
+    elseif strfind(params.val_filename,   '0150as')
+        entity = fix_coords_isimip(entity,'0150as');
+    end
+
+    fprintf('> saving entity as %s\n',entity.assets.filename);
     save(entity.assets.filename,'entity',climada_global.save_file_version); % HDF5
     
     if params.check_plot

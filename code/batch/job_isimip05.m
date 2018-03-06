@@ -15,7 +15,7 @@
 %   to create check plots
 %
 %   some hints to work with the cluster (explicit paths, edit this ;-)
-%   copy job to cluster:       scp -r Documents/_GIT/climada_modules/isimip/code/job_isimip05.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
+%   copy job to cluster:       scp -r Documents/_GIT/climada_modules/isimip/code/batch/job_isimip05.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
 %   copy all data to cluster:  scp -r Documents/_GIT/climada_data/isimip/tc_tracks dbresch@euler.ethz.ch:/cluster/home/dbresch/climada_data/isimip/.
 %   copy single data to cluster:scp -r Documents/_GIT/climada_data/isimip/tc_tracks/Trial3_GB_dkgfdl_piControlcal dbresch@euler.ethz.ch:/cluster/home/dbresch/climada_data/isimip/tc_tracks/.
 %   run on cluster:            bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip05
