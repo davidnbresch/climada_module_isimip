@@ -536,7 +536,7 @@ else
             parfor iso3_i=1:n_NatIDs
                 ISO3 = NatID_RegID_ISO3{iso3_i};
                 fprintf('- %s:\n',ISO3)
-                isimip_gdp_entity(ISO3,params);
+                isimip_gdp_entity_TEST(ISO3,params);
             end % parfor iso3_i
             if fprintf('parfor mode: no entity returned, see climada_entity_load\n');end
         else
@@ -544,7 +544,7 @@ else
             for iso3_i=1:n_NatIDs
                 ISO3=NatID_RegID.ISO3{iso3_i};
                 fprintf('- %s:\n',ISO3)
-                entity=isimip_gdp_entity(ISO3,params);
+                entity=isimip_gdp_entity_TEST(ISO3,params);
             end % iso3_i
             if params.verbose,fprintf('only last entity returned, see climada_entity_load\n');end
         end % parfor
