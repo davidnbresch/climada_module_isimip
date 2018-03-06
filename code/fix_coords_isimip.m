@@ -11,7 +11,7 @@ function entity = fix_coords_isimip(entity,res)
 %   (currently '0360as' or '0150as'). This does not do interpolation, just
 %   fixes the coordinates that in some cases have very small shifts in
 %   different isimip files (e.g. flood depth versus assets).
-%   
+%
 %
 %   next call: isimip...
 % CALLING SEQUENCE:
@@ -31,6 +31,7 @@ function entity = fix_coords_isimip(entity,res)
 %
 % MODIFICATION HISTORY:
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180301, initial
+% David N. Bresch, dbresch@ethz.ch, 20180306, Warning: sizes of lat_true and lat_unique do not match
 %-
 
 if ~exist('res','var'); res   = '0150as'; end
@@ -73,10 +74,20 @@ if length(lon_true) ~= length(lon_unique)
     return
 end
 lat_true = (-90+dlat/2):dlat:(90-dlat/2);
-lat_true = lat_true(lat_true > min(lat_orig)-dlat/2 & lat_true < max(lat_orig)+dlat/2);
+lat_true = lat_true(lat_true > min(lat_orig)-dlat/4 & lat_true < max(lat_orig)+dlat/4);
 if length(lat_true) ~= length(lat_unique)
-    fprintf('\nError: sizes of lat_true and lat_unique do not match, aborted\n');
-    return
+    if length(lat_true) == length(lat_unique)-1
+        lat_true = (-90+dlat):dlat:(90-dlat);
+        lat_true = lat_true(lat_true > min(lat_orig)-dlat/4 & lat_true < max(lat_orig)+dlat/4);
+        fprintf('\nWarning: sizes of lat_true and lat_unique do not match, fixed (check)\n');
+    else
+        fprintf('\nError: sizes of lat_true and lat_unique do not match, aborted\n');
+%         length(lat_true)
+%         length(lat_unique)
+%         lat_true(1),lat_true(end)
+%         lat_unique(1),lat_unique(end)
+        return
+    end
 end
 
 % replace values by their true values

@@ -217,7 +217,7 @@ if ~isfield(params,'verbose'),            params.verbose=[];end
 % PARAMETERS
 %
 % to TEST the code, i.e. reads only a few (3) timesteps
-TEST_mode=1; % default=0
+TEST_mode=0; % default=0
 %
 if isempty(params.currency_unit)
     fprintf('WARNING: currency_unit set to 1.e9\n');
@@ -278,21 +278,26 @@ if isempty(params.currency_unit),     params.currency_unit=1;end
 
 if strcmpi(ISO3,'params'),entity=params;return;end % special case, return the full params structure
 
-grid_resolution_str='';
 if strcmpi(params.val_filename,'0360as')
     params.val_filename  = val_filename0360as;
     params.pop_filename  = pop_filename0360as;
     params.pop2_filename = pop2_filename0360as;
     if isempty(params.con_filename),params.con_filename=con_filename0360as;end
     if isempty(params.NatID_filename),params.NatID_filename=NatID_filename0360as;end
-    grid_resolution_str='0360as';
 elseif strcmpi(params.val_filename,'0150as')
     params.val_filename  = val_filename0150as;
     params.pop_filename = pop_filename0150as;
     params.pop2_filename = pop2_filename0150as;
     if isempty(params.con_filename),params.con_filename=con_filename0150as;end
     if isempty(params.NatID_filename),params.NatID_filename=NatID_filename0150as;end
-    grid_resolution_str='0150as';
+end
+
+if strfind(params.val_filename,    '0360as')
+    grid_resolution_str=           '0360as';
+elseif strfind(params.val_filename,'0150as')
+    grid_resolution_str=           '0150as';
+else
+    grid_resolution_str=           'other';
 end
 
 % prepend isimip_data_dir in case only filenames are passed
@@ -526,7 +531,7 @@ else
         if climada_global.parfor
             fprintf('processing %i countries (parfor, producing single country entity files)\n\n',n_NatIDs);
             NatID_RegID_ISO3=NatID_RegID.ISO3; % for parfor
-            %parfor iso3_i=1:10
+            if TEST_mode,n_NatIDs=5;end % for TESTs only
             parfor iso3_i=1:n_NatIDs
                 ISO3 = NatID_RegID_ISO3{iso3_i};
                 fprintf('- %s:\n',ISO3)
@@ -667,7 +672,7 @@ else
 end % ALL_IN_ONE
 
 % just an INFO
-fprintf('HINT: consider running isimip_admin1_layer to add admin1 information to centroids\n');
+if params.verbose,fprintf('HINT: consider running isimip_admin1_layer to add admin1 information to centroids\n');end
 
 if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
     
@@ -680,7 +685,7 @@ if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
     if abs(params.currency_unit-1.0)>0
         entity.assets.Values=entity.assets.Values/params.currency_unit;
         entity.assets.currency_unit=params.currency_unit;
-        fprintf('NOTE: Value unit set to %g\n',params.currency_unit);
+        if params.verbose,fprintf('NOTE: Value unit set to %g\n',params.currency_unit);end
     else
         entity.assets.currency_unit=1.0; % default in climada all in units of 1
     end
