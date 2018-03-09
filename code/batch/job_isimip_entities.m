@@ -37,6 +37,7 @@ startup % climada_global exists afterwards
 pwd % just to check where the job is running from
 % N_pool_workers=24; % for parpool
 % climada_global.parfor=1; % for parpool
+
 % pool=parpool(N_pool_workers);
 
 isimip_gdp_entity_TEST('all',resolution);

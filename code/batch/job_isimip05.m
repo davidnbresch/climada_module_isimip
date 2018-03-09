@@ -37,12 +37,13 @@
 
 % PARAMETERS
 %
-FAST_TEST=0; % defalt=0, if =1, set -R "rusage[mem=500]"
+FAST_TEST=1; % defalt=0, if =1, set -R "rusage[mem=500]"
 %
 % one should only have to edit this section
 cd /cluster/home/dbresch/climada % to make sure the cluster finds climada
-scratch_dir = '/cluster/scratch/dbresch/climada_data/hazards';
+%scratch_dir = '/cluster/scratch/dbresch/climada_data/hazards';
 %scratch_dir = '/Users/bresch/Documents/_GIT/climada_data/isimip/scratch'; % for local tests
+%scratch_dir = '/cluster/work/climate/dbresch/climada_data/hazards';
 %
 % the list of TC track files to be processed (see SPECIAL CODE below)
 track_files={
@@ -54,6 +55,8 @@ startup % climada_global exists afterwards
 pwd % just to check where the job is running from
 N_pool_workers=24; % for parpool
 climada_global.parfor=1; % for parpool
+
+climada_global.tc.default_min_TimeStep=0.25; % 15 min
 
 % prepare centroids (full globe leads to segmentation fault)
 centroids=climada_centroids_load('GLB_NatID_grid_0360as_adv_1');
@@ -68,7 +71,6 @@ centroids.lon              =centroids.lon(grid_pos)-0.05; % subtract bias
 centroids.lat              =centroids.lat(grid_pos)-0.05; % subtract bias
 centroids.centroid_ID      =centroids.centroid_ID(grid_pos);
 centroids.distance2coast_km=centroids.distance2coast_km(grid_pos);
-if isfield(centroids,'NatID'),centroids=rmfield(centroids,'NatID');end
 if isfield(centroids,'NatID'),centroids=rmfield(centroids,'NatID');end
 if isfield(centroids,'admin1_ID'),centroids=rmfield(centroids,'admin1_ID');end
 if isfield(centroids,'ISO3_list'),centroids=rmfield(centroids,'ISO3_list');end
@@ -86,17 +88,24 @@ end
 pool=parpool(N_pool_workers);
 for file_i=1:length(track_files)
     
-    hazard_name=[track_files{file_i} '_1deg_prob'];
-    tc_track=isimip_tc_track_load(track_files{file_i},'both',180,-1); % both hemispheres
+    hazard_name        = [track_files{file_i} '_1deg_prob'];
+    hazard_set_file    = [climada_global.hazards_dir filesep hazard_name];
+    tc_track_prob_name = [climada_global.data_dir filesep 'isimip' filesep 'tc_tracks' filesep hazard_name '_tracks_prob.mat'];
     
-    % create probabilistic tracks
-    [~,p_rel] = climada_tc_track_wind_decay_calculate(tc_track,0); % wind speed decay at track nodes after landfall
-    tc_track  = climada_tc_random_walk(tc_track); % overwrites tc_track to save memory
-    tc_track  = climada_tc_track_wind_decay(tc_track, p_rel,0); % add the inland decay correction to all probabilistic nodes
-    
-    tc_track_prob_name=[scratch_dir filesep hazard_name '_tracks.mat'];
-    fprintf('storing prob tracks %s\n',tc_track_prob_name)
-    save(tc_track_prob_name,'tc_track',climada_global.save_file_version);
+    if exist(tc_track_prob_name,'file')
+        fprintf('loading from %s\n',tc_track_prob_name);
+        load(tc_track_prob_name) % 20180309
+    else
+        tc_track=isimip_tc_track_load(track_files{file_i},'both',180,-1); % both hemispheres
+        
+        % create probabilistic tracks
+        [~,p_rel] = climada_tc_track_wind_decay_calculate(tc_track,0); % wind speed decay at track nodes after landfall
+        tc_track  = climada_tc_random_walk(tc_track); % overwrites tc_track to save memory
+        tc_track  = climada_tc_track_wind_decay(tc_track, p_rel,0); % add the inland decay correction to all probabilistic nodes
+        
+        fprintf('storing prob tracks %s\n',tc_track_prob_name)
+        save(tc_track_prob_name,'tc_track',climada_global.save_file_version);
+    end
     
 %     if check_plots
 %         % plot the tracks
@@ -115,7 +124,6 @@ for file_i=1:length(track_files)
     if FAST_TEST,tc_track=tc_track(1:1000);end % small subset for TEST
     fprintf('using %i centroids, %i (prob) tracks\n',length(centroids.lon),length(tc_track))
 
-    hazard_set_file=[scratch_dir filesep hazard_name];
     isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,0,hazard_name);
     
 end % file_i

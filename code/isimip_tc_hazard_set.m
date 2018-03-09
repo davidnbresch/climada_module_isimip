@@ -123,7 +123,8 @@ if ~exist('annotation_str','var'),annotation_str='';end
 % check_plot commented out here and in climada_tc_windfield for speedup, see code
 %
 % only deal with centtroids not further away than from the coast
-centroid_inland_max_dist_km=500;
+%centroid_inland_max_dist_km=500; % until 20180309
+centroid_inland_max_dist_km=5000;
 %
 % since we store the hazard as sparse array, we need an a-priory estimation
 % of it's density
@@ -303,11 +304,11 @@ else
 end
 %end
 
-if n_tracks>10000
-    default_min_TimeStep=2; % speeds up calculation by factor 2
-else
+% if n_tracks>10000
+%     default_min_TimeStep=2; % speeds up calculation by factor 2
+% else
     default_min_TimeStep=climada_global.tc.default_min_TimeStep;
-end
+% end % 20180309 always use climada_global.tc.default_min_TimeStep
 tc_track=climada_tc_equal_timestep(tc_track,default_min_TimeStep); % make equal timesteps
 
 t0=clock;
