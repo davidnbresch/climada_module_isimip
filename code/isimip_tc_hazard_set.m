@@ -103,6 +103,7 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,verbos
 % david.bresch@gmail.com, 20170224, NatID instead of NatId
 % david.bresch@gmail.com, 20170320, hazard.ID_no added
 % david.bresch@gmail.com, 20170402, centroids >60N ignored in windfield calc
+% david.bresch@gmail.com, 20180309, centroid_inland_max_dist_km=5000 and default_min_TimeStep=climada_global.tc.default_min_TimeStep
 %-
 
 hazard=[]; % init
@@ -185,8 +186,8 @@ end
 % complete path, if missing
 [fP,fN,fE]=fileparts(hazard_set_file);
 if isempty(fE),fE='.mat';end
-if isempty(fP),fP=climada_global.data_dir;end
-hazard_set_file=[fP filesep 'hazards' filesep fN fE];
+if isempty(fP),fP=[climada_global.data_dir filesep 'hazards'];end
+hazard_set_file=[fP filesep fN fE];
 
 if isempty(centroids)
     if exist(NatID_filename,'file')
@@ -462,7 +463,8 @@ if verbose_mode,fprintf(' done\n');end
 
 hazard.annotation_str=annotation_str;
 
-if ~contains(hazard_set_file,'NOSAVE')
+%if ~contains(hazard_set_file,'NOSAVE') % version 9.x
+if isempty(findstr(hazard_set_file,'NOSAVE'))
     fprintf('saving TC wind hazard set as %s\n',hazard_set_file);
     save(hazard_set_file,'hazard',climada_global.save_file_version) % HDF5
 end
