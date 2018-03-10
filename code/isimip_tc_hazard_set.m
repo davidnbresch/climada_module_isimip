@@ -129,7 +129,7 @@ centroid_inland_max_dist_km=5000;
 %
 % since we store the hazard as sparse array, we need an a-priory estimation
 % of it's density
-hazard_arr_density=0.001; % =0.001, sparse hazard array density (estimated)
+hazard_arr_density=0.002; % =0.001, sparse hazard array density (estimated)
 %
 % define the reference year for this hazard set
 hazard_reference_year = climada_global.present_reference_year; % default for present hazard is normally 2015

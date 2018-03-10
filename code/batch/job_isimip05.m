@@ -4,8 +4,8 @@
 % NAME:
 %   job_isimip05
 % PURPOSE:
-%   generate isimip tropical cyclone (TC) hazard event sets based on Kerry
-%   Emmanuel TC track files i.e. files such as Trial4_GB_dkgfdl_20thcal.mat
+%   generate isimip probabilistic tropical cyclone (TC) hazard event sets based on Kerry
+%   Emmanuel TC track files i.e. files such as Trial1_GB_dkmiroc_20thcal.mat
 %
 %   But use a coarse (1deg) grid instead of the (default 360as one)
 %
@@ -32,7 +32,7 @@
 %   job_isimip05
 % INPUTS:
 % OPTIONAL INPUT PARAMETERS:
-%   run_on_desktop: if you set =1 before calling job_WISC (all in
+%   run_on_desktop: if you set =1 before calling job_isimip05 (all in
 %       MATLAB command window), it sets the number of parallel pool workers 
 %       to two, does not delete the pool after execution and does not quit
 %       MATLAB and hence allows to TEST a job on a local desktop. This
@@ -43,6 +43,7 @@
 % MODIFICATION HISTORY:
 % David N. Bresch, dbresch@ethz.ch, 20171123, copy from job_isimip04
 % David N. Bresch, dbresch@ethz.ch, 20180309, switched to /cluster/work/climate/dbresch
+% David N. Bresch, dbresch@ethz.ch, 20180310, desktop option added (run_on_desktop)
 %-
 
 % PARAMETERS
@@ -50,6 +51,8 @@
 FAST_TEST=0; % default=0, if =1, set -R "rusage[mem=500]"
 %
 cluster_climada_root_dir='/cluster/home/dbresch/climada'; % to make sure the cluster finds climada
+cluster_N_pool_workers=24; % number of parpool workers on pool (same as argument in bsub -n ..)
+desktop_N_pool_workers= 2; % number of parpool workers on desktop
 %
 % the list of TC track files to be processed (see SPECIAL CODE below)
 track_files={
@@ -62,13 +65,13 @@ track_files={
 if ~exist('run_on_desktop','var'),run_on_desktop=[];end
 if isempty(run_on_desktop),run_on_desktop=0;end % default=0, =1 to run job on mac
 if run_on_desktop % for parpool on desktop
-    N_pool_workers=2;
-    pool_active=gcp('nocreate');
-    if isempty(pool_active),pool=parpool(N_pool_workers);end
+    N_pool_workers=desktop_N_pool_workers;
 else
     cd(cluster_climada_root_dir)
-    pool=parpool(N_pool_workers);
+    N_pool_workers=cluster_N_pool_workers;
 end
+pool_active=gcp('nocreate');
+if isempty(pool_active),pool=parpool(N_pool_workers);end
 startup % climada_global exists afterwards
 if exist('startupp','file'),startupp;end
 fprintf('executing in %s\n',pwd) % just to check where the job is running from
