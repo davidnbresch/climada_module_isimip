@@ -104,6 +104,7 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,verbos
 % david.bresch@gmail.com, 20170320, hazard.ID_no added
 % david.bresch@gmail.com, 20170402, centroids >60N ignored in windfield calc
 % david.bresch@gmail.com, 20180309, centroid_inland_max_dist_km=5000 and default_min_TimeStep=climada_global.tc.default_min_TimeStep
+% david.bresch@gmail.com, 20180310, hazard_arr_density=0.002 was =0.001
 %-
 
 hazard=[]; % init
