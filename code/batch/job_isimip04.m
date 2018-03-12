@@ -17,8 +17,10 @@
 %   to create check plots
 %
 %   some hints to work with the cluster (explicit paths, edit this ;-)
+%
 %   copy job to cluster:       scp -r Documents/_GIT/climada_modules/isimip/code/batch/job_isimip04.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
 %   check progress:            ls -la /cluster/work/climate/dbresch/climada_data/hazards/Trial4_GB_*
+%
 %   copy single data to cluster:scp -r Documents/_GIT/climada_data/isimip/tc_tracks/Trial3_GB_dkgfdl_piControlcal dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/isimip/tc_tracks/.
 %   run on cluster:            bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
 %
@@ -52,7 +54,7 @@
 
 % PARAMETERS
 %
-FAST_TEST=1; % default=0, if =1, set -R "rusage[mem=500]"
+FAST_TEST=0; % default=0, if =1, set -R "rusage[mem=500]"
 %
 cluster_climada_root_dir='/cluster/home/dbresch/climada'; % to make sure the cluster finds climada
 cluster_N_pool_workers=24; % number of parpool workers on pool (same as argument in bsub -n ..)
@@ -153,20 +155,21 @@ centroids_S.distance2coast_km=centroids_S.distance2coast_km(lat_pos);
 lat_pos(lat_pos>length(centroids_S.NatID))=[];
 centroids_S.NatID=centroids_S.NatID(lat_pos);
 
-pool=parpool(N_pool_workers);
 for file_i=1:length(track_files)
     
     tc_track=isimip_tc_track_load(track_files{file_i},'N',180,-1); % Northern hemisphere
     if FAST_TEST,tc_track=tc_track(1:100);end % small subset for TEST
     hazard_name=[track_files{file_i} '_N_0360as'];
-    hazard_set_file=[scratch_dir filesep hazard_name];
-    isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_N,0,hazard_name);
+    %hazard_set_file=[scratch_dir filesep hazard_name];
+    %isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_N,0,hazard_name);
+    isimip_tc_hazard_set(tc_track,hazard_name,centroids_N,0,hazard_name);
     
     tc_track=isimip_tc_track_load(track_files{file_i},'S',180,-1); % Southern hemisphere
     if FAST_TEST,tc_track=tc_track(1:100);end % small subset for TEST
     hazard_name=[track_files{file_i} '_S_0360as'];
-    hazard_set_file=[scratch_dir filesep hazard_name];
-    isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_S,0,hazard_name);
+    %hazard_set_file=[scratch_dir filesep hazard_name];
+    %isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_S,0,hazard_name);
+    isimip_tc_hazard_set(tc_track,hazard_name,centroids_S,0,hazard_name);
     
 end % file_i
 
