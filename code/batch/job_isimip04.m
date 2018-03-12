@@ -17,47 +17,66 @@
 %   to create check plots
 %
 %   some hints to work with the cluster (explicit paths, edit this ;-)
-%   copy job to cluster:       scp -r Documents/_GIT/climada_modules/isimip/code/job_isimip04.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
-%   copy all data to cluster:  scp -r Documents/_GIT/climada_data/isimip/tc_tracks dbresch@euler.ethz.ch:/cluster/home/dbresch/climada_data/isimip/.
-%   copy single data to cluster:scp -r Documents/_GIT/climada_data/isimip/tc_tracks/Trial3_GB_dkgfdl_piControlcal dbresch@euler.ethz.ch:/cluster/home/dbresch/climada_data/isimip/tc_tracks/.
+%   copy job to cluster:       scp -r Documents/_GIT/climada_modules/isimip/code/batch/job_isimip04.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
+%   check progress:            ls -la /cluster/work/climate/dbresch/climada_data/hazards/Trial4_GB_*
+%   copy single data to cluster:scp -r Documents/_GIT/climada_data/isimip/tc_tracks/Trial3_GB_dkgfdl_piControlcal dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/isimip/tc_tracks/.
 %   run on cluster:            bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
 %
-%   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/scratch/dbresch/climada_data/hazards/*.mat Documents/_GIT/climada_data/hazards/.
-%   copy results back polybox: scp -r dbresch@euler.ethz.ch:/cluster/scratch/dbresch/climada_data/hazards/*.mat /Users/bresch/polybox/isimip/hazards_v04/.
-%   copy results to dkrz:      scp -r /cluster/scratch/dbresch/climada_data/hazards/*.mat b380587@mistralpp.dkrz.de:/work/bb0820/scratch/b380587/.
+%   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/*.mat Documents/_GIT/climada_data/hazards/.
+%   copy results back polybox: scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/*.mat /Users/bresch/polybox/isimip/hazards_v04/.
+%   copy results to dkrz:      scp -r /cluster/work/climate/dbresch/climada_data/hazards/*.mat b380587@mistralpp.dkrz.de:/work/bb0820/scratch/b380587/.
 % CALLING SEQUENCE:
 %   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
 % EXAMPLE:
 %   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+%
+%   run_on_desktop=1; % to test the job on a desktop
+%   job_isimip04
 % INPUTS:
 % OPTIONAL INPUT PARAMETERS:
+%   run_on_desktop: if you set =1 before calling job_isimip04 (all in
+%       MATLAB command window), it sets the number of parallel pool workers
+%       to two, does not delete the pool after execution and does not quit
+%       MATLAB and hence allows to TEST a job on a local desktop. This
+%       allows to TEST a job without editing it.
+%       Default=0 for cluster.
 % OUTPUTS:
-%   to scratch disk, see PARAMETERS
+%   to disk, see PARAMETERS and climada folders
 % MODIFICATION HISTORY:
 % David N. Bresch, dbresch@ethz.ch, 20171025, copy from job_isimip03
 % David N. Bresch, dbresch@ethz.ch, 20171027, scp added
 % David N. Bresch, dbresch@ethz.ch, 20171029, new simulation names, job terminated 20171029_0908
+% David N. Bresch, dbresch@ethz.ch, 20180312, redone for climada_global.tc.default_min_TimeStep=0.25; % 15 min
 %-
+
 
 % PARAMETERS
 %
-FAST_TEST=0; % defalt=0, if =1, set -R "rusage[mem=500]"
+FAST_TEST=1; % default=0, if =1, set -R "rusage[mem=500]"
 %
-% one should only have to edit this section
-cd /cluster/home/dbresch/climada % to make sure the cluster finds climada
-scratch_dir = '/cluster/scratch/dbresch/climada_data/hazards';
-%scratch_dir = '/Users/bresch/Documents/_GIT/climada_data/isimip/scratch'; % for local tests
+cluster_climada_root_dir='/cluster/home/dbresch/climada'; % to make sure the cluster finds climada
+cluster_N_pool_workers=24; % number of parpool workers on pool (same as argument in bsub -n ..)
+desktop_N_pool_workers= 2; % number of parpool workers on desktop
 %
 % the list of TC track files to be processed (see SPECIAL CODE below)
 track_files={
     'Trial4_GB_dkgfdl_20thcal'
-    'Trial4_GB_dkmiroc_20thcal'
-    'Trial4_GB_dkipsl_20thcal'
-    'Trial4_GB_dkmiroc_piControlcal'
     'Trial4_GB_dkgfdl_piControlcal' % _gb_ to _GB_
+    'Trial4_GB_dkipsl_20thcal'
     'Trial4_GB_dkipsl_piControlcal'
-    'Trial4_GB_dkmiroc_rcp26cal'
     'Trial4_GB_dkipsl_rcp26cal'
+    'Trial4_GB_dkmiroc_20thcal'
+    'Trial4_GB_dkmiroc_piControlcal'
+    'Trial4_GB_dkmiroc_rcp26cal'
+    % % in ascending size
+    %     'Trial4_GB_dkgfdl_20thcal'
+    %     'Trial4_GB_dkmiroc_20thcal'
+    %     'Trial4_GB_dkipsl_20thcal'
+    %     'Trial4_GB_dkmiroc_piControlcal'
+    %     'Trial4_GB_dkgfdl_piControlcal' % _gb_ to _GB_
+    %     'Trial4_GB_dkipsl_piControlcal'
+    %     'Trial4_GB_dkmiroc_rcp26cal'
+    %     'Trial4_GB_dkipsl_rcp26cal'
     };
 %
 % % SPECIAL CODE to sort track files by size (run this on command line to
@@ -82,11 +101,27 @@ track_files={
 % for i=1:length(dd_name),fprintf('''%s''\n',dd_name{i});end
 % fprintf('--> copy paste this into track_files in %s\n','job_isimip04');
 
-
+% aaa: some admin to start with (up to % eee standard code)
+if ~exist('run_on_desktop','var'),run_on_desktop=[];end
+if isempty(run_on_desktop),run_on_desktop=0;end % default=0, =1 to run job on mac
+if run_on_desktop % for parpool on desktop
+    N_pool_workers=desktop_N_pool_workers;
+    pool_active=gcp('nocreate');
+    if isempty(pool_active),pool=parpool(N_pool_workers);end
+else
+    cd(cluster_climada_root_dir)
+    N_pool_workers=cluster_N_pool_workers;
+    pool=parpool(N_pool_workers);
+end
 startup % climada_global exists afterwards
-pwd % just to check where the job is running from
-N_pool_workers=24; % for parpool
+if exist('startupp','file'),startupp;end
+fprintf('executing in %s\n',pwd) % just to check where the job is running from
 climada_global.parfor=1; % for parpool
+t0=clock;
+% eee: end of admin (do not edit until here)
+
+
+climada_global.tc.default_min_TimeStep=0.25; % 15 min
 
 % prepare centroids (full globe leads to segmentation fault)
 centroids_S=climada_centroids_load('GLB_NatID_grid_0360as_adv_1');
@@ -134,7 +169,6 @@ for file_i=1:length(track_files)
     isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_S,0,hazard_name);
     
 end % file_i
-delete(pool)
 
 % copy results to dkrz (no closing ; to log success):
 % ---------------------
@@ -173,4 +207,4 @@ delete(pool)
 %     end % ~dd(i).isdir
 % end % i
 
-exit % the cluster appreciates this, gives back memory etc.
+if ~run_on_desktop,delete(pool);exit;end % no need to delete the pool on mac, the cluster appreciates exit

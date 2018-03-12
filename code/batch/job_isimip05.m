@@ -66,12 +66,14 @@ if ~exist('run_on_desktop','var'),run_on_desktop=[];end
 if isempty(run_on_desktop),run_on_desktop=0;end % default=0, =1 to run job on mac
 if run_on_desktop % for parpool on desktop
     N_pool_workers=desktop_N_pool_workers;
+    pool_active=gcp('nocreate');
+    if isempty(pool_active),pool=parpool(N_pool_workers);end
 else
     cd(cluster_climada_root_dir)
     N_pool_workers=cluster_N_pool_workers;
+    pool=parpool(N_pool_workers);
 end
-pool_active=gcp('nocreate');
-if isempty(pool_active),pool=parpool(N_pool_workers);end
+
 startup % climada_global exists afterwards
 if exist('startupp','file'),startupp;end
 fprintf('executing in %s\n',pwd) % just to check where the job is running from
@@ -109,7 +111,8 @@ if FAST_TEST
     centroids.NatID=centroids.centroid_ID;
 end
 
-for file_i=1:length(track_files)
+%for file_i=1:length(track_files)
+for file_i=2:length(track_files)
     
     hazard_name        = [track_files{file_i} '_1deg_prob'];
     hazard_set_file    = [climada_global.hazards_dir filesep hazard_name];
@@ -130,24 +133,44 @@ for file_i=1:length(track_files)
         save(tc_track_prob_name,'tc_track',climada_global.save_file_version);
     end
     
-%     if check_plots
-%         % plot the tracks
-%         figure('Name','TC tracks','Color',[1 1 1]); hold on
-%         for event_i=1:length(tc_track) % plot all tracks
-%             plot(tc_track(event_i).lon,tc_track(event_i).lat,'-b');
-%         end % event_i
-%         % overlay historic (to make them visible, too)
-%         for event_i=1:length(tc_track)
-%             if tc_track(event_i).orig_event_flag
-%                 plot(tc_track(event_i).lon,tc_track(event_i).lat,'-r');
-%             end
-%         end % event_i
-%     end % check_plots
-                        
-    if FAST_TEST,tc_track=tc_track(1:1000);end % small subset for TEST
-    fprintf('using %i centroids, %i (prob) tracks\n',length(centroids.lon),length(tc_track))
-
-    isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,0,hazard_name);
+    %     if check_plots
+    %         % plot the tracks
+    %         figure('Name','TC tracks','Color',[1 1 1]); hold on
+    %         for event_i=1:length(tc_track) % plot all tracks
+    %             plot(tc_track(event_i).lon,tc_track(event_i).lat,'-b');
+    %         end % event_i
+    %         % overlay historic (to make them visible, too)
+    %         for event_i=1:length(tc_track)
+    %             if tc_track(event_i).orig_event_flag
+    %                 plot(tc_track(event_i).lon,tc_track(event_i).lat,'-r');
+    %             end
+    %         end % event_i
+    %     end % check_plots
+    
+    n_track_tot=length(tc_track);
+    n_track_end_1=floor(n_track_tot/2);
+    fprintf('running in two lumps: tracks 1..%i, %i..%i\n',n_track_end_1,n_track_end_1+1,n_track_tot);
+    
+    %for ii=1:2
+   %     
+    %    if ii==1
+    %        tc_track=tc_track(1:n_track_end_1);
+    %        hazard_set_file    = [climada_global.hazards_dir filesep hazard_name '_1'];
+    %    elseif ii==2
+    %        clear tc_track
+    %        fprintf('loading from %s\n',tc_track_prob_name);
+    %        load(tc_track_prob_name)
+            tc_track=tc_track(n_track_end_1+1:end);
+            hazard_set_file    = [climada_global.hazards_dir filesep hazard_name '_2'];
+     %   end
+        
+        if FAST_TEST,tc_track=tc_track(1:1000);end % small subset for TEST
+        fprintf('using %i centroids, %i (prob) tracks\n',length(centroids.lon),length(tc_track))
+        
+        isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,0,hazard_name);
+   % end % ii
+   
+   % if you slit in two, use hazard=climada_hazard_merge(hazard,hazard_2,'events');
     
 end % file_i
 
