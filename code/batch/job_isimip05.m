@@ -170,7 +170,7 @@ for file_i=2:length(track_files)
         isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,0,hazard_name);
    % end % ii
    
-   % if you slit in two, use hazard=climada_hazard_merge(hazard,hazard_2,'events');
+   % if you split in two, use hazard=climada_hazard_merge(hazard,hazard_2,'events');
     
 end % file_i
 

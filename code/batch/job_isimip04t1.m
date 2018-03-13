@@ -1,8 +1,8 @@
-% batch job for cluster: bsub -W 8:00 -R "rusage[mem=9000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+% batch job for cluster: bsub -W 8:00 -R "rusage[mem=9000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04t1
 % MODULE:
 %   isimip
 % NAME:
-%   job_isimip04
+%   job_isimip04t1
 % PURPOSE:
 %   generate isimip tropical cyclone (TC) hazard event sets based on Kerry
 %   Emmanuel TC track files for 4th (corrected) batch, i.e. files such as
@@ -18,11 +18,11 @@
 %
 %   some hints to work with the cluster (explicit paths, edit this ;-)
 %
-%   copy job to cluster:       scp -r Documents/_GIT/climada_modules/isimip/code/batch/job_isimip04.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
+%   copy job to cluster:       scp -r Documents/_GIT/climada_modules/isimip/code/batch/job_isimip04t1.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
 %   check progress:            ls -la /cluster/work/climate/dbresch/climada_data/hazards/Trial4_GB_*
 %
 %   copy single data to cluster:scp -r Documents/_GIT/climada_data/isimip/tc_tracks/Trial3_GB_dkgfdl_piControlcal dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/isimip/tc_tracks/.
-%   run on cluster:            bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+%   run on cluster:            bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04t1
 %
 %   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/*.mat Documents/_GIT/climada_data/hazards/.
 %   copy results back polybox: scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/*.mat /Users/bresch/polybox/isimip/hazards_v04/.
@@ -30,15 +30,15 @@
 %
 %   other option, a LSF pool, see http://www.clusterwiki.ethz.ch/brutus/Parallel_MATLAB_and_Brutus 
 % CALLING SEQUENCE:
-%   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+%   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04t1
 % EXAMPLE:
-%   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+%   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04t1
 %
 %   run_on_desktop=1; % to test the job on a desktop
-%   job_isimip04
+%   job_isimip04t1
 % INPUTS:
 % OPTIONAL INPUT PARAMETERS:
-%   run_on_desktop: if you set =1 before calling job_isimip04 (all in
+%   run_on_desktop: if you set =1 before calling job_isimip04t1 (all in
 %       MATLAB command window), it sets the number of parallel pool workers
 %       to two, does not delete the pool after execution and does not quit
 %       MATLAB and hence allows to TEST a job on a local desktop. This
@@ -47,10 +47,7 @@
 % OUTPUTS:
 %   to disk, see PARAMETERS and climada folders
 % MODIFICATION HISTORY:
-% David N. Bresch, dbresch@ethz.ch, 20171025, copy from job_isimip03
-% David N. Bresch, dbresch@ethz.ch, 20171027, scp added
-% David N. Bresch, dbresch@ethz.ch, 20171029, new simulation names, job terminated 20171029_0908
-% David N. Bresch, dbresch@ethz.ch, 20180312, redone for climada_global.tc.default_min_TimeStep=0.25; % 15 min
+% David N. Bresch, dbresch@ethz.ch, 20180313, copy from job_isimip04
 %-
 
 
@@ -62,48 +59,22 @@ cluster_climada_root_dir='/cluster/home/dbresch/climada'; % to make sure the clu
 cluster_N_pool_workers=24; % number of parpool workers on pool (same as argument in bsub -n ..)
 desktop_N_pool_workers= 2; % number of parpool workers on desktop
 %
-% the list of TC track files to be processed (see SPECIAL CODE below)
+% the list of TC track files to be processed
 track_files={
-    'Trial4_GB_dkgfdl_20thcal'
-    'Trial4_GB_dkgfdl_piControlcal' % _gb_ to _GB_
-    'Trial4_GB_dkipsl_20thcal'
-    'Trial4_GB_dkipsl_piControlcal'
-    'Trial4_GB_dkipsl_rcp26cal'
-    'Trial4_GB_dkmiroc_20thcal'
-    'Trial4_GB_dkmiroc_piControlcal'
-    'Trial4_GB_dkmiroc_rcp26cal'
-    % % in ascending size
-    %     'Trial4_GB_dkgfdl_20thcal'
-    %     'Trial4_GB_dkmiroc_20thcal'
-    %     'Trial4_GB_dkipsl_20thcal'
-    %     'Trial4_GB_dkmiroc_piControlcal'
-    %     'Trial4_GB_dkgfdl_piControlcal' % _gb_ to _GB_
-    %     'Trial4_GB_dkipsl_piControlcal'
-    %     'Trial4_GB_dkmiroc_rcp26cal'
-    %     'Trial4_GB_dkipsl_rcp26cal'
+    'Trial1_GB_dkgfdl_20thcal'
+    'Trial1_GB_dkgfdl_rcp26cal'
+    'Trial1_GB_dkgfdl_rcp60cal'
+    'Trial1_GB_dkhad_20thcal'
+    'Trial1_GB_dkhad_rcp26cal'
+    'Trial1_GB_dkhad_rcp60cal'
+    'Trial1_GB_dkipsl_20thcal'
+    'Trial1_GB_dkipsl_rcp26cal'
+    %'Trial1_GB_dkipsl_rcp60cal' % done 20180313 as first try
+    'Trial1_GB_dkmiroc_20thcal'
+    'Trial1_GB_dkmiroc_rcp26cal'
+    'Trial1_GB_dkmiroc_rcp60cal'
     };
-%
-% % SPECIAL CODE to sort track files by size (run this on command line to
-% % obtain above list). Ascending size helps to run until we encounter
-% % memory problems and can then tackle them (if needed)
-% % ---------------------------------------------------------------------
-% dd_name={};dd_bytes=[]; % init
-% tc_tracks_dir=[climada_global.data_dir filesep 'isimip/tc_tracks'];
-% dd=dir(tc_tracks_dir);
-% for i=1:length(dd)
-%     if dd(i).isdir && length(dd(i).name)>2
-%         check_file=[tc_tracks_dir filesep dd(i).name filesep dd(i).name '.mat'];
-%         ddd=dir(check_file);
-%         dd_name{end+1}=dd(i).name;
-%         dd_bytes(end+1)=ddd(1).bytes;
-%     end % dd(i).isdir
-% end % i
-% [~,pos] = sort(dd_bytes);
-% dd_bytes=dd_bytes(pos);
-% dd_name=dd_name(pos);
-% fprintf('track files sorted ascening by size (%2.2g..%2.2g bytes):\n',dd_bytes(1),dd_bytes(end));
-% for i=1:length(dd_name),fprintf('''%s''\n',dd_name{i});end
-% fprintf('--> copy paste this into track_files in %s\n','job_isimip04');
+
 
 % aaa: some admin to start with (up to % eee standard code)
 if ~exist('run_on_desktop','var'),run_on_desktop=[];end
@@ -172,6 +143,8 @@ for file_i=1:length(track_files)
     %hazard_set_file=[scratch_dir filesep hazard_name];
     %isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_S,0,hazard_name);
     isimip_tc_hazard_set(tc_track,hazard_name,centroids_S,0,hazard_name);
+    
+    clear tc_track % might help with memory usage
     
 end % file_i
 
