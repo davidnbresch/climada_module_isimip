@@ -105,6 +105,7 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,verbos
 % david.bresch@gmail.com, 20170402, centroids >60N ignored in windfield calc
 % david.bresch@gmail.com, 20180309, centroid_inland_max_dist_km=5000 and default_min_TimeStep=climada_global.tc.default_min_TimeStep
 % david.bresch@gmail.com, 20180310, hazard_arr_density=0.002 was =0.001
+% david.bresch@gmail.com, 20180310, centroid_inland_max_dist_km=1000 
 %-
 
 hazard=[]; % init
@@ -125,8 +126,8 @@ if ~exist('annotation_str','var'),annotation_str='';end
 % check_plot commented out here and in climada_tc_windfield for speedup, see code
 %
 % only deal with centtroids not further away than from the coast
-%centroid_inland_max_dist_km=500; % until 20180309
-centroid_inland_max_dist_km=5000;
+%centroid_inland_max_dist_km=500; % until 20180309, shortly 5000 until 20180313
+centroid_inland_max_dist_km=1000;
 %
 % since we store the hazard as sparse array, we need an a-priory estimation
 % of it's density

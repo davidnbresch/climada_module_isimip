@@ -1,4 +1,4 @@
-% batch job for cluster: bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+% batch job for cluster: bsub -W 8:00 -R "rusage[mem=9000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
 % MODULE:
 %   isimip
 % NAME:
@@ -27,6 +27,10 @@
 %   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/*.mat Documents/_GIT/climada_data/hazards/.
 %   copy results back polybox: scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/*.mat /Users/bresch/polybox/isimip/hazards_v04/.
 %   copy results to dkrz:      scp -r /cluster/work/climate/dbresch/climada_data/hazards/*.mat b380587@mistralpp.dkrz.de:/work/bb0820/scratch/b380587/.
+%
+%   the first time on the cluster, run in a local matlab session:
+%   parallel.importProfile('/cluster/apps/matlab/support/EulerLSF8h.settings')
+%   see http://www.clusterwiki.ethz.ch/brutus/Parallel_MATLAB_and_Brutus 
 % CALLING SEQUENCE:
 %   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
 % EXAMPLE:
