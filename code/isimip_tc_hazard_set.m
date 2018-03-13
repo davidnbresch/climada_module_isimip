@@ -106,6 +106,8 @@ function hazard = isimip_tc_hazard_set(tc_track,hazard_set_file,centroids,verbos
 % david.bresch@gmail.com, 20180309, centroid_inland_max_dist_km=5000 and default_min_TimeStep=climada_global.tc.default_min_TimeStep
 % david.bresch@gmail.com, 20180310, hazard_arr_density=0.002 was =0.001
 % david.bresch@gmail.com, 20180310, centroid_inland_max_dist_km=1000 
+% david.bresch@gmail.com, 20180313, hazard_arr_density=0.001
+
 %-
 
 hazard=[]; % init
@@ -131,7 +133,7 @@ centroid_inland_max_dist_km=1000;
 %
 % since we store the hazard as sparse array, we need an a-priory estimation
 % of it's density
-hazard_arr_density=0.002; % =0.001, sparse hazard array density (estimated)
+hazard_arr_density=0.001; % =0.001, sparse hazard array density (estimated)
 %
 % define the reference year for this hazard set
 hazard_reference_year = climada_global.present_reference_year; % default for present hazard is normally 2015

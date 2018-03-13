@@ -64,7 +64,7 @@ desktop_N_pool_workers= 2; % number of parpool workers on desktop
 %
 % the list of TC track files to be processed (see SPECIAL CODE below)
 track_files={
-    'Trial4_GB_dkgfdl_20thcal'
+    %'Trial4_GB_dkgfdl_20thcal' % done 20180313, 12:53h
     'Trial4_GB_dkgfdl_piControlcal' % _gb_ to _GB_
     'Trial4_GB_dkipsl_20thcal'
     'Trial4_GB_dkipsl_piControlcal'
@@ -173,6 +173,8 @@ for file_i=1:length(track_files)
     %isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_S,0,hazard_name);
     isimip_tc_hazard_set(tc_track,hazard_name,centroids_S,0,hazard_name);
     
+    clear tc_track % might help with memory usage
+
 end % file_i
 
 % copy results to dkrz (no closing ; to log success):
