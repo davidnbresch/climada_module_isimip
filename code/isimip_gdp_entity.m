@@ -372,10 +372,6 @@ if min(time_val_yyyy)<gdp_first_year || max(time_val_yyyy)>2100 % strange conten
     fprintf('SEVERY WARNING: strange years %i..%i\n',min(time_val_yyyy),max(time_val_yyyy))
 end
 
-time_val_yyyy(1)
-time_val_yyyy(end)
-return
-
 % restrict time
 if ~isempty(first_year)
     pos=find(time_val_yyyy>=first_year);
@@ -399,6 +395,11 @@ if TEST_mode % TEST mode, read only few times
     time_val_yyyy=time_val_yyyy(time_val_start:time_val_end);
 end 
 n_times=time_val_end-time_val_start+1;
+
+time_val_yyyy(1)
+time_val_yyyy(end)
+return
+
 
 if params.verbose,fprintf('reading %s from %s',con_variable_name,params.con_filename);end
 nc.con_factor = ncread(params.con_filename,con_variable_name);
