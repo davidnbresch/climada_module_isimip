@@ -80,7 +80,7 @@ if isempty(entity_isimip)
     clear params;params.val_filename='0150as';
     [entity_isimip,params]=isimip_gdp_entity(country_iso3,params);
     % fix the grid rounding errors
-    entity_isimip2=fix_coords_isimip(entity_isimip, '0150as');
+    entity_isimip=fix_coords_isimip(entity_isimip, '0150as');
     entity_isimip.assets.centroid_index = 1:length(entity_isimip.assets.centroid_index);
     entity = entity_isimip;
     save(entity_file_isimip,'entity');

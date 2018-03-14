@@ -225,12 +225,15 @@ else
     hazard.datenum=nc.time_datenum;
 end
 % subset of events within years_range
+hazard.yyyy=str2num(datestr(hazard.datenum, 'yyyy'));
 if ~isequal(years_range, [0 0])
-    hazard.yyyy=str2num(datestr(hazard.datenum, 'yyyy'));
     event_keep=(hazard.yyyy>=years_range(1) & hazard.yyyy<=years_range(2));
     event_keep_which=find(event_keep);
     fprintf('keeping subset of years (%i out of %i)',sum(event_keep),length(hazard.yyyy));
     hazard.datenum=hazard.datenum(event_keep);
+else
+    event_keep=ones(1,length(hazard.yyyy));
+    event_keep_which=find(event_keep);
 end
 hazard.yyyy=datestr(hazard.datenum, 'yyyy');
 hazard.mm=datestr(hazard.datenum, 'mm');
