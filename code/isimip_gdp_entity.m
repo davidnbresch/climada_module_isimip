@@ -131,6 +131,8 @@ function [entity,params]=isimip_gdp_entity(ISO3,params)
 %       Note that other units than one on input (e.g. on the netCDF files)
 %       are first converted to units of one, then currency_unit gets
 %       applied.
+%    verbose: if=1 (defualt), rather verbose, =2 for TEST mode (only few
+%       timesteps processed)
 % OUTPUTS:
 %   entity: a climada entity structure, see climada_entity_read for a full
 %       description of all fields
@@ -225,6 +227,7 @@ if isempty(params.currency_unit)
 end
 %
 if isempty(params.verbose),params.verbose=1;end % default=1, to suppress output to stdout later
+if params.verbose==2,params.verbose=1;TEST_mode=1;end % default=1, to suppress output to stdout later
 %
 % default resolution is 0360as
 if isempty(params.val_filename),params.val_filename='0360as';end
@@ -249,7 +252,8 @@ pop2_filename0360as =[isimip_data_dir filesep 'hyde_ssp2_1860-2015_0360as_yearly
 pop_variable_name='var1';
 NatID_filename0360as=[isimip_data_dir filesep 'NatID_grid_0360as_adv_1.nc'];
 %
-val_filename0150as =[isimip_data_dir filesep  'gdp_1860-2100_0150as_yearly.nc']; % val_variable_name='var1';
+%val_filename0150as =[isimip_data_dir filesep  'gdp_1860-2100_0150as_yearly.nc']; % val_variable_name='var1';
+val_filename0150as =[isimip_data_dir filesep  'gdp_1850-2100_0150as_yearly.nc']; % val_variable_name='var1';
 if ~exist(val_filename0150as,'file')
     if strfind(params.val_filename,'0150as'),fprintf('ERROR: wait for %s to be provided by Tobias\n',val_filename0150as);end
     val_filename0150as =[isimip_data_dir filesep  'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc'];                        % patch 20180201

@@ -28,7 +28,7 @@
 %   copy results back polybox: scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/*.mat /Users/bresch/polybox/isimip/hazards_v04/.
 %   copy results to dkrz:      scp -r /cluster/work/climate/dbresch/climada_data/hazards/*.mat b380587@mistralpp.dkrz.de:/work/bb0820/scratch/b380587/.
 %
-%   other option, a LSF pool, see http://www.clusterwiki.ethz.ch/brutus/Parallel_MATLAB_and_Brutus 
+%   other option, a LSF pool, see http://www.clusterwiki.ethz.ch/brutus/Parallel_MATLAB_and_Brutus
 % CALLING SEQUENCE:
 %   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
 % EXAMPLE:
@@ -141,7 +141,7 @@ if FAST_TEST
 end
 
 centroids_N = centroids_S; % Northern hemisphere
-lat_pos=find(centroids_N.lat>0);
+lat_pos=find(centroids_N.lat>0 & centroids_N.lat<=60);
 centroids_N.lon=centroids_N.lon(lat_pos);
 centroids_N.lat=centroids_N.lat(lat_pos);
 centroids_N.centroid_ID=centroids_N.centroid_ID(lat_pos);
@@ -149,13 +149,49 @@ centroids_N.distance2coast_km=centroids_N.distance2coast_km(lat_pos);
 lat_pos(lat_pos>length(centroids_N.NatID))=[];
 centroids_N.NatID=centroids_N.NatID(lat_pos);
 
-lat_pos=find(centroids_S.lat<=0); % Southern hemisphere
+% centroids_NE = centroids_N; % Northeastern hemisphere
+% lon_pos=find(centroids_NE.lon>=0);
+% centroids_NE.lon=centroids_NE.lon(lon_pos);
+% centroids_NE.lat=centroids_NE.lat(lon_pos);
+% centroids_NE.centroid_ID=centroids_NE.centroid_ID(lon_pos);
+% centroids_NE.distance2coast_km=centroids_NE.distance2coast_km(lon_pos);
+% lon_pos(lon_pos>length(centroids_NE.NatID))=[];
+% centroids_NE.NatID=centroids_NE.NatID(lon_pos);
+% 
+% centroids_NW = centroids_N; % Northwestern hemisphere
+% lon_pos=find(centroids_NW.lon<0);
+% centroids_NW.lon=centroids_NW.lon(lon_pos);
+% centroids_NW.lat=centroids_NW.lat(lon_pos);
+% centroids_NW.centroid_ID=centroids_NW.centroid_ID(lon_pos);
+% centroids_NW.distance2coast_km=centroids_NW.distance2coast_km(lon_pos);
+% lon_pos(lon_pos>length(centroids_NW.NatID))=[];
+% centroids_NW.NatID=centroids_NW.NatID(lon_pos);
+
+lat_pos=find(centroids_S.lat<=0 & centroids_S.lat>=-60); % Southern hemisphere
 centroids_S.lon=centroids_S.lon(lat_pos);
 centroids_S.lat=centroids_S.lat(lat_pos);
 centroids_S.centroid_ID=centroids_S.centroid_ID(lat_pos);
 centroids_S.distance2coast_km=centroids_S.distance2coast_km(lat_pos);
 lat_pos(lat_pos>length(centroids_S.NatID))=[];
 centroids_S.NatID=centroids_S.NatID(lat_pos);
+
+% centroids_SE = centroids_S; % Southeastern hemisphere
+% lon_pos=find(centroids_SE.lon>=0);
+% centroids_SE.lon=centroids_SE.lon(lon_pos);
+% centroids_SE.lat=centroids_SE.lat(lon_pos);
+% centroids_SE.centroid_ID=centroids_SE.centroid_ID(lon_pos);
+% centroids_SE.distance2coast_km=centroids_SE.distance2coast_km(lon_pos);
+% lon_pos(lon_pos>length(centroids_SE.NatID))=[];
+% centroids_SE.NatID=centroids_SE.NatID(lon_pos);
+% 
+% centroids_SW = centroids_S; % Southwestern hemisphere
+% lon_pos=find(centroids_SW.lon<0);
+% centroids_SW.lon=centroids_SW.lon(lon_pos);
+% centroids_SW.lat=centroids_SW.lat(lon_pos);
+% centroids_SW.centroid_ID=centroids_SW.centroid_ID(lon_pos);
+% centroids_SW.distance2coast_km=centroids_SW.distance2coast_km(lon_pos);
+% lon_pos(lon_pos>length(centroids_SW.NatID))=[];
+% centroids_SW.NatID=centroids_SW.NatID(lon_pos);
 
 for file_i=1:length(track_files)
     
@@ -174,7 +210,7 @@ for file_i=1:length(track_files)
     isimip_tc_hazard_set(tc_track,hazard_name,centroids_S,0,hazard_name);
     
     clear tc_track % might help with memory usage
-
+    
 end % file_i
 
 % copy results to dkrz (no closing ; to log success):
