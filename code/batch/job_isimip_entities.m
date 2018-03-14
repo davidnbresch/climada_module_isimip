@@ -1,4 +1,4 @@
-% batch job for cluster: bsub -R "rusage[mem=1000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip_entities
+% batch job for cluster: bsub -R "rusage[mem=5000]" -n 2 matlab -nodisplay -singleCompThread -r job_isimip_entities
 % MODULE:
 %   isimip
 % NAME:
@@ -21,17 +21,14 @@
 %   to work disk, see PARAMETERS
 % MODIFICATION HISTORY:
 % David N. Bresch, dbresch@ethz.ch, 20180306, copy from job_isimip05
+% David N. Bresch, dbresch@ethz.ch, 20180314, simple, not parallel
 %-
 
 
 % PARAMETERS
 % one should only have to edit this section
 %
-% define the resolution
-resolution='0360as'; % either '0360as' or '0150as'
-%
 cd /cluster/home/dbresch/climada % to make sure the cluster finds climada
-
 
 startup % climada_global exists afterwards
 pwd % just to check where the job is running from
@@ -40,7 +37,8 @@ pwd % just to check where the job is running from
 
 % pool=parpool(N_pool_workers);
 
-isimip_gdp_entity_TEST('all',resolution);
+isimip_gdp_entity('all','0150as',1900,2020);
+%isimip_gdp_entity_TEST('all','0150as',1900,2018); % for parpool tests
 
 %delete(pool)
 
