@@ -32,6 +32,7 @@ function entity = fix_coords_isimip(entity,res)
 % MODIFICATION HISTORY:
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180301, initial
 % David N. Bresch, dbresch@ethz.ch, 20180306, Warning: sizes of lat_true and lat_unique do not match
+% David N. Bresch, dbresch@ethz.ch, 20180314, ERROR and WARNING uppercase
 %-
 
 if ~exist('res','var'); res   = '0150as'; end
@@ -49,19 +50,19 @@ elseif strcmp(res, '0360as')
     dlon = 0.1;
     dlat = 0.1;
 else
-    fprintf('\nError: unexpected value in res, aborted\n');
+    fprintf('\nERROR: unexpected value in res, aborted\n');
     return
 end
 
 % check that dlon,dlat correspond roughly to the entity
 lon_ratio = dlon/(mean(diff(lon_unique)));
 if lon_ratio<0.99 || lon_ratio>1.01
-    fprintf('\nError: available and desired resolution differ, aborted\n');
+    fprintf('\nERROR: available and desired resolution differ, aborted\n');
     return
 end
 lat_ratio = dlat/(mean(diff(lat_unique)));
 if lat_ratio<0.99 || lat_ratio>1.01
-    fprintf('\nError: available and desired resolution differ, aborted\n');
+    fprintf('\nERROR: available and desired resolution differ, aborted\n');
     return
 end
 clear lon_ratio lat_ratio;
@@ -70,7 +71,7 @@ clear lon_ratio lat_ratio;
 lon_true = (-180+dlon/2):dlon:(180-dlon/2);
 lon_true = lon_true(lon_true > min(lon_orig)-dlon/2 & lon_true < max(lon_orig)+dlon/2);
 if length(lon_true) ~= length(lon_unique)
-    fprintf('\nError: sizes of lon_true and lon_unique do not match, aborted\n');
+    fprintf('\nERROR: sizes of lon_true and lon_unique do not match, aborted\n');
     return
 end
 lat_true = (-90+dlat/2):dlat:(90-dlat/2);
@@ -79,9 +80,9 @@ if length(lat_true) ~= length(lat_unique)
     if length(lat_true) == length(lat_unique)-1
         lat_true = (-90+dlat):dlat:(90-dlat);
         lat_true = lat_true(lat_true > min(lat_orig)-dlat/4 & lat_true < max(lat_orig)+dlat/4);
-        fprintf('\nWarning: sizes of lat_true and lat_unique do not match, fixed (check)\n');
+        fprintf('WARNING: sizes of lat_true and lat_unique do not match, fixed (check)\n');
     else
-        fprintf('\nError: sizes of lat_true and lat_unique do not match, aborted\n');
+        fprintf('\nERROR: sizes of lat_true and lat_unique do not match, aborted\n');
 %         length(lat_true)
 %         length(lat_unique)
 %         lat_true(1),lat_true(end)
