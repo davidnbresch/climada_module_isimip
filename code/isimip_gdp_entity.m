@@ -251,6 +251,9 @@ pop_filename0360as = [isimip_data_dir filesep 'hyde_ssp2_1860-2100_0360as_yearly
 pop2_filename0360as =[isimip_data_dir filesep 'hyde_ssp2_1860-2015_0360as_yearly_zip.nc4']; % pop_variable_name='gdp_grid';
 pop_variable_name='var1';
 NatID_filename0360as=[isimip_data_dir filesep 'NatID_grid_0360as_adv_1.nc'];
+gdp_start_year  = 1860;
+pop_start_year  = 1860;
+pop2_start_year = 1860;
 %
 %val_filename0150as =[isimip_data_dir filesep  'gdp_1860-2100_0150as_yearly.nc']; % val_variable_name='var1';
 val_filename0150as =[isimip_data_dir filesep  'gdp_1850-2100_0150as_yearly.nc']; % val_variable_name='var1';
@@ -258,6 +261,9 @@ if ~exist(val_filename0150as,'file')
     if strfind(params.val_filename,'0150as'),fprintf('ERROR: wait for %s to be provided by Tobias\n',val_filename0150as);end
     val_filename0150as =[isimip_data_dir filesep  'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc'];                        % patch 20180201
     if strfind(params.val_filename,'0150as'),fprintf('--> PATCH, using %s for the time being\n',val_filename0150as);end % patch 20180201
+    gdp_start_year  = 1980;
+else
+    gdp_start_year  = 1850; % 1850+(1:length(nc.time))-1
 end
 %val_filename0150as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc']; % val_variable_name='var1'; 
 
@@ -348,10 +354,10 @@ if params.verbose,fprintf(' done\n');end
 time_val_yyyy=zeros(1,n_times); % init
 for i=1:n_times
     %time_val_yyyy(i)=str2double(datestr(nc.time(i)+datenum(1950,1,1)+1,'yyyy')); % until 20170705
-    time_val_yyyy(i)=str2double(datestr(nc.time(i)+datenum(1860,1,1)+1,'yyyy'));
+    time_val_yyyy(i)=str2double(datestr(nc.time(i)+datenum(gdp_start_year,1,1)+1,'yyyy'));
 end
 
-if time_val_yyyy(1)<1860 || time_val_yyyy(1)>2100 % strange content of nc.time
+if time_val_yyyy(1)<gdp_start_year || time_val_yyyy(1)>2100 % strange content of nc.time
     time_val_yyyy=1980+(1:n_times);
     fprintf('WARNING: years hard wired to %i..%i\n',time_val_yyyy(1),time_val_yyyy(end))
 end
@@ -370,7 +376,7 @@ if exist(params.pop_filename,'file')
     nc.time_pop=ncread(params.pop_filename,'time')';
     
     % currently hard-wired (as not properly defined in netCDF (there time just = 1..n)
-    time_pop_yyyy=1860-1+(1:length(nc.time_pop));
+    time_pop_yyyy=pop_start_year-1+(1:length(nc.time_pop));
     if params.verbose,fprintf('WARNING: population years hard wired to %i..%i\n',time_pop_yyyy(1),time_pop_yyyy(end));end
 else
     time_pop_yyyy=[];
@@ -381,7 +387,7 @@ if exist(params.pop2_filename,'file')
     nc.time_pop2=ncread(params.pop2_filename,'time')';
     
     % currently hard-wired (as not properly defined in netCDF (there time just = 1..n)
-    time_pop2_yyyy=1860-1+(1:length(nc.time_pop2));
+    time_pop2_yyyy=pop2_start_year-1+(1:length(nc.time_pop2));
     if params.verbose,fprintf('WARNING: second population years hard wired to %i..%i\n',time_pop2_yyyy(1),time_pop2_yyyy(end));end
 else
     time_pop2_yyyy=[];
