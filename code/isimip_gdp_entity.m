@@ -232,7 +232,7 @@ if ~isfield(params,'verbose'),            params.verbose=[];end
 % PARAMETERS
 %
 % to TEST the code, i.e. reads only a few (3) timesteps
-TEST_mode=1; % default=0
+TEST_mode=0; % default=0
 %
 if isempty(params.grid_resolution),params.grid_resolution='0360as';end % default='0360as'
 %
