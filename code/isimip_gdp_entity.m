@@ -396,11 +396,6 @@ if TEST_mode % TEST mode, read only few times
 end 
 n_times=time_val_end-time_val_start+1;
 
-time_val_yyyy(1)
-time_val_yyyy(end)
-return
-
-
 if params.verbose,fprintf('reading %s from %s',con_variable_name,params.con_filename);end
 nc.con_factor = ncread(params.con_filename,con_variable_name);
 if sum(abs(size(temp_data)-size(nc.con_factor)))>0
