@@ -1,4 +1,4 @@
-% batch job for cluster: bsub -W 8:00 -R "rusage[mem=9000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+% batch job for cluster: bsub -W 48:00 -R "rusage[mem=9000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
 % MODULE:
 %   isimip
 % NAME:
@@ -51,6 +51,7 @@
 % David N. Bresch, dbresch@ethz.ch, 20171027, scp added
 % David N. Bresch, dbresch@ethz.ch, 20171029, new simulation names, job terminated 20171029_0908
 % David N. Bresch, dbresch@ethz.ch, 20180312, redone for climada_global.tc.default_min_TimeStep=0.25; % 15 min
+% David N. Bresch, dbresch@ethz.ch, 20180315, lat only -60..60
 %-
 
 
@@ -65,9 +66,9 @@ desktop_N_pool_workers= 2; % number of parpool workers on desktop
 % the list of TC track files to be processed (see SPECIAL CODE below)
 track_files={
     %'Trial4_GB_dkgfdl_20thcal' % done 20180313, 12:53h
-    'Trial4_GB_dkgfdl_piControlcal' % _gb_ to _GB_
-    'Trial4_GB_dkipsl_20thcal'
-    'Trial4_GB_dkipsl_piControlcal'
+%     'Trial4_GB_dkgfdl_piControlcal' % _gb_ to _GB_
+%     'Trial4_GB_dkipsl_20thcal'
+%     'Trial4_GB_dkipsl_piControlcal' % done Mar 15 00:06 
     'Trial4_GB_dkipsl_rcp26cal'
     'Trial4_GB_dkmiroc_20thcal'
     'Trial4_GB_dkmiroc_piControlcal'

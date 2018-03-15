@@ -539,7 +539,7 @@ elseif strcmpi(ISO3,'all')
         NatID_RegID_ISO3=NatID_RegID.ISO3; % for parfor
         parfor iso3_i=1:n_NatIDs
             ISO3 = NatID_RegID_ISO3{iso3_i};
-            fprintf('- %s:\n',ISO3)
+            fprintf('- %s: (%s)\n',ISO3,datestr(now))
             isimip_gdp_entity(ISO3,params,first_year,last_year,add_population);
         end % parfor iso3_i
         if fprintf('parfor mode: no entity returned, see climada_entity_load\n');end
@@ -548,7 +548,7 @@ elseif strcmpi(ISO3,'all')
         fprintf('processing %i countries (producing single country entity files)\n\n',n_NatIDs);
         for iso3_i=1:n_NatIDs
             ISO3=NatID_RegID.ISO3{iso3_i};
-            fprintf('- %s:\n',ISO3)
+            fprintf('- %s: (%s)\n',ISO3,datestr(now))
             entity=isimip_gdp_entity(ISO3,params,first_year,last_year,add_population);
         end % iso3_i
         if params.verbose,fprintf('only last entity returned, see climada_entity_load\n');end

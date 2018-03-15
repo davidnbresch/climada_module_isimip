@@ -1,4 +1,4 @@
-% batch job for cluster: bsub -W 8:00 -R "rusage[mem=9000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04t1
+% batch job for cluster: bsub -W 48:00 -R "rusage[mem=9000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04t1
 % MODULE:
 %   isimip
 % NAME:
@@ -48,6 +48,7 @@
 %   to disk, see PARAMETERS and climada folders
 % MODIFICATION HISTORY:
 % David N. Bresch, dbresch@ethz.ch, 20180313, copy from job_isimip04
+% David N. Bresch, dbresch@ethz.ch, 20180315, lat only -60..60
 %-
 
 
@@ -61,13 +62,13 @@ desktop_N_pool_workers= 2; % number of parpool workers on desktop
 %
 % the list of TC track files to be processed
 track_files={
-    'Trial1_GB_dkgfdl_20thcal'
-    'Trial1_GB_dkgfdl_rcp26cal'
-    'Trial1_GB_dkgfdl_rcp60cal'
-    'Trial1_GB_dkhad_20thcal'
-    'Trial1_GB_dkhad_rcp26cal'
-    'Trial1_GB_dkhad_rcp60cal'
-    'Trial1_GB_dkipsl_20thcal'
+%     'Trial1_GB_dkgfdl_20thcal'
+%     'Trial1_GB_dkgfdl_rcp26cal'
+%     'Trial1_GB_dkgfdl_rcp60cal' % done Mar 14 21:54
+%     'Trial1_GB_dkhad_20thcal'
+%     'Trial1_GB_dkhad_rcp26cal'
+%     'Trial1_GB_dkhad_rcp60cal' % done Mar 15 07:50
+    'Trial1_GB_dkipsl_20thcal' % N done Mar 15 09:57
     'Trial1_GB_dkipsl_rcp26cal'
     %'Trial1_GB_dkipsl_rcp60cal' % done 20180313 as first try
     'Trial1_GB_dkmiroc_20thcal'
@@ -112,7 +113,7 @@ if FAST_TEST
 end
 
 centroids_N = centroids_S; % Northern hemisphere
-lat_pos=find(centroids_N.lat>0);
+lat_pos=find(centroids_N.lat>0 & centroids_N.lat<=60);
 centroids_N.lon=centroids_N.lon(lat_pos);
 centroids_N.lat=centroids_N.lat(lat_pos);
 centroids_N.centroid_ID=centroids_N.centroid_ID(lat_pos);
@@ -120,7 +121,7 @@ centroids_N.distance2coast_km=centroids_N.distance2coast_km(lat_pos);
 lat_pos(lat_pos>length(centroids_N.NatID))=[];
 centroids_N.NatID=centroids_N.NatID(lat_pos);
 
-lat_pos=find(centroids_S.lat<=0); % Southern hemisphere
+lat_pos=find(centroids_S.lat<=0 & centroids_S.lat>=-60); % Southern hemisphere
 centroids_S.lon=centroids_S.lon(lat_pos);
 centroids_S.lat=centroids_S.lat(lat_pos);
 centroids_S.centroid_ID=centroids_S.centroid_ID(lat_pos);
@@ -130,12 +131,14 @@ centroids_S.NatID=centroids_S.NatID(lat_pos);
 
 for file_i=1:length(track_files)
     
-    tc_track=isimip_tc_track_load(track_files{file_i},'N',180,-1); % Northern hemisphere
-    if FAST_TEST,tc_track=tc_track(1:100);end % small subset for TEST
-    hazard_name=[track_files{file_i} '_N_0360as'];
-    %hazard_set_file=[scratch_dir filesep hazard_name];
-    %isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_N,0,hazard_name);
-    isimip_tc_hazard_set(tc_track,hazard_name,centroids_N,0,hazard_name);
+    if ~strcmpi(track_files{file_i},'Trial1_GB_dkipsl_20thcal') % N already done
+        tc_track=isimip_tc_track_load(track_files{file_i},'N',180,-1); % Northern hemisphere
+        if FAST_TEST,tc_track=tc_track(1:100);end % small subset for TEST
+        hazard_name=[track_files{file_i} '_N_0360as'];
+        %hazard_set_file=[scratch_dir filesep hazard_name];
+        %isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_N,0,hazard_name);
+        isimip_tc_hazard_set(tc_track,hazard_name,centroids_N,0,hazard_name);
+    end
     
     tc_track=isimip_tc_track_load(track_files{file_i},'S',180,-1); % Southern hemisphere
     if FAST_TEST,tc_track=tc_track(1:100);end % small subset for TEST
