@@ -52,7 +52,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params,first_year,last_year,add_
 % EXAMPLE:
 %   entity=isimip_gdp_entity('DEU') % single country entity
 %   entity=isimip_gdp_entity({'DEU','FRA','ITA'}) % multi country entity
-%   entity=isimip_gdp_entity('all','0150as',1900) % single country entity for each country worldwide in 0150as resolution since 1900 (do NOT try this first ;-)
+%   entity=isimip_gdp_entity('all','0150as',1900,2020) % single country entity for each country worldwide in 0150as resolution, 1900..2020 (do NOT try this first ;-)
 %   entity=isimip_gdp_entity('ALL_IN_ONE') % one global entity
 %   params=isimip_gdp_entity('params') % get default parameters
 %   % to check population for year 2030:
@@ -195,6 +195,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params,first_year,last_year,add_
 % David N. Bresch, david.bresch@gmail.com, 20170706, currency_unit, gdp_1860-2100_0360as_yearly.nc and time_val_yyyy starting 1860
 % David N. Bresch, david.bresch@gmail.com, 20180201, locate files
 % David N. Bresch, david.bresch@gmail.com, 20180305, verbose=0 for 'all' and ready for latest 0150as file
+% David N. Bresch, david.bresch@gmail.com, 20180316, time_val_yyyy for gdp calculated based on info in netCDF
 %-
 
 entity=[]; % init output
@@ -232,7 +233,7 @@ if ~isfield(params,'verbose'),            params.verbose=[];end
 % PARAMETERS
 %
 % to TEST the code, i.e. reads only a few (3) timesteps
-TEST_mode=0; % default=0
+TEST_mode=1; % default=0
 %
 if isempty(params.grid_resolution),params.grid_resolution='0360as';end % default='0360as'
 %
@@ -263,7 +264,7 @@ pop_filename0360as = [isimip_data_dir filesep 'hyde_ssp2_1860-2100_0360as_yearly
 pop2_filename0360as =[isimip_data_dir filesep 'hyde_ssp2_1860-2015_0360as_yearly_zip.nc4']; % pop_variable_name='gdp_grid';
 pop_variable_name='var1';
 NatID_filename0360as=[isimip_data_dir filesep 'NatID_grid_0360as_adv_1.nc'];
-gdp_first_year0360as  = 1860;
+%gdp_first_year0360as  = 1860;
 pop_first_year  = 1860;
 pop2_first_year = 1860;
 %
@@ -275,9 +276,9 @@ if ~exist(val_filename0150as,'file')
     if strfind(params.val_filename,'0150as'),fprintf('ERROR: wait for %s to be provided by Tobias\n',val_filename0150as);end
     val_filename0150as =[isimip_data_dir filesep  'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc'];                        % patch 20180201
     if strfind(params.val_filename,'0150as'),fprintf('--> PATCH, using %s for the time being\n',val_filename0150as);end % patch 20180201
-    gdp_first_year0150as  = 1950;
+    %gdp_first_year0150as  = 1950;
 else
-    gdp_first_year0150as  = 1850; % 1850+(1:length(nc.time))-1
+    %gdp_first_year0150as  = 1850; % 1850+(1:length(nc.time))-1
 end
 %val_filename0150as =[isimip_data_dir filesep 'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc']; % val_variable_name='var1';
 
@@ -301,14 +302,14 @@ if isempty(params.hazard_match),      params.hazard_match=1;end
 if isempty(params.currency_unit),     params.currency_unit=1;end
 
 if strcmpi(params.grid_resolution,'0360as')
-    gdp_first_year=gdp_first_year0360as;
+    %gdp_first_year=gdp_first_year0360as;
     if isempty(params.val_filename),  params.val_filename   = val_filename0360as;end
     if isempty(params.pop_filename),  params.pop_filename   = pop_filename0360as;end
     if isempty(params.pop2_filename), params.pop2_filename  = pop2_filename0360as;end
     if isempty(params.con_filename),  params.con_filename   = con_filename0360as;end
     if isempty(params.NatID_filename),params.NatID_filename = NatID_filename0360as;end
 elseif strcmpi(params.grid_resolution,'0150as')
-    gdp_first_year=gdp_first_year0150as;
+    %gdp_first_year=gdp_first_year0150as;
     if isempty(params.val_filename),  params.val_filename   = val_filename0150as;end
     if isempty(params.pop_filename),  params.pop_filename   = pop_filename0150as;end
     if isempty(params.pop2_filename), params.pop2_filename  = pop2_filename0150as;end
@@ -359,16 +360,41 @@ nc.lon       = ncread(params.val_filename,'lon')';
 nc.lat       = ncread(params.val_filename,'lat')';
 nc.time      = ncread(params.val_filename,'time')';
 n_times      = length(nc.time);
+nc.time_units = ncreadatt(params.val_filename,'time','units');
 temp_data    = ncread(params.val_filename,val_variable_name,[1 1 1],[Inf Inf 1]); % only one time slab
 if params.verbose,fprintf(' done\n');end
 
-% make sure time is useful
-time_val_yyyy=zeros(1,n_times); % init
-for i=1:n_times
-    time_val_yyyy(i)=str2double(datestr(nc.time(i)+datenum(gdp_first_year,1,1)+1,'yyyy'));
+% Get info about NetCDF time axis (used later)
+nc.time_units = strsplit(nc.time_units, ' ');
+nc.time_orig  = cell2mat(strcat(nc.time_units(3), {' '}, nc.time_units(4)));
+nc.time_units = cell2mat(nc.time_units(1));
+
+% create time axis
+if strcmp(nc.time_units, 'years')
+    mm=ones(1,n_times);
+    dd=ones(1,n_times);
+    time_val_yyyy=str2double(nc.time_orig(1:4))+nc.time';
+    time_datenum=datenum(time_val_yyyy,mm,dd);
+else
+    if strcmp(nc.time_units, 'seconds')
+        time_ratio = 3600*24;
+    elseif strcmp(nc.time_units, 'minutes')
+        time_ratio = 60*24;
+    elseif strcmp(nc.time_units, 'hours')
+        time_ratio = 24;
+    elseif strcmp(nc.time_units, 'days')
+        time_ratio = 1;
+    else
+        warning('** the time units in the NetCDF file are unexpected - assuming one every 366 days (roughly one year) ending in the reference year **')
+        time_ratio=1/366;
+        nc.time=(1:n_times)-1;
+    end
+    time_datenum = double(nc.time/time_ratio+datenum(nc.time_orig));
 end
 
-if min(time_val_yyyy)<gdp_first_year || max(time_val_yyyy)>2100 % strange content of nc.time
+time_val_yyyy=str2num(datestr(time_datenum, 'yyyy'));
+
+if min(time_val_yyyy)<1850 || max(time_val_yyyy)>2100 % strange content of nc.time
     fprintf('SEVERY WARNING: strange years %i..%i\n',min(time_val_yyyy),max(time_val_yyyy))
 end
 
@@ -561,6 +587,9 @@ else
     if ~isempty(iso3_pos)
         NatID=NatID_RegID.NatID;
         entity.assets.NatID_RegID=NatID_RegID; % store the list
+    else
+        fprintf('ERROR %s not recognized\n',char(ISO3));
+        return
     end % ~isempty(iso3_pos)
     
     if iscell(ISO3) % more than one country
@@ -637,13 +666,28 @@ end
 entity.assets.Values=zeros(n_times,n_centroids);
 if ~isempty(time_pop_yyyy),entity.assets.Population=zeros(n_times,n_centroids);end;pop_missing_count=0;
 if ~isempty(time_pop2_yyyy),entity.assets.Population2=zeros(length(time_pop2_yyyy),n_centroids);end;pop2_missing_count=0;
+
+% find rectangle around country (doe snot work across dateline)
+dlon=max(abs(diff(sort(nc.lon))));
+dlat=max(abs(diff(sort(nc.lat))));
+lonmin=min(entity.assets.lon)-dlon/2;
+lonmax=max(entity.assets.lon)+dlon/2;
+latmin=min(entity.assets.lat)-dlat/2;
+latmax=max(entity.assets.lat)+dlat/2;
+lonpos=find(nc.lon>=lonmin & nc.lon<=lonmax);
+latpos=find(nc.lat>=latmin & nc.lat<=latmax);
+
+temp_data_zeros=nc.NatIDGrid*0; % init an empty full slab
+
 for time_i=time_val_start:time_val_end
     time_i_index=time_i-time_val_start+1; % index in output
-    temp_data=ncread(params.val_filename,val_variable_name,[1 1 time_i],[Inf Inf 1]); % only one time slab
+    temp_data=temp_data_zeros; % init
+    temp_data(lonpos,latpos)=ncread(params.val_filename,val_variable_name,...
+        [lonpos(1) latpos(1) time_i],[length(lonpos) length(latpos) 1]); % only one time sub-slab
     temp_data=temp_data.*nc.con_factor; % aply conversion factor
     temp_data=reshape(temp_data,[1 numel(temp_data)]); % as 1-D vect
     if isempty(NatID_pos)
-        entity.assets.Values(time_i_index,:) = temp_data(nc.land_point); % constrain to land
+        entity.assets.Values(time_i_index,:) = temp_data(land_point_pos); % constrain to land
     else
         entity.assets.Values(time_i_index,:) = temp_data(NatID_pos); % store
     end
@@ -651,10 +695,12 @@ for time_i=time_val_start:time_val_end
     if ~isempty(time_pop_yyyy)
         pop_time_i=find(time_pop_yyyy==time_val_yyyy(time_i_index));
         if length(pop_time_i)==1
-            temp_data=ncread(params.pop_filename,pop_variable_name,[1 1 pop_time_i],[Inf Inf 1]); % only one time slab
+            temp_data=temp_data_zeros; % init
+            temp_data(lonpos,latpos)=ncread(params.pop_filename,pop_variable_name,...
+                [lonpos(1) latpos(1) pop_time_i],[length(lonpos) length(latpos) 1]); % only one time sub-slab
             temp_data=reshape(temp_data,[1 numel(temp_data)]); % as 1-D vect
             if isempty(NatID_pos)
-                entity.assets.Population(time_i_index,:)=temp_data(nc.land_point); % constrain to land
+                entity.assets.Population(time_i_index,:)=temp_data(land_point_pos); % constrain to land
             else
                 entity.assets.Population(time_i_index,:)=temp_data(NatID_pos); % store
             end
@@ -666,11 +712,13 @@ for time_i=time_val_start:time_val_end
     if ~isempty(time_pop2_yyyy)
         pop2_time_i=find(time_pop2_yyyy==time_val_yyyy(time_i_index));
         if length(pop2_time_i)==1
-            temp_data=ncread(params.pop2_filename,pop_variable_name,[1 1 pop2_time_i],[Inf Inf 1]); % only one time slab
+            temp_data=ncread(params.pop2_filename,pop_variable_name,...
+                [lonpos(1) latpos(1) pop2_time_i],[length(lonpos) length(latpos) 1]); % only one time slab
             temp_data=reshape(temp_data,[1 numel(temp_data)]); % as 1-D vect
             if isempty(NatID_pos)
-                entity.assets.Population2(time_i_index,:)=temp_data(nc.land_point); % constrain to land
+                entity.assets.Population2(time_i_index,:)=temp_data(land_point_pos); % constrain to land
             else
+                entity.assets.Population2(time_i_index,:)=temp_data(NatID_pos); % constrain to land
             end
         else
             pop2_missing_count=pop2_missing_count+1;

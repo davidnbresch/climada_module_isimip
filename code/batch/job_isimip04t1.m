@@ -68,10 +68,10 @@ track_files={
 %     'Trial1_GB_dkhad_20thcal'
 %     'Trial1_GB_dkhad_rcp26cal'
 %     'Trial1_GB_dkhad_rcp60cal' % done Mar 15 07:50
-    'Trial1_GB_dkipsl_20thcal' % N done Mar 15 09:57
-    'Trial1_GB_dkipsl_rcp26cal'
+%    'Trial1_GB_dkipsl_20thcal' % N done Mar 15 09:57
+%    'Trial1_GB_dkipsl_rcp26cal'
     %'Trial1_GB_dkipsl_rcp60cal' % done 20180313 as first try
-    'Trial1_GB_dkmiroc_20thcal'
+%    'Trial1_GB_dkmiroc_20thcal'
     'Trial1_GB_dkmiroc_rcp26cal'
     'Trial1_GB_dkmiroc_rcp60cal'
     };
