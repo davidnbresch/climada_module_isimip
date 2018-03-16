@@ -138,6 +138,8 @@ function [entity,params]=isimip_gdp_entity(ISO3,params,first_year,last_year,add_
 %       applied.
 %    verbose: if=1 (defualt), rather verbose, =2 for TEST mode (only few
 %       timesteps processed)
+%    entity_prefix: if not ='', pre-pend the entity filename with it, e.g.
+%       entity_prefix='Try1' will result in Try1_DEU_0150as.mat
 %   first_year: the first year to store, if not passed or empty (=[]), the
 %       first year in the val (gdp) dataset, see there. 
 %   last_year: the last year to store, if not passed or empty (=[]), the
@@ -229,6 +231,7 @@ if ~isfield(params,'hazard_file'),        params.hazard_file='';end
 if ~isfield(params,'hazard_match'),       params.hazard_match=[];end
 if ~isfield(params,'currency_unit'),      params.currency_unit=[];end
 if ~isfield(params,'verbose'),            params.verbose=[];end
+if ~isfield(params,'entity_prefix'),      params.entity_prefix='';end
 
 % PARAMETERS
 %
@@ -643,9 +646,12 @@ else
     end
 end % to check all options for ISO3
 
+if ~isempty(params.entity_prefix)
+    if ~strcmp(params.entity_prefix(end),'_'),params.entity_prefix=[params.entity_prefix '_'];end
+end
 
 if isempty(NatID_pos) % no single country, one global entity
-    entity.assets.filename=[climada_global.entities_dir filesep 'GLB_' params.grid_resolution '_entity'];
+    entity.assets.filename=[climada_global.entities_dir filesep params.entity_prefix 'GLB_' params.grid_resolution '_entity'];
     entity.assets.NatID_RegID=NatID_RegID;
     entity.assets.NatID=nc.NatIDVect(nc.land_point); % constrain to land and convert to 1D
     entity.assets.lon=vectlon(nc.land_point); % constrain to land and convert to 1D
@@ -654,7 +660,7 @@ if isempty(NatID_pos) % no single country, one global entity
     n_centroids=sum(sum(nc.land_point));
     if params.verbose,fprintf('> extracting %i land points at %i times (%i..%i) ...',n_centroids,n_times,time_val_yyyy(1),time_val_yyyy(end));end
 else % single country
-    entity.assets.filename=[climada_global.entities_dir filesep strtrim(ISO3_char) '_' params.grid_resolution '_entity'];
+    entity.assets.filename=[climada_global.entities_dir filesep params.entity_prefix strtrim(ISO3_char) '_' params.grid_resolution '_entity'];
     entity.assets.admin0_ISO3=ISO3;
     entity.assets.lon=vectlon(NatID_pos);
     entity.assets.lat=vectlat(NatID_pos);

@@ -37,7 +37,10 @@ pwd % just to check where the job is running from
 
 % pool=parpool(N_pool_workers);
 
-isimip_gdp_entity('all','0150as',1900,2020);
+climada_global.entities_dir='/cluster/work/climate/dbresch/climada_data/isimip/entities';
+params.grid_resolution='0150as';
+params.entity_prefix='FL1950_';
+isimip_gdp_entity('all',params,1950,2020);
 %isimip_gdp_entity_TEST('all','0150as',1900,2018); % for parpool tests
 
 %delete(pool)
