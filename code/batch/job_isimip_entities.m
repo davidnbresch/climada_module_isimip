@@ -1,4 +1,4 @@
-% batch job for cluster: bsub -R "rusage[mem=5000]" -n 2 matlab -nodisplay -singleCompThread -r job_isimip_entities
+% batch job for cluster: bsub -W 48:00 -R "rusage[mem=5000]" -n 1 matlab -nodisplay -singleCompThread -r job_isimip_entities
 % MODULE:
 %   isimip
 % NAME:
