@@ -198,6 +198,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params,first_year,last_year,add_
 % David N. Bresch, david.bresch@gmail.com, 20180201, locate files
 % David N. Bresch, david.bresch@gmail.com, 20180305, verbose=0 for 'all' and ready for latest 0150as file
 % David N. Bresch, david.bresch@gmail.com, 20180316, time_val_yyyy for gdp calculated based on info in netCDF
+% David N. Bresch, david.bresch@gmail.com, 20180316, Population_yyyy and Population2_yyyy added
 %-
 
 entity=[]; % init output
@@ -265,7 +266,8 @@ con_filename0360as=  [isimip_data_dir filesep 'GDP2Asset_converter_0360as_adv_1.
 con_variable_name='conversion_factor';
 pop_filename0360as = [isimip_data_dir filesep 'hyde_ssp2_1860-2100_0360as_yearly_zip.nc'];
 pop2_filename0360as =[isimip_data_dir filesep 'hyde_ssp2_1860-2015_0360as_yearly_zip.nc4']; % pop_variable_name='gdp_grid';
-pop_variable_name='var1';
+pop_variable_name  = 'var1';
+pop2_variable_name = 'var1';
 NatID_filename0360as=[isimip_data_dir filesep 'NatID_grid_0360as_adv_1.nc'];
 %gdp_first_year0360as  = 1860;
 pop_first_year  = 1860;
@@ -670,8 +672,8 @@ else % single country
 end
 
 entity.assets.Values=zeros(n_times,n_centroids);
-if ~isempty(time_pop_yyyy),entity.assets.Population=zeros(n_times,n_centroids);end;pop_missing_count=0;
-if ~isempty(time_pop2_yyyy),entity.assets.Population2=zeros(length(time_pop2_yyyy),n_centroids);end;pop2_missing_count=0;
+if ~isempty(time_pop_yyyy), entity.assets.Population =zeros(n_times,n_centroids);end;pop_missing_count=0;
+if ~isempty(time_pop2_yyyy),entity.assets.Population2=zeros(1,      n_centroids);end;pop2_missing_count=0;
 
 % find rectangle around country (doe snot work across dateline)
 dlon=max(abs(diff(sort(nc.lon))));
@@ -684,6 +686,8 @@ lonpos=find(nc.lon>=lonmin & nc.lon<=lonmax);
 latpos=find(nc.lat>=latmin & nc.lat<=latmax);
 
 temp_data_zeros=nc.NatIDGrid*0; % init an empty full slab
+
+entity.assets.Values_yyyy=time_val_yyyy';
 
 for time_i=time_val_start:time_val_end
     time_i_index=time_i-time_val_start+1; % index in output
@@ -701,6 +705,7 @@ for time_i=time_val_start:time_val_end
     if ~isempty(time_pop_yyyy)
         pop_time_i=find(time_pop_yyyy==time_val_yyyy(time_i_index));
         if length(pop_time_i)==1
+            entity.assets.Population_yyyy(time_i_index)=time_val_yyyy(time_i_index);
             temp_data=temp_data_zeros; % init
             temp_data(lonpos,latpos)=ncread(params.pop_filename,pop_variable_name,...
                 [lonpos(1) latpos(1) pop_time_i],[length(lonpos) length(latpos) 1]); % only one time sub-slab
@@ -718,7 +723,9 @@ for time_i=time_val_start:time_val_end
     if ~isempty(time_pop2_yyyy)
         pop2_time_i=find(time_pop2_yyyy==time_val_yyyy(time_i_index));
         if length(pop2_time_i)==1
-            temp_data=ncread(params.pop2_filename,pop_variable_name,...
+            entity.assets.Population2_yyyy(time_i_index)=time_val_yyyy(time_i_index);
+            temp_data=temp_data_zeros; % init
+            temp_data(lonpos,latpos)=ncread(params.pop2_filename,pop2_variable_name,...
                 [lonpos(1) latpos(1) pop2_time_i],[length(lonpos) length(latpos) 1]); % only one time slab
             temp_data=reshape(temp_data,[1 numel(temp_data)]); % as 1-D vect
             if isempty(NatID_pos)
@@ -743,9 +750,7 @@ entity.assets.isimip_comment=sprintf('isimip entity, created %s',datestr(now));
 if params.verbose,fprintf('HINT: consider running isimip_admin1_layer to add admin1 information to centroids\n');end
 
 if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
-    
-    entity.assets.Values_yyyy=time_val_yyyy;
-    
+        
     % convert currency units to ones
     entity.assets.Values=entity.assets.Values*Values_factor;
     

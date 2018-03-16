@@ -38,7 +38,7 @@ function centroids=isimip_admin1_layer(centroids_file,country_ISO3,check_plot,sa
 %       if ='ALL', run all countries
 %       OR a centroids structure or an entity structure
 %   country_ISO3: a single country ISO3 code (like 'USA') or a list of
-%       codes (like {'DEU','FRA'})
+%       codes (like {'DEU','FRA'}). Default='ALL' (might take time)
 % OPTIONAL INPUT PARAMETERS:
 %   check_plot: if =1, plot admin1 shapes, default=0
 %       if =2, plot all centroids within shapes (might take a lot of time
@@ -75,8 +75,8 @@ if ~exist('save_it','var'),save_it=0;end
 %
 % define all parameters here - no parameters to be defined in code below
 %
-if isempty(centroids_file),centroids_file='GLB_NatID_grid_0360as_adv_1';end
-if isempty(country_ISO3),country_ISO3{1}='DEU';end
+if isempty(centroids_file),centroids_file='GLB_NatID_grid_0360as_adv_1';country_ISO3='DEU';end
+if isempty(country_ISO3),country_ISO3{1}='ALL';end
 %
 module_data_dir=[fileparts(fileparts(which('centroids_generate_hazard_sets'))) filesep 'data'];
 admin1_shape_file=[module_data_dir filesep 'ne_10m_admin_1_states_provinces' filesep 'ne_10m_admin_1_states_provinces.shp'];
@@ -101,7 +101,7 @@ end
 % load shape file
 admin1_shapes=climada_shaperead(admin1_shape_file);
 
-if ischar(country_ISO3) % conert to cell, if single char
+if ischar(country_ISO3) % convert to cell, if single char
     country_ISO3_tmp=country_ISO3;
     country_ISO3={};country_ISO3{1}=country_ISO3_tmp;
 end
