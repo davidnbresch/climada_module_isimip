@@ -700,7 +700,7 @@ for time_i=time_val_start:time_val_end
     temp_data=temp_data.*nc.con_factor; % aply conversion factor
     temp_data=reshape(temp_data,[1 numel(temp_data)]); % as 1-D vect
     if isempty(NatID_pos)
-        entity.assets.Values(time_i_index,:) = temp_data(land_point_pos); % constrain to land
+        entity.assets.Values(time_i_index,:) = temp_data(nc.land_point); % constrain to land
     else
         entity.assets.Values(time_i_index,:) = temp_data(NatID_pos); % store
     end
@@ -714,7 +714,7 @@ for time_i=time_val_start:time_val_end
                 [lonpos(1) latpos(1) pop_time_i],[length(lonpos) length(latpos) 1]); % only one time sub-slab
             temp_data=reshape(temp_data,[1 numel(temp_data)]); % as 1-D vect
             if isempty(NatID_pos)
-                entity.assets.Population(time_i_index,:)=temp_data(land_point_pos); % constrain to land
+                entity.assets.Population(time_i_index,:)=temp_data(nc.land_point); % constrain to land
             else
                 entity.assets.Population(time_i_index,:)=temp_data(NatID_pos); % store
             end
@@ -732,7 +732,7 @@ for time_i=time_val_start:time_val_end
                 [lonpos(1) latpos(1) pop2_time_i],[length(lonpos) length(latpos) 1]); % only one time slab
             temp_data=reshape(temp_data,[1 numel(temp_data)]); % as 1-D vect
             if isempty(NatID_pos)
-                entity.assets.Population2(time_i_index,:)=temp_data(land_point_pos); % constrain to land
+                entity.assets.Population2(time_i_index,:)=temp_data(nc.land_point); % constrain to land
             else
                 entity.assets.Population2(time_i_index,:)=temp_data(NatID_pos); % constrain to land
             end
