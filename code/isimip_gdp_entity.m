@@ -15,8 +15,6 @@ function [entity,params]=isimip_gdp_entity(ISO3,params,first_year,last_year,add_
 %   set and all single/multi country entities run properly (see
 %   entity.assets.centroid_index on otuput below).
 %
-%   NOTE: this code listens to climada_global.parfor for substantial speedup
-%
 %   If the matching population netCDF file exists (pop_filename), the variable
 %   entity.assets.Population(i,j) contains the populaiton (number of people
 %   per centroid) for year i and centroid j.  Note that year i matches with
@@ -144,9 +142,9 @@ function [entity,params]=isimip_gdp_entity(ISO3,params,first_year,last_year,add_
 %    entity_prefix: if not ='', pre-pend the entity filename with it, e.g.
 %       entity_prefix='Try1' will result in Try1_DEU_0150as.mat
 %   first_year: the first year to store, if not passed or empty (=[]), the
-%       first year in the val (gdp) dataset, see there. 
+%       first year in the val (gdp) dataset, see there.
 %   last_year: the last year to store, if not passed or empty (=[]), the
-%       last year in the val (gdp) dataset, see there. 
+%       last year in the val (gdp) dataset, see there.
 %   add_population: if =1, add population, =0 not (default)
 % OUTPUTS:
 %   entity: a climada entity structure, see climada_entity_read for a full
@@ -202,6 +200,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params,first_year,last_year,add_
 % David N. Bresch, david.bresch@gmail.com, 20180305, verbose=0 for 'all' and ready for latest 0150as file
 % David N. Bresch, david.bresch@gmail.com, 20180316, time_val_yyyy for gdp calculated based on info in netCDF
 % David N. Bresch, david.bresch@gmail.com, 20180316, Population_yyyy and Population2_yyyy added
+% David N. Bresch, david.bresch@gmail.com, 20180317, parfor removed (might lead to parallel netCDF reading)
 %-
 
 entity=[]; % init output
@@ -427,7 +426,7 @@ end
 if TEST_mode % TEST mode, read only few times
     time_val_end=time_val_start+3;
     time_val_yyyy=time_val_yyyy(time_val_start:time_val_end);
-end 
+end
 n_times=time_val_end-time_val_start+1;
 
 if params.verbose,fprintf('reading %s from %s',con_variable_name,params.con_filename);end
@@ -568,25 +567,13 @@ elseif strcmpi(ISO3,'all')
     params.verbose           = 0;
     params.check_plot        = 0;
     if TEST_mode,n_NatIDs=5;end % for TESTs only
-    if climada_global.parfor
-        fprintf('processing %i countries (parfor, producing single country entity files)\n\n',n_NatIDs);
-        NatID_RegID_ISO3=NatID_RegID.ISO3; % for parfor
-        parfor iso3_i=1:n_NatIDs
-            ISO3 = NatID_RegID_ISO3{iso3_i};
-            fprintf('- %s: (%s)\n',ISO3,datestr(now))
-            isimip_gdp_entity(ISO3,params,first_year,last_year,add_population);
-        end % parfor iso3_i
-        if fprintf('parfor mode: no entity returned, see climada_entity_load\n');end
-        entity=[]; % reset
-    else
-        fprintf('processing %i countries (producing single country entity files)\n\n',n_NatIDs);
-        for iso3_i=1:n_NatIDs
-            ISO3=NatID_RegID.ISO3{iso3_i};
-            fprintf('- %s: (%s)\n',ISO3,datestr(now))
-            entity=isimip_gdp_entity(ISO3,params,first_year,last_year,add_population);
-        end % iso3_i
-        if params.verbose,fprintf('only last entity returned, see climada_entity_load\n');end
-    end % parfor
+    fprintf('processing %i countries (producing single country entity files)\n\n',n_NatIDs);
+    for iso3_i=1:n_NatIDs
+        ISO3=NatID_RegID.ISO3{iso3_i};
+        fprintf('- %s: (%s)\n',ISO3,datestr(now))
+        entity=isimip_gdp_entity(ISO3,params,first_year,last_year,add_population);
+    end % iso3_i
+    if params.verbose,fprintf('only last entity returned, see climada_entity_load\n');end
     return
 else
     [~,~,iso3_pos]=intersect(ISO3,NatID_RegID.ISO3);
@@ -753,7 +740,7 @@ entity.assets.isimip_comment=sprintf('isimip entity, created %s',datestr(now));
 if params.verbose,fprintf('HINT: consider running entity=isimip_admin1_layer(entity) to add admin1 information to centroids\n');end
 
 if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
-        
+    
     % convert currency units to ones
     entity.assets.Values=entity.assets.Values*Values_factor;
     

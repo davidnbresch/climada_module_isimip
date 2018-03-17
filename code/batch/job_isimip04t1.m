@@ -65,13 +65,13 @@ desktop_N_pool_workers= 2; % number of parpool workers on desktop
 track_files={
     'Trial1_GB_dkgfdl_20thcal'
     'Trial1_GB_dkgfdl_rcp26cal'
-    'Trial1_GB_dkgfdl_rcp60cal' % done Mar 14 21:54
+    'Trial1_GB_dkgfdl_rcp60cal'
     'Trial1_GB_dkhad_20thcal'
     'Trial1_GB_dkhad_rcp26cal'
-    'Trial1_GB_dkhad_rcp60cal' % done Mar 15 07:50
-    'Trial1_GB_dkipsl_20thcal' % N done Mar 15 09:57
+    'Trial1_GB_dkhad_rcp60cal'
+    'Trial1_GB_dkipsl_20thcal'
     'Trial1_GB_dkipsl_rcp26cal'
-    'Trial1_GB_dkipsl_rcp60cal' % done 20180313 as first try
+    'Trial1_GB_dkipsl_rcp60cal'
     'Trial1_GB_dkmiroc_20thcal'
     'Trial1_GB_dkmiroc_rcp26cal'
     'Trial1_GB_dkmiroc_rcp60cal'
@@ -155,36 +155,35 @@ end % file_i
 %[status,result]=system('scp -r    /cluster/scratch/dbresch/climada_data/hazards/*.mat b380587@mistralpp.dkrz.de:/work/bb0820/scratch/b380587/.')
 %[status,result] =system('scp -r -v /cluster/scratch/dbresch/climada_data/hazards/*.mat b380587@mistralpp.dkrz.de:/work/bb0820/scratch/b380587/.')
 
-% %
-% % SPECIAL CODE2 to inspect results
-% % ----------------------------------
-% result_hazard_dir='/Users/bresch/polybox/isimip/hazards_v04';
+
+% % SPECIAL CODE to inspect results
+% % -------------------------------
+% define track_files as in PARAMETERS above
+% result_hazard_dir='/Users/bresch/polybox/isimip/hazards';
 % fig_dir='/Users/bresch/Desktop/isimip';fig_ext='png';
 % if ~isdir(fig_dir),[fP,fN]=fileparts(fig_dir);mkdir(fP,fN);end % create it
-% dd=dir([result_hazard_dir filesep '*.mat']);
 % params.figure_scale=0; % no geographical scale on figure
 % params.blue_ocean=1; % no geographical scale on figure
-% for i=1:length(dd)
-%     if ~dd(i).isdir && length(dd(i).name)>2
-%         fprintf('processing %s: (%i of %i)\n',dd(i).name,i,length(dd))
-%         hazard=climada_hazard_load([result_hazard_dir filesep dd(i).name]);
-%         figure;climada_hazard_plot_nogrid(hazard,0,[],params); % plot max intensity
-%         fN=strrep(dd(i).name,'.mat','');xlim([-180 180]);
+% marker_size=2;
+% n_track_files=length(track_files);
+% for file_i=1:n_track_files
+%     fprintf('processing %s_{N|S}_0360as: (%i of %i)\n',track_files{file_i},file_i,n_track_files)
+%     for NS_i=1:2
+%         if NS_i==1
+%             hazard_name=[track_files{file_i} '_N_0360as'];
+%         else
+%             hazard_name=[track_files{file_i} '_S_0360as'];
+%         end
+%         hazard=climada_hazard_load([result_hazard_dir filesep hazard_name]);
+%         figure;climada_hazard_plot(hazard,0,marker_size,params); % plot max intensity
+%         xlim([-180 180]);
 %         ylim1=ylim;if ylim1(2)>90,ylim1(2)=90;end;if ylim1(2)<-90,ylim1(2)=-90;end
-%         title_str=strrep(fN,'_',' ');ylim(ylim1);
+%         title_str=strrep(hazard_name,'_',' ');ylim(ylim1);
 %         title([title_str ' (max intensity)']);
-%         saveas(gcf,[fig_dir filesep fN '.' fig_ext],fig_ext);
-%         track_file=strrep(fN,        '_N_0360as','');
-%         track_file=strrep(track_file,'_S_0360as','');
-%         hemisphere='both';
-%         if ~isempty(strfind(fN,'_S_')),hemisphere='S';end
-%         if ~isempty(strfind(fN,'_N_')),hemisphere='N';end
-%         tc_track=isimip_tc_track_load(track_file,hemisphere,180,-1);
-%         figure;climada_tc_track_info(tc_track); % plot tracks
-%         title(title_str);xlim([-180 180]);ylim(ylim1);
-%         saveas(gcf,[fig_dir filesep track_file '_tc_track_' hemisphere '.' fig_ext],fig_ext);
+%         saveas(gcf,[fig_dir filesep hazard_name '.' fig_ext],fig_ext);
 %         close all
-%     end % ~dd(i).isdir
-% end % i
+%     end % NS_i
+% end % file_i
+
 
 if ~run_on_desktop,delete(pool);exit;end % no need to delete the pool on mac, the cluster appreciates exit
