@@ -26,9 +26,9 @@
 %
 %   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/*.mat Documents/_GIT/climada_data/hazards/.
 %   copy results back polybox: scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/*.mat /Users/bresch/polybox/isimip/hazards_v04/.
-%   copy results to dkrz:      scp -r /cluster/work/climate/dbresch/climada_data/hazards/*.mat b380587@mistralpp.dkrz.de:/work/bb0820/scratch/b380587/.
+%   copy results to dkrz:      scp -r /cluster/work/climate/dbresch/climada_data/hazards/Trial1*0360as.mat b380587@mistralpp.dkrz.de:/work/bb0820/scratch/b380587/.
 %
-%   other option, a LSF pool, see http://www.clusterwiki.ethz.ch/brutus/Parallel_MATLAB_and_Brutus 
+%   other option, a LSF pool, see http://www.clusterwiki.ethz.ch/brutus/Parallel_MATLAB_and_Brutus
 % CALLING SEQUENCE:
 %   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04t1
 % EXAMPLE:
@@ -132,14 +132,12 @@ centroids_S.NatID=centroids_S.NatID(lat_pos);
 
 for file_i=1:length(track_files)
     
-    if ~strcmpi(track_files{file_i},'Trial1_GB_dkipsl_20thcal') % N already done
-        tc_track=isimip_tc_track_load(track_files{file_i},'N',180,-1); % Northern hemisphere
-        if FAST_TEST,tc_track=tc_track(1:100);end % small subset for TEST
-        hazard_name=[track_files{file_i} '_N_0360as'];
-        %hazard_set_file=[scratch_dir filesep hazard_name];
-        %isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_N,0,hazard_name);
-        isimip_tc_hazard_set(tc_track,hazard_name,centroids_N,0,hazard_name);
-    end
+    tc_track=isimip_tc_track_load(track_files{file_i},'N',180,-1); % Northern hemisphere
+    if FAST_TEST,tc_track=tc_track(1:100);end % small subset for TEST
+    hazard_name=[track_files{file_i} '_N_0360as'];
+    %hazard_set_file=[scratch_dir filesep hazard_name];
+    %isimip_tc_hazard_set(tc_track,hazard_set_file,centroids_N,0,hazard_name);
+    isimip_tc_hazard_set(tc_track,hazard_name,centroids_N,0,hazard_name);
     
     tc_track=isimip_tc_track_load(track_files{file_i},'S',180,-1); % Southern hemisphere
     if FAST_TEST,tc_track=tc_track(1:100);end % small subset for TEST
