@@ -23,6 +23,9 @@ function [entity,params]=isimip_gdp_entity(ISO3,params,first_year,last_year,add_
 %   year i of entity.assets.Values, i.e. Population is only stored for
 %   years with Values.
 %
+%   Consider running entity=isimip_admin1_layer(entity) to add admin1
+%   information to centroids.
+%
 %   Please be PATIENT the first time you run this code, as it generates the
 %   global reference grid, where calculation of distance to coast for all
 %   land points does take (substantial) time. See PARAMETERS to switch
@@ -660,7 +663,7 @@ if isempty(NatID_pos) % no single country, one global entity
     entity.assets.lat=vectlat(nc.land_point); % constrain to land and convert to 1D
     entity.assets.centroid_index=centroids.centroid_ID(1:length(entity.assets.lat));
     n_centroids=sum(sum(nc.land_point));
-    if params.verbose,fprintf('> extracting %i land points at %i times (%i..%i) ...',n_centroids,n_times,time_val_yyyy(1),time_val_yyyy(end));end
+    if params.verbose,fprintf('> extracting %i land points at %i times (%i..%i) ... ',n_centroids,n_times,time_val_yyyy(1),time_val_yyyy(end));end
 else % single country
     entity.assets.filename=[climada_global.entities_dir filesep params.entity_prefix strtrim(ISO3_char) '_' params.grid_resolution '_entity'];
     entity.assets.admin0_ISO3=ISO3;
@@ -668,7 +671,7 @@ else % single country
     entity.assets.lat=vectlat(NatID_pos);
     entity.assets.centroid_index=centroids.centroid_ID(NatID_pos(nc.land_point));
     n_centroids=sum(NatID_pos);
-    if params.verbose,fprintf('> extracting %i centroids at %i times (%i..%i) ...',  n_centroids,n_times,time_val_yyyy(1),time_val_yyyy(end));end
+    if params.verbose,fprintf('> extracting %i centroids at %i times (%i..%i) ... ',  n_centroids,n_times,time_val_yyyy(1),time_val_yyyy(end));end
 end
 
 entity.assets.Values=zeros(n_times,n_centroids);
@@ -739,7 +742,7 @@ for time_i=time_val_start:time_val_end
     end % population2
     
 end  % time_i
-if params.verbose,fprintf(' done\n');end
+if params.verbose,fprintf('done\n');end
 
 if params.verbose && pop_missing_count>0, fprintf('WARNING: no population for        %2.2i years\n',pop_missing_count );end
 if params.verbose && pop2_missing_count>0,fprintf('WARNING: no second population for %2.2i years\n',pop2_missing_count);end
@@ -747,7 +750,7 @@ if params.verbose && pop2_missing_count>0,fprintf('WARNING: no second population
 entity.assets.isimip_comment=sprintf('isimip entity, created %s',datestr(now));
 
 % just an INFO
-if params.verbose,fprintf('HINT: consider running isimip_admin1_layer to add admin1 information to centroids\n');end
+if params.verbose,fprintf('HINT: consider running entity=isimip_admin1_layer(entity) to add admin1 information to centroids\n');end
 
 if isfield(entity.assets,'isimip_comment') % indicates we have an ok entity
         

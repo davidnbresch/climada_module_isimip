@@ -1,8 +1,8 @@
-% batch job for cluster: bsub -W 48:00 -R "rusage[mem=9000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+% batch job for cluster: bsub -W 48:00 -R "rusage[mem=9000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04t4
 % MODULE:
 %   isimip
 % NAME:
-%   job_isimip04
+%   job_isimip04t4
 % PURPOSE:
 %   generate isimip tropical cyclone (TC) hazard event sets based on Kerry
 %   Emmanuel TC track files for 4th (corrected) batch, i.e. files such as
@@ -18,11 +18,11 @@
 %
 %   some hints to work with the cluster (explicit paths, edit this ;-)
 %
-%   copy job to cluster:       scp -r Documents/_GIT/climada_modules/isimip/code/batch/job_isimip04.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
+%   copy job to cluster:       scp -r Documents/_GIT/climada_modules/isimip/code/batch/job_isimip04t4.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
 %   check progress:            ls -la /cluster/work/climate/dbresch/climada_data/hazards/Trial4_GB_*
 %
 %   copy single data to cluster:scp -r Documents/_GIT/climada_data/isimip/tc_tracks/Trial3_GB_dkgfdl_piControlcal dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/isimip/tc_tracks/.
-%   run on cluster:            bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+%   run on cluster:            bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04t4
 %
 %   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/*.mat Documents/_GIT/climada_data/hazards/.
 %   copy results back polybox: scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/hazards/*.mat /Users/bresch/polybox/isimip/hazards_v04/.
@@ -30,15 +30,15 @@
 %
 %   other option, a LSF pool, see http://www.clusterwiki.ethz.ch/brutus/Parallel_MATLAB_and_Brutus
 % CALLING SEQUENCE:
-%   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+%   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04t4
 % EXAMPLE:
-%   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04
+%   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip04t4
 %
 %   run_on_desktop=1; % to test the job on a desktop
-%   job_isimip04
+%   job_isimip04t4
 % INPUTS:
 % OPTIONAL INPUT PARAMETERS:
-%   run_on_desktop: if you set =1 before calling job_isimip04 (all in
+%   run_on_desktop: if you set =1 before calling job_isimip04t4 (all in
 %       MATLAB command window), it sets the number of parallel pool workers
 %       to two, does not delete the pool after execution and does not quit
 %       MATLAB and hence allows to TEST a job on a local desktop. This
@@ -51,7 +51,8 @@
 % David N. Bresch, dbresch@ethz.ch, 20171027, scp added
 % David N. Bresch, dbresch@ethz.ch, 20171029, new simulation names, job terminated 20171029_0908
 % David N. Bresch, dbresch@ethz.ch, 20180312, redone for climada_global.tc.default_min_TimeStep=0.25; % 15 min
-% David N. Bresch, dbresch@ethz.ch, 20180315, lat only -60..60
+% David N. Bresch, dbresch@ethz.ch, 20180315, lat only -60..60, job renamed to job_isimip04t4 (for Trial4*)
+% David N. Bresch, dbresch@ethz.ch, 20180317, all jobs finished 2018 Mar 17 03:25
 %-
 
 
@@ -65,10 +66,10 @@ desktop_N_pool_workers= 2; % number of parpool workers on desktop
 %
 % the list of TC track files to be processed (see SPECIAL CODE below)
 track_files={
-    %'Trial4_GB_dkgfdl_20thcal' % done 20180313, 12:53h
-%     'Trial4_GB_dkgfdl_piControlcal' % _gb_ to _GB_
-%     'Trial4_GB_dkipsl_20thcal'
-%     'Trial4_GB_dkipsl_piControlcal' % done Mar 15 00:06 
+    'Trial4_GB_dkgfdl_20thcal' % done 20180313, 12:53h
+    'Trial4_GB_dkgfdl_piControlcal' % _gb_ to _GB_
+    'Trial4_GB_dkipsl_20thcal'
+    'Trial4_GB_dkipsl_piControlcal' % done Mar 15 00:06
     'Trial4_GB_dkipsl_rcp26cal'
     'Trial4_GB_dkmiroc_20thcal'
     'Trial4_GB_dkmiroc_piControlcal'
@@ -104,7 +105,7 @@ track_files={
 % dd_name=dd_name(pos);
 % fprintf('track files sorted ascening by size (%2.2g..%2.2g bytes):\n',dd_bytes(1),dd_bytes(end));
 % for i=1:length(dd_name),fprintf('''%s''\n',dd_name{i});end
-% fprintf('--> copy paste this into track_files in %s\n','job_isimip04');
+% fprintf('--> copy paste this into track_files in %s\n','job_isimip04t4');
 
 % aaa: some admin to start with (up to % eee standard code)
 if ~exist('run_on_desktop','var'),run_on_desktop=[];end
@@ -158,7 +159,7 @@ centroids_N.NatID=centroids_N.NatID(lat_pos);
 % centroids_NE.distance2coast_km=centroids_NE.distance2coast_km(lon_pos);
 % lon_pos(lon_pos>length(centroids_NE.NatID))=[];
 % centroids_NE.NatID=centroids_NE.NatID(lon_pos);
-% 
+%
 % centroids_NW = centroids_N; % Northwestern hemisphere
 % lon_pos=find(centroids_NW.lon<0);
 % centroids_NW.lon=centroids_NW.lon(lon_pos);
@@ -184,7 +185,7 @@ centroids_S.NatID=centroids_S.NatID(lat_pos);
 % centroids_SE.distance2coast_km=centroids_SE.distance2coast_km(lon_pos);
 % lon_pos(lon_pos>length(centroids_SE.NatID))=[];
 % centroids_SE.NatID=centroids_SE.NatID(lon_pos);
-% 
+%
 % centroids_SW = centroids_S; % Southwestern hemisphere
 % lon_pos=find(centroids_SW.lon<0);
 % centroids_SW.lon=centroids_SW.lon(lon_pos);

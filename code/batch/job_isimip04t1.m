@@ -48,7 +48,8 @@
 %   to disk, see PARAMETERS and climada folders
 % MODIFICATION HISTORY:
 % David N. Bresch, dbresch@ethz.ch, 20180313, copy from job_isimip04
-% David N. Bresch, dbresch@ethz.ch, 20180315, lat only -60..60
+% David N. Bresch, dbresch@ethz.ch, 20180315, lat only -60..60, job renamed to job_isimip04t1 (for Trial1*)
+% David N. Bresch, dbresch@ethz.ch, 20180317, all jobs finished 2018 Mar 16 14:46
 %-
 
 
@@ -62,16 +63,16 @@ desktop_N_pool_workers= 2; % number of parpool workers on desktop
 %
 % the list of TC track files to be processed
 track_files={
-%     'Trial1_GB_dkgfdl_20thcal'
-%     'Trial1_GB_dkgfdl_rcp26cal'
-%     'Trial1_GB_dkgfdl_rcp60cal' % done Mar 14 21:54
-%     'Trial1_GB_dkhad_20thcal'
-%     'Trial1_GB_dkhad_rcp26cal'
-%     'Trial1_GB_dkhad_rcp60cal' % done Mar 15 07:50
-%    'Trial1_GB_dkipsl_20thcal' % N done Mar 15 09:57
-%    'Trial1_GB_dkipsl_rcp26cal'
-    %'Trial1_GB_dkipsl_rcp60cal' % done 20180313 as first try
-%    'Trial1_GB_dkmiroc_20thcal'
+    'Trial1_GB_dkgfdl_20thcal'
+    'Trial1_GB_dkgfdl_rcp26cal'
+    'Trial1_GB_dkgfdl_rcp60cal' % done Mar 14 21:54
+    'Trial1_GB_dkhad_20thcal'
+    'Trial1_GB_dkhad_rcp26cal'
+    'Trial1_GB_dkhad_rcp60cal' % done Mar 15 07:50
+    'Trial1_GB_dkipsl_20thcal' % N done Mar 15 09:57
+    'Trial1_GB_dkipsl_rcp26cal'
+    'Trial1_GB_dkipsl_rcp60cal' % done 20180313 as first try
+    'Trial1_GB_dkmiroc_20thcal'
     'Trial1_GB_dkmiroc_rcp26cal'
     'Trial1_GB_dkmiroc_rcp60cal'
     };
