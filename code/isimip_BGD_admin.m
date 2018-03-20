@@ -51,7 +51,7 @@ module_data_dir=[fileparts(fileparts(mfilename('fullpath'))) filesep 'data'];
 % define all parameters here - no parameters to be defined in code below
 %
 % set default shape file name
-if isempty(shapefile_name),shapefile_name=[module_data_dir filesep 'centroids' filesep 'bgd_bnda_adm1_2015/bgd_bnda_adm1_2015.shp'];end
+if isempty(shapefile_name),shapefile_name=[module_data_dir filesep 'centroids' filesep 'bgd_bnda_adm1_2015/BGD_bnda_adm1_2015.shp'];end
 %shapefile_name='/Users/bresch/Documents/_GIT/climada_applications_div/isimip_BGD/admin_layers/bgd_bnda_adm1_2015/bgd_bnda_adm1_2015.shp';
 %
 plot_colors={'.r','.g','.b','.k','.m','.y'};
