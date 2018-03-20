@@ -37,6 +37,9 @@ function centroids=isimip_admin1_layer(centroids_file,country_ISO3,check_plot,sa
 %       used (i.e. GLB_NatID_grid_0360as_adv_1)
 %       if ='ALL', run all countries
 %       OR a centroids structure or an entity structure
+%       SPECIAL: if centroids_file contains an entity structure for
+%           Bangladesh, the special code isimip_BGD_admin is invoked, since
+%           Bangladesh added another admin1 region 'Mymensingh'
 %   country_ISO3: a single country ISO3 code (like 'USA') or a list of
 %       codes (like {'DEU','FRA'}). Default='ALL' (might take time)
 % OPTIONAL INPUT PARAMETERS:
@@ -59,6 +62,7 @@ function centroids=isimip_admin1_layer(centroids_file,country_ISO3,check_plot,sa
 % David N. Bresch, david.bresch@gmail.com, 20171006, initial
 % David N. Bresch, david.bresch@gmail.com, 20171015, small bug fixed (admin1_pos)
 % David N. Bresch, david.bresch@gmail.com, 20180306, process entities, too
+% David N. Bresch, david.bresch@gmail.com, 20180320, for BGD, call isimip_BGD_admin
 %-
 
 %centroids=[]; % init output
@@ -84,12 +88,22 @@ admin1_shape_file=[module_data_dir filesep 'ne_10m_admin_1_states_provinces' fil
 plot_colors={'.r','.g','.b','.k','.m','.y'};
 
 if ~isstruct(centroids_file)
-% load centroids
-centroids=climada_centroids_load(centroids_file);
+    % load centroids
+    centroids=climada_centroids_load(centroids_file);
 else
     % contains in fact centroids or an entity, check
     if isfield(centroids_file,'assets')
         % an entity
+        
+        if isfield(centroids_file.assets,'admin0_ISO3')
+            if strcmpi(centroids_file.assets.admin0_ISO3,'BGD') || strcmpi(country_ISO3,'BGD')
+                fprintf('SPECIAL for Bangladesh - calling isimip_BGD_admin\n');
+                centroids_file=isimip_BGD_admin(centroids_file,'',check_plot);
+                centroids=centroids_file;
+                return
+            end
+        end
+        
         centroids.lon=centroids_file.assets.lon;
         centroids.lat=centroids_file.assets.lat;
         centroids.filename='ENTITY';
@@ -122,18 +136,18 @@ end
 
 if check_plot,fprintf('NOTE: plotting will take quite some time, be patient\n');end
 
-admin1_name_list={};
-admin1_name_code_list={};
-centroids.admin1_ID=centroids.lon*0; % init
-no_centroids_count=0; % init
 n_shapes = length(admin1_shape_i);
 fprintf('processing %i admin1 shapes\n',n_shapes);
+admin1_name_list=cell(1,n_shapes); % init
+admin1_name_code_list=cell(1,n_shapes); % init
+centroids.admin1_ID=centroids.lon*0; % init
+no_centroids_count=0; % init
 climada_progress2stdout % init, see terminate below
-for shape_i=1:n_shapes
+for admin1_i=1:n_shapes
     
-    shape_i=admin1_shape_i(shape_i);
-    admin1_name_list{shape_i}=admin1_shapes(shape_i).name; % compile list of admin1 names
-    admin1_name_code_list{shape_i}=[admin1_shapes(shape_i).name ...
+    shape_i=admin1_shape_i(admin1_i);
+    admin1_name_list{admin1_i}=admin1_shapes(shape_i).name; % compile list of admin1 names
+    admin1_name_code_list{admin1_i}=[admin1_shapes(shape_i).name ...
         ' | ' admin1_shapes(shape_i).adm1_code]; % with code
     
     shape_X=admin1_shapes(shape_i).X;
@@ -152,16 +166,16 @@ for shape_i=1:n_shapes
     admin1_pos=climada_inpolygon(centroids.lon,centroids.lat,shape_X,shape_Y);
     
     if sum(admin1_pos)>0
-        centroids.admin1_ID(admin1_pos)=shape_i;
+        centroids.admin1_ID(admin1_pos)=admin1_i;
         if check_plot>1,plot(centroids.lon(admin1_pos),centroids.lat(admin1_pos),...
-                plot_colors{mod(shape_i,length(plot_colors)-1)+1},'MarkerSize',1);end
+                plot_colors{mod(admin1_i,length(plot_colors)-1)+1},'MarkerSize',1);end
     else
         no_centroids_count=no_centroids_count+1;
     end
     
-    climada_progress2stdout(shape_i,n_shapes,10,'admin1 shapes'); % update
+    climada_progress2stdout(admin1_i,n_shapes,10,'admin1 shapes'); % update
     
-end % shape_i
+end % admin1_i
 climada_progress2stdout(0) % terminate
 
 if check_plot,set(gcf,'Color',[1 1 1]);end % white figure background

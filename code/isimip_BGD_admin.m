@@ -69,15 +69,15 @@ n_shapes = length(shapes);
 fprintf('processing %i admin shapes for %i centroids\n',n_shapes,length(entity.assets.lon));
 no_centroids_count=0;
 entity.assets.admin1_ID=entity.assets.lon*0;
-entity.assets.admin2_ID=entity.assets.lon*0;
 admin1_name_list=cell(1,n_shapes); % init
+admin1_name_code_list=cell(1,n_shapes); % init
 
 climada_progress2stdout(-1,[],1) % init with mod_step 1, see terminate below
 for shape_i=1:n_shapes
     
     admin1_name_list{shape_i}=shapes(shape_i).adm1_en; % compile list of admin1 names
-    %     admin1_name_code_list{shape_i}=[admin1_name_list{shape_i} ...
-    %         ' | ' shapes(shape_i).a1code]; % with code
+    admin1_name_code_list{shape_i}=[admin1_name_list{shape_i} ...
+        ' | ' num2str(shape_i)]; % with code
     
     shape_X=shapes(shape_i).X;
     shape_Y=shapes(shape_i).Y;
@@ -111,6 +111,11 @@ if check_plot % plot admin1 shapes and name them
     end
 end % check_plot
 
-entity.assets.admin1_list = admin1_name_list;
+% reformat
+entity.assets.admin1_list=admin1_name_list';
+for i=1:n_shapes
+    entity.assets.admin1_list{i,2}=i;
+    entity.assets.admin1_list{i,3}=admin1_name_code_list{i};
+end
 
 end % isimip_BGD_admin
