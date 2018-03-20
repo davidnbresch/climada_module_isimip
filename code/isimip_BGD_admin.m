@@ -1,5 +1,5 @@
 function entity=isimip_BGD_admin(entity,shapefile_name,check_plot)
-% climada template
+% climada isimip admin1 entity
 % MODULE:
 %   isimip
 % NAME:
@@ -28,6 +28,9 @@ function entity=isimip_BGD_admin(entity,shapefile_name,check_plot)
 %       if >1, plot also centroids within admin1 boundaries
 % OUTPUTS:
 %   entity: the entity structure as on input, just with fields added:
+%       entity.assets.admin1_ID: the index for admin1
+%       entity.assets.admin1_list: the list of admin1 names in {:,1}, where
+%           admin1_list{i,2} is the index in admin1_ID
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20180320, initial
 %-
