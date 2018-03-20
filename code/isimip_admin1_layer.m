@@ -129,11 +129,11 @@ no_centroids_count=0; % init
 n_shapes = length(admin1_shape_i);
 fprintf('processing %i admin1 shapes\n',n_shapes);
 climada_progress2stdout % init, see terminate below
-for admin1_i=1:n_shapes
+for shape_i=1:n_shapes
     
-    shape_i=admin1_shape_i(admin1_i);
-    admin1_name_list{admin1_i}=admin1_shapes(shape_i).name; % compile list of admin1 names
-    admin1_name_code_list{admin1_i}=[admin1_shapes(shape_i).name ...
+    shape_i=admin1_shape_i(shape_i);
+    admin1_name_list{shape_i}=admin1_shapes(shape_i).name; % compile list of admin1 names
+    admin1_name_code_list{shape_i}=[admin1_shapes(shape_i).name ...
         ' | ' admin1_shapes(shape_i).adm1_code]; % with code
     
     shape_X=admin1_shapes(shape_i).X;
@@ -152,16 +152,16 @@ for admin1_i=1:n_shapes
     admin1_pos=climada_inpolygon(centroids.lon,centroids.lat,shape_X,shape_Y);
     
     if sum(admin1_pos)>0
-        centroids.admin1_ID(admin1_pos)=admin1_i;
+        centroids.admin1_ID(admin1_pos)=shape_i;
         if check_plot>1,plot(centroids.lon(admin1_pos),centroids.lat(admin1_pos),...
-                plot_colors{mod(admin1_i,length(plot_colors)-1)+1},'MarkerSize',1);end
+                plot_colors{mod(shape_i,length(plot_colors)-1)+1},'MarkerSize',1);end
     else
         no_centroids_count=no_centroids_count+1;
     end
     
-    climada_progress2stdout(admin1_i,n_shapes,10,'admin1 shapes'); % update
+    climada_progress2stdout(shape_i,n_shapes,10,'admin1 shapes'); % update
     
-end % admin1_i
+end % shape_i
 climada_progress2stdout(0) % terminate
 
 if check_plot,set(gcf,'Color',[1 1 1]);end % white figure background
