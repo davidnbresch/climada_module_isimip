@@ -15,7 +15,7 @@ function [continent,jrc_file]=continent_jrc_damfun(country, params)
 %   clear params;params.filename_suffix='PAA_1';
 %   [continent,damfun_file]=continent_jrc_damfun('DEU',params);
 % INPUTS:
-%   entity: the original entity whosecoordinates require correction.
+%   country: country name (full name or ISO3)
 % OPTIONAL INPUT PARAMETERS:
 %   params: a structure with fields:
 %    filename_suffix: a suffix to the JRC filename (e.g. for different
@@ -33,7 +33,7 @@ function [continent,jrc_file]=continent_jrc_damfun(country, params)
 global climada_global
 if ~climada_init_vars,return;end % init/import global variables
 
-if ~exist('country','var'),   ISO3   = '';end
+if ~exist('country','var'),   country   = '';end
 if ~exist('params','var'), params = struct;end
 
 if ischar(params) % special case, where we pass only the name suffix in params
@@ -86,6 +86,7 @@ elseif strcmp(continent, 'Seven seas (open ocean)')
     end
 end
 
+continent(isspace(continent)) = [];
 jrc_file=[continent '_FL_JRCdamagefunc_residential' params.filename_suffix '.xls'];
 if ~strcmp(params.filepath,'')
     jrc_file=[params.filepath filesep jrc_file];

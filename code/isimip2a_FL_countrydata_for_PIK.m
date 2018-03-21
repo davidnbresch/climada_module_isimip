@@ -1,4 +1,4 @@
-function [status,output_filename]=isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, params_damfun)
+function output=isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, params_damfun)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -13,7 +13,7 @@ function [status,output_filename]=isimip2a_FL_countrydata_for_PIK(country, ghm, 
 % CALLING SEQUENCE:
 %   [status,output_filename]=isimip2a_FL_countrydata_for_PIK(country,ghm,forcing)
 % EXAMPLE:
-%   country='Switzerland';
+%   country='Peru';
 %   ghm='CLM';
 %   forcing='gswp3';
 %   clear params;
@@ -23,7 +23,7 @@ function [status,output_filename]=isimip2a_FL_countrydata_for_PIK(country, ghm, 
 %   params_damfun.filepath=[climada_global.data_dir filesep 'isimip/entities/damfun'];
 %   [status,output_filename]=isimip2a_FL_countrydata_for_PIK(country,ghm,forcing,params,params_damfun)
 % INPUTS:
-%   country: country name
+%   country: country name (full name or ISO3)
 %   ghm: Global hydroloical model name
 %   forcing: observational forcing name
 % OPTIONAL INPUT PARAMETERS:
@@ -78,7 +78,7 @@ isimip_data_dir = [climada_global.data_dir filesep 'isimip'];
 [country country_iso3] =  climada_country_name(country);
 
 % define entity files for asset source (at resolution 'as0150')
-entity_file_isimip=[entity_folder filesep params.entity_prefix strtrim(country_iso3) '_0150as_entity'];
+entity_file_isimip=[params.entity_folder filesep params.entity_prefix strtrim(country_iso3) '_0150as_entity'];
 
 % -----------------
 % ASSET LOADING
@@ -102,7 +102,7 @@ entity_isimip.assets.centroid_index = 1:length(entity_isimip.assets.centroid_ind
 
 % Replace damage function with JRC
 [continent,damfun_file]=continent_jrc_damfun(country, params_damfun);
-[~,entity_isimip]=climada_damagefunctions_read(damfun_file,entity);
+[~,entity_isimip]=climada_damagefunctions_read(damfun_file,entity_isimip);
 fprintf('* damage function from continent %s is used\n\n',continent);
 % fprintf('*** ERROR: DAMAGE FUNCTION NOT REPLACED, IMPLEMENT THIS ***');
 % damfun_file = sprintf('%s_%s',cont,'entity_residential.xls');               % Get damagefunction
@@ -158,7 +158,7 @@ for i=1:length(protection_levels)
     if isempty(hazard_FL)
         fprintf('*** NOTE: generating FL hazard from %s\n\n',flood_filename);
         figure % new figure for the check_plot of isimip_flood_load
-        hazard_FL=isimip_flood_load(flood_filename,hazard_FL_file,entity_isimip,1,isimip_simround,years_range,'nearest');
+        hazard_FL=isimip_flood_load(flood_filename,hazard_FL_file,entity_isimip,0,isimip_simround,years_range,'nearest');
     end
     hazard_FL.yyyy = double(string(hazard_FL.yyyy));
 
@@ -237,14 +237,15 @@ for i=1:length(protection_levels)
     damage(:,i) = YDS_FL.damage*EDS_FL_2005.currency_unit;
     
 end
-    
-    % create final matrix
-    
-    output = cat(2, all_years, repmat(string(country_iso3), [length(all_years) 1]),...
-        affected_area,  mean_flddph,...
-        total_asset_value, total_asset_value_2005, ...
-        exposed_asset_value, exposed_asset_value_2005, ...
-        damage, damage_2005);
+
+% create final matrix
+
+output = cat(2, all_years, repmat(string(country_iso3), [length(all_years) 1]),...
+    repmat(string(continent), [length(all_years) 1]),...
+    affected_area,  mean_flddph,...
+    total_asset_value, total_asset_value_2005, ...
+    exposed_asset_value, exposed_asset_value_2005, ...
+    damage, damage_2005);
     
 fprintf('Note that we set climada_global.damage_at_centroid (back to) %i\n',initial_damage_at_centroid);
 climada_global.damage_at_centroid=initial_damage_at_centroid; % reset
