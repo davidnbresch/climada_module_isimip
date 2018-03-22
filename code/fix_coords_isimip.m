@@ -33,6 +33,9 @@ function entity = fix_coords_isimip(entity,res)
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180301, initial
 % David N. Bresch, dbresch@ethz.ch, 20180306, Warning: sizes of lat_true and lat_unique do not match
 % David N. Bresch, dbresch@ethz.ch, 20180314, ERROR and WARNING uppercase
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180322, fix for cases
+%   where the country is not continuous in lon or lat (e.g. Angola, where a
+%   gap between two parts of the country caused an error).
 %-
 
 if ~exist('res','var'); res   = '0150as'; end
@@ -55,12 +58,12 @@ else
 end
 
 % check that dlon,dlat correspond roughly to the entity
-lon_ratio = dlon/(mean(diff(lon_unique)));
+lon_ratio = dlon/(median(diff(lon_unique)));
 if lon_ratio<0.99 || lon_ratio>1.01
     fprintf('\nERROR: available and desired resolution differ, aborted\n');
     return
 end
-lat_ratio = dlat/(mean(diff(lat_unique)));
+lat_ratio = dlat/(median(diff(lat_unique)));
 if lat_ratio<0.99 || lat_ratio>1.01
     fprintf('\nERROR: available and desired resolution differ, aborted\n');
     return
@@ -71,8 +74,8 @@ clear lon_ratio lat_ratio;
 lon_true = (-180+dlon/2):dlon:(180-dlon/2);
 lon_true = lon_true(lon_true > min(lon_orig)-dlon/2 & lon_true < max(lon_orig)+dlon/2);
 if length(lon_true) ~= length(lon_unique)
-    fprintf('\nERROR: sizes of lon_true and lon_unique do not match, aborted\n');
-    return
+    fprintf('\nWARNING: sizes of lon_true and lon_unique do not match, assuming the country is not continuous in longitude - if not please check\n');
+%     return
 end
 lat_true = (-90+dlat/2):dlat:(90-dlat/2);
 lat_true = lat_true(lat_true > min(lat_orig)-dlat/4 & lat_true < max(lat_orig)+dlat/4);
@@ -82,24 +85,30 @@ if length(lat_true) ~= length(lat_unique)
         lat_true = lat_true(lat_true > min(lat_orig)-dlat/4 & lat_true < max(lat_orig)+dlat/4);
         fprintf('WARNING: sizes of lat_true and lat_unique do not match, fixed (check)\n');
     else
-        fprintf('\nERROR: sizes of lat_true and lat_unique do not match, aborted\n');
+        fprintf('\nWARNING: sizes of lat_true and lat_unique do not match, assuming the country is not continuous in latitude - if not please check\n');
+%         fprintf('\nERROR: sizes of lat_true and lat_unique do not match, aborted\n');
 %         length(lat_true)
 %         length(lat_unique)
 %         lat_true(1),lat_true(end)
 %         lat_unique(1),lat_unique(end)
-        return
+%         return
     end
 end
 
 % replace values by their true values
 lon = lon_orig;
-for i=1:length(lon_true)
-    lon(lon == lon_unique(i)) = lon_true(i);
+for i=1:length(lon_unique)
+    [temp i_lon_true] = min(abs(lon_true - lon_unique(i)));
+    lon(lon == lon_unique(i)) = lon_true(i_lon_true);
 end
+% for i=1:length(lon_true)
+%     lon(lon == lon_unique(i)) = lon_true(i);
+% end
 entity.assets.lon = lon;
 lat = lat_orig;
-for i=1:length(lat_true)
-    lat(lat == lat_unique(i)) = lat_true(i);
+for i=1:length(lat_unique)
+    [temp i_lat_true] = min(abs(lat_true - lat_unique(i)));
+    lat(lat == lat_unique(i)) = lat_true(i_lat_true);
 end
 entity.assets.lat = lat;
 

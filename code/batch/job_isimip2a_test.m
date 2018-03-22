@@ -52,9 +52,10 @@ params_damfun.filename_suffix='PAA1';
 params_damfun.filepath=[climada_global.data_dir filesep 'isimip/entities/damfun'];
 % % local parameters (for testing only)
 % params.entity_folder=climada_global.entities_dir;
-% params.entity_prefix='';
-% params_damfun.filename_suffix='PAA1';
-% params_damfun.filepath='/Users/bguillod/Documents/work/ETH/floods/damage_functions/files_mine';
+params.entity_folder=[climada_global.data_dir filesep 'isimip/entities'];
+params.entity_prefix='FL1950';
+params_damfun.filename_suffix='PAA1';
+params_damfun.filepath='/Users/bguillod/Documents/work/ETH/floods/damage_functions/files_mine';
 
 % generate a list of all countries to loop over
 NatID_RegID=isimip_NatID_RegID; % get the mapping ISO3 - isimip country code
@@ -66,7 +67,6 @@ end
 
 % do one file for each model combination
 ghms = {'CLM', 'DBH', 'H08', 'JULES-TUC', 'JULES-UoE', 'LPJmL', 'MATSIRO', 'MPI-HM', 'ORCHIDEE', 'PCR-GLOBWB', 'VEGAS', 'VIC', 'WaterGAP'};
-ghm = ghms{1};
 forcings = {'gswp3', 'princeton', 'watch', 'wfdei'};
 
 for iGHM=1:length(ghms)
