@@ -8,14 +8,14 @@
 %   csv file.
 %
 %   some hints to work with the cluster (explicit paths, edit this ;-)
-%   copy job to cluster:       scp -r Documents/_GIT/climada_modules/isimip/code/batch/job_isimip_entities.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
-%   run on cluster:            bsub -R "rusage[mem=1000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip_entities
+%   copy job to cluster:       scp -r ${climada_module_folder}/isimip/code/batch/job_isimip2a_test bguillod@euler.ethz.ch:/cluster/home/bguillod/euler_jobs/
+%   run on cluster:            bsub -R "rusage[mem=1000]" -n 1 matlab -nodisplay -singleCompThread -r job_isimip2a_test
 %
 %   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/entities/*.mat Documents/_GIT/climada_data/entities/.
 % CALLING SEQUENCE:
-%   bsub -R "rusage[mem=1000]" -n 24 matlab -nodisplay -singleCompThread -r job_ispwdimip_entities
+%   bsub -R "rusage[mem=1000]" -n 1 matlab -nodisplay -singleCompThread -r job_isimip2a_test
 % EXAMPLE:
-%   bsub -R "rusage[mem=1000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip_entities
+%   bsub -R "rusage[mem=1000]" -n 1 matlab -nodisplay -singleCompThread -r job_isimip2a_test
 % INPUTS:
 % OPTIONAL INPUT PARAMETERS:
 % OUTPUTS:
@@ -29,6 +29,9 @@
 % PARAMETERS
 % one should only have to edit this section
 %
+% if just a test with 2 small countries
+TEST_ONLY=1;
+
 cd /cluster/home/bguillod/climada % to make sure the cluster finds climada
 
 startup % climada_global exists afterwards
@@ -47,17 +50,19 @@ params.entity_folder='/cluster/work/climate/dbresch/climada_data/isimip/entities
 params.entity_prefix='FL1950';
 params_damfun.filename_suffix='PAA1';
 params_damfun.filepath=[climada_global.data_dir filesep 'isimip/entities/damfun'];
-% local parameters (for testing only)
-params.entity_folder=climada_global.entities_dir;
-params.entity_prefix='';
-params_damfun.filename_suffix='PAA1';
-params_damfun.filepath='/Users/bguillod/Documents/work/ETH/floods/damage_functions/files_mine';
+% % local parameters (for testing only)
+% params.entity_folder=climada_global.entities_dir;
+% params.entity_prefix='';
+% params_damfun.filename_suffix='PAA1';
+% params_damfun.filepath='/Users/bguillod/Documents/work/ETH/floods/damage_functions/files_mine';
 
 % generate a list of all countries to loop over
 NatID_RegID=isimip_NatID_RegID; % get the mapping ISO3 - isimip country code
 all_countries = NatID_RegID.ISO3;
 % test: run only a subset of countries
-all_countries = all_countries(1:4);
+if TEST_ONLY
+    all_countries = all_countries([1 5]);
+end
 
 % do one file for each model combination
 ghms = {'CLM', 'DBH', 'H08', 'JULES-TUC', 'JULES-UoE', 'LPJmL', 'MATSIRO', 'MPI-HM', 'ORCHIDEE', 'PCR-GLOBWB', 'VEGAS', 'VIC', 'WaterGAP'};
@@ -72,32 +77,27 @@ for iGHM=1:length(ghms)
         for i=1:length(all_countries)
             country=all_countries(i);
             output_i = isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, params_damfun);
+%             output = cat(2, all_years, repmat(string(country_iso3), [length(all_years) 1]),...
+%                 repmat(string(continent), [length(all_years) 1]),...
+%                 affected_area,  mean_flddph,...
+%                 total_asset_value, total_asset_value_2005, ...
+%                 exposed_asset_value, exposed_asset_value_2005, ...
+%                 damage, damage_2005);
+
             if i==1
                 output_all = output_i;
             else
-                output_all = cat(1, output_all, output_i);
+                output_all = cat(1, output_all, output_i(2:end,:));
             end
             
         end
-        output_file = [output_folder filesep 'output_' ghm '_' forcing ''];
-        csvwrite(output_file,output_all);
+        output_file = [output_folder filesep 'output_' ghm '_' forcing '_test3.csv'];
+        output_all(ismissing(output_all))='NA';
+        output_all2=cellstr(output_all);
+        writetable(cell2table(output_all2),output_file,'writevariablenames',0);
+
         
     end
 end
-
-% % climada_global.entities_dir='/cluster/work/climate/dbresch/climada_data/isimip/entities';
-%   country='Switzerland';
-%   ghm='CLM';
-%   forcing='gswp3';
-  
-%   output_all2 = isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, params_damfun);
-
-% 
-% params.grid_resolution='0150as';
-% params.entity_prefix='FL1950_';
-% isimip_gdp_entity('all',params,1950,2020);
-%isimip_gdp_entity_TEST('all','0150as',1900,2018); % for parpool tests
-
-%delete(pool)
 
 exit % the cluster appreciates this, gives back memory etc.
