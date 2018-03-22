@@ -58,15 +58,13 @@ else
 end
 
 % check that dlon,dlat correspond roughly to the entity
-lon_ratio = dlon/(median(diff(lon_unique)));
+lon_ratio = dlon/(min(diff(lon_unique)));
 if lon_ratio<0.99 || lon_ratio>1.01
-    fprintf('\nERROR: available and desired resolution differ, aborted\n');
-    return
+    fprintf('\WARNING: available and desired resolution might differ (lon), please check\n');
 end
-lat_ratio = dlat/(median(diff(lat_unique)));
+lat_ratio = dlat/(min(diff(lat_unique)));
 if lat_ratio<0.99 || lat_ratio>1.01
-    fprintf('\nERROR: available and desired resolution differ, aborted\n');
-    return
+    fprintf('\WARNING: available and desired resolution might differ (lat), please check\n');
 end
 clear lon_ratio lat_ratio;
 
