@@ -1,4 +1,4 @@
-% batch job for cluster: bsub -W 48:00 -R "rusage[mem=5000]" -n 1 matlab -nodisplay -singleCompThread -r job_isimip_entities
+% batch job for cluster: bsub -W 4:00 -R "rusage[mem=5000]" -n 1 matlab -nodisplay -singleCompThread -r job_isimip_entities
 % MODULE:
 %   isimip
 % NAME:
@@ -12,9 +12,9 @@
 %
 %   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/entities/*.mat Documents/_GIT/climada_data/entities/.
 % CALLING SEQUENCE:
-%   bsub -R "rusage[mem=1000]" -n 24 matlab -nodisplay -singleCompThread -r job_ispwdimip_entities
+%   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_ispwdimip_entities
 % EXAMPLE:
-%   bsub -R "rusage[mem=1000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip_entities
+%   bsub -R "rusage[mem=5000]" -n 24 matlab -nodisplay -singleCompThread -r job_isimip_entities
 % INPUTS:
 % OPTIONAL INPUT PARAMETERS:
 % OUTPUTS:
