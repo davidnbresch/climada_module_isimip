@@ -402,7 +402,23 @@ end
 time_val_yyyy=str2num(datestr(time_datenum, 'yyyy'));
 
 if min(time_val_yyyy)<1850 || max(time_val_yyyy)>2100 % strange content of nc.time
-    fprintf('SEVERY WARNING: strange years %i..%i\n',min(time_val_yyyy),max(time_val_yyyy))
+    fprintf('SEVERE WARNING: strange years %i..%i\n',min(time_val_yyyy),max(time_val_yyyy))
+end
+
+dt=unique(diff(time_val_yyyy));
+if length(dt)>1
+    fprintf('WARNING: years not equaly distributed\n');
+    correct_time=1;
+elseif ~(dt==1)
+    fprintf('WARNING: information not for each year\n');
+    correct_time=1;
+else
+    correct_time=0;
+end
+
+if correct_time
+    fprintf('NOTE: year information corrected\n');
+    time_val_yyyy=min(time_val_yyyy):max(time_val_yyyy);
 end
 
 % restrict time
