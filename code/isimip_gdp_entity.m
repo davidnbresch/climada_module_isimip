@@ -24,6 +24,9 @@ function [entity,params]=isimip_gdp_entity(ISO3,params,first_year,last_year,add_
 %   Consider running entity=isimip_admin1_layer(entity) to add admin1
 %   information to centroids.
 %
+%   Notr: for 0150as, there is a wrong timestamp on the netCDF file, see
+%   correct_time in code below.
+%
 %   Please be PATIENT the first time you run this code, as it generates the
 %   global reference grid, where calculation of distance to coast for all
 %   land points does take (substantial) time. See PARAMETERS to switch
@@ -201,6 +204,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params,first_year,last_year,add_
 % David N. Bresch, david.bresch@gmail.com, 20180316, time_val_yyyy for gdp calculated based on info in netCDF
 % David N. Bresch, david.bresch@gmail.com, 20180316, Population_yyyy and Population2_yyyy added
 % David N. Bresch, david.bresch@gmail.com, 20180317, parfor removed (might lead to parallel netCDF reading)
+% David N. Bresch, david.bresch@gmail.com, 20180322, corrupted years for 0150as corrected (see correct_time)
 %-
 
 entity=[]; % init output
@@ -407,10 +411,10 @@ end
 
 dt=unique(diff(time_val_yyyy));
 if length(dt)>1
-    fprintf('WARNING: years not equaly distributed\n');
+    fprintf('WARNING: years not equaly distributed (%s)\n',params.val_filename);
     correct_time=1;
 elseif ~(dt==1)
-    fprintf('WARNING: information not for each year\n');
+    fprintf('WARNING: information not for each year (%s)\n',params.val_filename);
     correct_time=1;
 else
     correct_time=0;
