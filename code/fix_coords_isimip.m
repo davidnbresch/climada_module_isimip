@@ -38,6 +38,7 @@ function entity = fix_coords_isimip(entity,res)
 %   gap between two parts of the country caused an error).
 % David N. Bresch, dbresch@ethz.ch, 20180323, \nERROR, WARNING without \n in front
 % David N. Bresch, dbresch@ethz.ch, 20180323, length(lon_unique)>1
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180323, length(lat_unique)>1
 %-
 
 if ~exist('res','var'); res   = '0150as'; end
@@ -65,6 +66,8 @@ if length(lon_unique)>1
     if lon_ratio<0.99 || lon_ratio>1.01
         fprintf('WARNING: available and desired resolution might differ (lon), please check\n');
     end
+end
+if length(lat_unique)>1
     lat_ratio = dlat/(min(diff(lat_unique)));
     if lat_ratio<0.99 || lat_ratio>1.01
         fprintf('WARNING: available and desired resolution might differ (lat), please check\n');
