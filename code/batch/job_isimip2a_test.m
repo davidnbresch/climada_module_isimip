@@ -6,9 +6,11 @@
 % PURPOSE:
 %   generate isimip flood damage with PAA=1 for all countries and save as a
 %   csv file.
+%   The job can be tested on a desktop, see run_on_desktop below and the
+%   example.
 %
 %   some hints to work with the cluster (explicit paths, edit this ;-)
-%   copy job to cluster:       scp -r ${climada_module_folder}/isimip/code/batch/job_isimip2a_test bguillod@euler.ethz.ch:/cluster/home/bguillod/euler_jobs/
+%   copy job to cluster:       scp -r ${climada_module_folder}/isimip/code/batch/job_isimip2a_test.m bguillod@euler.ethz.ch:/cluster/home/bguillod/euler_jobs/
 %   run on cluster:            bsub -R "rusage[mem=1000]" -n 1 matlab -nodisplay -singleCompThread -r job_isimip2a_test
 %
 %   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/entities/*.mat Documents/_GIT/climada_data/entities/.
@@ -32,12 +34,18 @@
 % if just a test with 2 small countries
 TEST_ONLY=1;
 
-cd /cluster/home/bguillod/climada % to make sure the cluster finds climada
 
-startup % climada_global exists afterwards
-pwd % just to check where the job is running from
-% N_pool_workers=24; % for parpool
-% climada_global.parfor=1; % for parpool
+
+run_on_desktop=1; % to test the job on a desktop
+
+if ~run_on_desktop
+    cd /cluster/home/bguillod/climada % to make sure the cluster finds climada
+    startup % climada_global exists afterwards
+    pwd % just to check where the job is running from
+    % N_pool_workers=24; % for parpool
+    % climada_global.parfor=1; % for parpool
+end
+
 
 % pool=parpool(N_pool_workers);
 
@@ -46,23 +54,27 @@ output_folder=[climada_global.data_dir filesep 'isimip/results'];
 
 clear params;
 % parameters on cluster
-params.entity_folder='/cluster/work/climate/dbresch/climada_data/isimip/entities';
-params.entity_prefix='FL1950';
-params_damfun.filename_suffix='PAA1';
-params_damfun.filepath=[climada_global.data_dir filesep 'isimip/entities/damfun'];
-% % local parameters (for testing only)
-% params.entity_folder=climada_global.entities_dir;
-params.entity_folder=[climada_global.data_dir filesep 'isimip/entities'];
-params.entity_prefix='FL1950';
-params_damfun.filename_suffix='PAA1';
-params_damfun.filepath='/Users/bguillod/Documents/work/ETH/floods/damage_functions/files_mine';
+if run_on_desktop
+    % local parameters (for testing only)
+%     params.entity_folder=climada_global.entities_dir;
+    params.entity_folder=[climada_global.data_dir filesep 'isimip/entities'];
+    params.entity_prefix='FL1950';
+    params_damfun.filename_suffix='PAA1';
+    params_damfun.filepath='/Users/bguillod/Documents/work/ETH/floods/damage_functions/files_mine';
+else
+    params.entity_folder='/cluster/work/climate/dbresch/climada_data/isimip/entities';
+    params.entity_prefix='FL1950';
+    params_damfun.filename_suffix='PAA1';
+    params_damfun.filepath=[climada_global.data_dir filesep 'isimip/entities/damfun'];
+end
 
 % generate a list of all countries to loop over
 NatID_RegID=isimip_NatID_RegID; % get the mapping ISO3 - isimip country code
 all_countries = NatID_RegID.ISO3;
 % test: run only a subset of countries
 if TEST_ONLY
-    all_countries = all_countries([1 5]);
+    %     all_countries = all_countries([1 5]);
+    all_countries = all_countries(1:10);
 end
 
 % do one file for each model combination
@@ -73,9 +85,21 @@ for iGHM=1:length(ghms)
     for iForcing=1:length(forcings)
         ghm=ghms{iGHM};
         forcing = forcings{iForcing};
-        
+    
+        % check that this forcing-ghm combination exists
+        [flddph_filename,fldfrc_filename,fld_path] = isimip_get_flood_filename('2a', ghm, forcing, '0', 'historical');
+        flood_filename=[fld_path filesep flddph_filename];
+        if ~exist(flood_filename)
+            continue
+        end
+
         for i=1:length(all_countries)
             country=all_countries(i);
+            country_exists =  climada_country_name(country);
+            if isempty(country_exists)
+                fprintf('WARNING: Skipping country %s ***\n', country);
+                continue
+            end
             output_i = isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, params_damfun);
 %             output = cat(2, all_years, repmat(string(country_iso3), [length(all_years) 1]),...
 %                 repmat(string(continent), [length(all_years) 1]),...
@@ -91,7 +115,7 @@ for iGHM=1:length(ghms)
             end
             
         end
-        output_file = [output_folder filesep 'output_' ghm '_' forcing '_test3.csv'];
+        output_file = [output_folder filesep 'output_' ghm '_' forcing '_test_v3.csv'];
         output_all(ismissing(output_all))='NA';
         output_all2=cellstr(output_all);
         writetable(cell2table(output_all2),output_file,'writevariablenames',0);
