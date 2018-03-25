@@ -230,7 +230,7 @@ for i=1:length(protection_levels)
         end
     end
     
-    EDS_FL_2005=climada_EDS_calc(entity_isimip,hazard_FL); % the damage calculation
+    EDS_FL_2005=climada_EDS_calc(entity_isimip,hazard_FL,'',0,2); % the damage calculation
     damage_2005(:,i) = EDS_FL_2005.damage*EDS_FL_2005.currency_unit;
     % for damage, look into isimip_YDS_calc?
     YDS_FL=isimip_YDS_calc(entity_isimip,hazard_FL);
@@ -271,7 +271,7 @@ output_names = [string('year') string('country') string('continent')...
 
 output = cat(1, output_names, output);
     
-fprintf('Note that we set climada_global.damage_at_centroid (back to) %i\n',initial_damage_at_centroid);
+% fprintf('Note that we set climada_global.damage_at_centroid (back to) %i\n',initial_damage_at_centroid);
 climada_global.damage_at_centroid=initial_damage_at_centroid; % reset
 
 

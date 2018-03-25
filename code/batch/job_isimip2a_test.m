@@ -36,7 +36,7 @@ TEST_ONLY=1;
 
 
 
-run_on_desktop=1; % to test the job on a desktop
+run_on_desktop=strcmp(climada_machine_run,'local'); % to test the job on a desktop
 
 if ~run_on_desktop
     cd /cluster/home/bguillod/climada % to make sure the cluster finds climada
@@ -77,6 +77,20 @@ if TEST_ONLY
     all_countries = all_countries(1:10);
 end
 
+% keep only countries which 'exist' as ISO3
+all_countries_keep=ones(1,length(all_countries));
+for i=1:length(all_countries)
+    country=all_countries{i};
+    country_exists =  climada_country_name(country);
+    if isempty(country_exists)
+        all_countries_keep(i)=0;
+    end
+end
+fprintf('WARNING: Skipping the following %s countries:\n', num2str(sum(~all_countries_keep)));
+all_countries(~all_countries_keep)
+all_countries=all_countries(find(all_countries_keep));
+clear all_countries_keep country_exists;
+
 % do one file for each model combination
 ghms = {'CLM', 'DBH', 'H08', 'JULES-TUC', 'JULES-UoE', 'LPJmL', 'MATSIRO', 'MPI-HM', 'ORCHIDEE', 'PCR-GLOBWB', 'VEGAS', 'VIC', 'WaterGAP'};
 forcings = {'gswp3', 'princeton', 'watch', 'wfdei'};
@@ -87,19 +101,14 @@ for iGHM=1:length(ghms)
         forcing = forcings{iForcing};
     
         % check that this forcing-ghm combination exists
-        [flddph_filename,fldfrc_filename,fld_path] = isimip_get_flood_filename('2a', ghm, forcing, '0', 'historical');
+        [flddph_filename,~,fld_path] = isimip_get_flood_filename('2a', ghm, forcing, '0', 'historical');
         flood_filename=[fld_path filesep flddph_filename];
         if ~exist(flood_filename)
             continue
         end
 
         for i=1:length(all_countries)
-            country=all_countries(i);
-            country_exists =  climada_country_name(country);
-            if isempty(country_exists)
-                fprintf('WARNING: Skipping country %s ***\n', country);
-                continue
-            end
+            country=all_countries{i};
             output_i = isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, params_damfun);
 %             output = cat(2, all_years, repmat(string(country_iso3), [length(all_years) 1]),...
 %                 repmat(string(continent), [length(all_years) 1]),...
@@ -115,7 +124,7 @@ for iGHM=1:length(ghms)
             end
             
         end
-        output_file = [output_folder filesep 'output_' ghm '_' forcing '_test_v3.csv'];
+        output_file = [output_folder filesep 'output_' ghm '_' forcing '_FULL.csv'];
         output_all(ismissing(output_all))='NA';
         output_all2=cellstr(output_all);
         writetable(cell2table(output_all2),output_file,'writevariablenames',0);
