@@ -67,6 +67,11 @@ function [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard,params)
 %    damage_function_regions_file: the filename (with path) where the damage
 %       functions regions (groups of countries) are defined. A .csv file
 %       with columns ISO (3-char), ID (int), Reg_ID (int) and Reg_name (3-char)
+%    silent_mode: suppress any output to stdout (useful i.e. if called many times)
+%       default=0 (output to stdout), =1: no output and no waitbar at all
+%       command-line progress output is still shown with silent_mode=1, but
+%       suppressed if =2.
+
 % OUTPUTS:
 %   YDS: the year damage set (YDS), see e.g. climada_EDS2YDS for details
 %    PLUS the fields
@@ -86,6 +91,8 @@ function [YDS,EDS,stats]=isimip_YDS_calc(entity,hazard,params)
 % David N. Bresch, david.bresch@gmail.com, 20170107, damage_at_centroid
 % David N. Bresch, david.bresch@gmail.com, 20170216, EDS(country_i) returned
 % David N. Bresch, david.bresch@gmail.com, 20170217, simplified
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180326, add parameter
+%   silent_mode
 %-
 
 YDS=[];EDS=[];stats=[]; % init output
@@ -104,6 +111,7 @@ if ~exist('params','var'),         params=struct;end
 if ~isfield(params,'check_plot'),params.check_plot=[];end
 if ~isfield(params,'markersize'),params.markersize=[];end
 if ~isfield(params,'damage_function_regions_file'),params.damage_function_regions_file=[];end
+if ~isfield(params,'silent_mode'),params.silent_mode=0;end
 
 % PARAMETERS
 %
@@ -114,7 +122,7 @@ if isempty(params.damage_function_regions_file),...
         params.damage_function_regions_file=[climada_global.data_dir filesep 'isimip' filesep 'TC-damage-function-regions.csv'];end
 
 %
-silent_mode=0;
+% silent_mode=0;
 %
 %climada_global.damage_at_centroid=1;
 
@@ -140,10 +148,10 @@ n_times=length(entity.assets.Values_yyyy);
 
 % encode assets of entity once more, just to be sure
 if ~isfield(entity.assets,'centroid_index')
-    if ~silent_mode,fprintf('Encoding entity assets to hazard ... ');end
+    if ~params.silent_mode,fprintf('Encoding entity assets to hazard ... ');end
     entity = climada_assets_encode(entity,hazard);
 elseif ~all(diff(entity.assets.centroid_index) == 1) && climada_global.re_check_encoding
-    if ~silent_mode,fprintf('Encode entity assets once more ...');end
+    if ~params.silent_mode,fprintf('Encode entity assets once more ...');end
     entity = climada_assets_encode(entity,hazard);
 end
 
