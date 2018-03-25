@@ -235,8 +235,10 @@ for country_i=1:n_countries
 end % country_i
 next_YDS_i=1; % init
 
-fprintf('processing %i years (%i countries)\n',n_times,n_countries);
-climada_progress2stdout    % init, see terminate below
+if ~params.silent_mode
+    fprintf('processing %i years (%i countries)\n',n_times,n_countries)
+    climada_progress2stdout    % init, see terminate below
+end
 
 for time_i=1:n_times
     
