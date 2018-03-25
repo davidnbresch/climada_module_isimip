@@ -316,10 +316,10 @@ for time_i=1:n_times
         next_YDS_i=next_YDS_i+1;
     end % ~isempty(hazard_yyyy_pos)
     
-    climada_progress2stdout(time_i,n_times,1,'years'); % the progress management
+    if ~params.silent_mode,climada_progress2stdout(time_i,n_times,1,'years');end % the progress management
     
 end % time_i
-climada_progress2stdout(0) % terminate
+if ~params.silent_mode,climada_progress2stdout(0);end % terminate
 
 n_years=length(YDS(1).damage);
 for country_i=1:n_countries
