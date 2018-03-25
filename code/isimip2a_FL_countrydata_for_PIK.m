@@ -233,7 +233,9 @@ for i=1:length(protection_levels)
     EDS_FL_2005=climada_EDS_calc(entity_isimip,hazard_FL,'',0,2); % the damage calculation
     damage_2005(:,i) = EDS_FL_2005.damage*EDS_FL_2005.currency_unit;
     % for damage, look into isimip_YDS_calc?
-    YDS_FL=isimip_YDS_calc(entity_isimip,hazard_FL);
+    
+    yds_params.silent_mode=2;
+    YDS_FL=isimip_YDS_calc(entity_isimip,hazard_FL,yds_params);
     damage(:,i) = YDS_FL.damage*EDS_FL_2005.currency_unit;
     
 end
