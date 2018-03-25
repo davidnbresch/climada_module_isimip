@@ -1,4 +1,4 @@
-function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_plot,isimip_simround,years_range,interpn_method)
+function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_plot,isimip_simround,years_range,interpn_method,silent_mode)
 
 % climada isimip flood
 % MODULE:
@@ -60,6 +60,8 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 %       on the same grid (e.g., from a file at a as0150 resolution such as
 %       'gdp_1980-2100_SSP2_0150as_remapnn_yearly.nc'. Possible values are:
 %       'linear', 'nearest','spline','cubic'.
+%   silent_mode: if 1, no output is given (expect errors etc), if 0 many
+%       output given
 % OUTPUTS:
 %   hazard: a climada hazard structure, see manual
 %       in addition to the standard hazard.intensity, this hazard also
@@ -91,6 +93,7 @@ if ~exist('check_plot','var'),             check_plot=              1;end
 if ~exist('years_range','var'),            years_range=         [0 0];end
 if ~exist('interpn_method','var')          interpn_method=   'linear';end
 if ~exist('isimip_simround','var')      isimip_simround=   '';end
+if ~exist('silent_mode','var')      silent_mode=0;end
 if isequal(isimip_simround, '')
     isimip_data_dir = [climada_global.data_dir filesep 'isimip'];
 else
@@ -156,7 +159,7 @@ end
 entity=climada_entity_load(entity);
 
 
-fprintf('reading lon, lat and time from %s ...',flood_filename);
+if ~silent_mode,fprintf('reading lon, lat and time from %s ...',flood_filename);end
 % if troubles, use ncinfo(flood_fraction_filename,'var') ...
 nc.lon      = ncread(flood_filename,'lon');
 nc.lat      = ncread(flood_filename,'lat');
@@ -168,7 +171,7 @@ n_events_orig   =length(nc.time); % number of events
 nc.time_units = strsplit(nc.time_units, ' ');
 nc.time_orig = cell2mat(strcat(nc.time_units(3), {' '}, nc.time_units(4)));
 nc.time_units = cell2mat(nc.time_units(1));
-fprintf(' done\n');
+if ~silent_mode,fprintf(' done\n');end
 
 % find the bounding box around the assets
 lonmin=min(entity.assets.lon);lonmax=max(entity.assets.lon);
@@ -183,8 +186,10 @@ dlon=max(abs(diff(nc.lon)));dlat=max(abs(diff(nc.lat)));
 [~,lat_index_min]=min(abs(nc.lat-(latmin-2*dlat)));
 [~,lat_index_max]=min(abs(nc.lat-(latmax+2*dlat)));
 
-fprintf('reading lon/lat %2.2f .. %2.2f/%2.2f .. %2.2f\n',nc.lon(lon_index_min),nc.lon(lon_index_max),nc.lat(lat_index_min),nc.lat(lat_index_max));
-fprintf('       (indices %d .. %d/%d .. %d)\n',lon_index_min,lon_index_max,lat_index_min,lat_index_max);
+if ~silent_mode
+    fprintf('reading lon/lat %2.2f .. %2.2f/%2.2f .. %2.2f\n',nc.lon(lon_index_min),nc.lon(lon_index_max),nc.lat(lat_index_min),nc.lat(lat_index_max));
+    fprintf('       (indices %d .. %d/%d .. %d)\n',lon_index_min,lon_index_max,lat_index_min,lat_index_max);
+end
 
 lon_index_temp=lon_index_min; % can be ordered descending
 lon_index_min=min(lon_index_min,lon_index_max);
@@ -229,7 +234,7 @@ hazard.yyyy=str2num(datestr(hazard.datenum, 'yyyy'));
 if ~isequal(years_range, [0 0])
     event_keep=(hazard.yyyy>=years_range(1) & hazard.yyyy<=years_range(2));
     event_keep_which=find(event_keep);
-    fprintf('keeping subset of years (%i out of %i)',sum(event_keep),length(hazard.yyyy));
+    if ~silent_mode,fprintf('keeping subset of years (%i out of %i)',sum(event_keep),length(hazard.yyyy));end
     hazard.datenum=hazard.datenum(event_keep);
 else
     event_keep=ones(1,length(hazard.yyyy));
@@ -239,7 +244,7 @@ hazard.yyyy=datestr(hazard.datenum, 'yyyy');
 hazard.mm=datestr(hazard.datenum, 'mm');
 hazard.dd=datestr(hazard.datenum, 'dd');
 n_events=length(hazard.yyyy);
-fprintf('generating FL hazard set for %i events at %i centroids\n',n_events,n_centroids);
+if ~silent_mode,fprintf('generating FL hazard set for %i events at %i centroids\n',n_events,n_centroids);end
 hazard.peril_ID='FL';
 hazard.units='m';
 hazard.reference_year=climada_global.present_reference_year;
@@ -310,16 +315,16 @@ for event_i=1:n_events
         else
             msgstr = sprintf('converting ... est. %3.1f min left (%i/%i events)',t_projected_sec/60,event_i,n_events);
         end
-        fprintf(format_str,msgstr); % write progress to stdout
+        if ~silent_mode,fprintf(format_str,msgstr);end % write progress to stdout
         format_str=[repmat('\b',1,length(msgstr)) '%s']; % back to begin of line
     end
     
 end
-fprintf(format_str,''); % move carriage to begin of line
+if ~silent_mode,fprintf(format_str,'');end % move carriage to begin of line
 
 hazard.matrix_density=nnz(hazard.intensity)/numel(hazard.intensity);
 
-fprintf('saving hazard as %s\n',hazard_filename)
+if ~silent_mode,fprintf('saving hazard as %s\n',hazard_filename);end
 save(hazard_filename,'hazard',climada_global.save_file_version);
 
 if check_plot

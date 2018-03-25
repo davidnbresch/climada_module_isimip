@@ -154,11 +154,12 @@ for i=1:length(protection_levels)
     % -----------------
     % HAZARD LOADING AND CONVERTING TO ASSET CENTROIDS
     % -----------------
-    hazard_FL=climada_hazard_load(hazard_FL_file);
-    if isempty(hazard_FL)
+    if exist(hazard_FL_file, 'file')
+        hazard_FL=climada_hazard_load(hazard_FL_file);
+    else
         fprintf('*** NOTE: generating FL hazard from %s\n\n',flood_filename);
 %         figure % new figure for the check_plot of isimip_flood_load
-        hazard_FL=isimip_flood_load(flood_filename,hazard_FL_file,entity_isimip,0,isimip_simround,years_range,'nearest');
+        hazard_FL=isimip_flood_load(flood_filename,hazard_FL_file,entity_isimip,0,isimip_simround,years_range,'nearest',1);
     end
     hazard_FL.yyyy = double(string(hazard_FL.yyyy));
 
