@@ -105,7 +105,17 @@ entity_isimip.assets.centroid_index = 1:length(entity_isimip.assets.centroid_ind
 % Replace damage function with JRC
 [continent,damfun_file]=continent_jrc_damfun(country, params_damfun);
 % quick fix to ensure it works
-entity_isimip.assets.DamageFunID(:)=1;
+if sum(isnan(entity_isimip.assets.Value))>0
+    fprintf('    * set entity value NaN to 0 for %s\n',country);
+    entity_isimip.assets.DamageFunID(:)=1;
+    entity_isimip.assets.Value(isnan(entity_isimip.assets.Value))=0;
+    entity_isimip.assets.Cover      =entity_isimip.assets.Value;
+    entity_isimip.assets.Deductible =entity_isimip.assets.Value*0;
+    entity_isimip.assets.Category_ID=entity_isimip.assets.DamageFunID;
+    entity_isimip.assets.Region_ID  =entity_isimip.assets.DamageFunID;
+    entity_isimip.assets.Values(isnan(entity_isimip.assets.Values))=0;
+end
+
 [~,entity_isimip]=climada_damagefunctions_read(damfun_file,entity_isimip);
 fprintf('    * damage function from continent %s is used\n',continent);
 % fprintf('*** ERROR: DAMAGE FUNCTION NOT REPLACED, IMPLEMENT THIS ***');
