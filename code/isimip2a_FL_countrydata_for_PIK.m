@@ -49,6 +49,8 @@ function output=isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, p
 %   save the file
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180316, loading the JRC
 %   damage function, still needs to save the file
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180326, set all values
+%   in entity_isimip.assets.DamageFunID to 1 just to be sure.
 %-
 
 global climada_global
@@ -89,21 +91,23 @@ entity_isimip=climada_entity_load(entity_file_isimip,1); % try to load, flag to 
 if isempty(entity_isimip)
     fprintf('*** ERROR: entity file not found %s\n\n',entity_file_isimip);
     return
-    clear params;params.val_filename='0150as';
-    [entity_isimip,params]=isimip_gdp_entity(country_iso3,params);
-    % fix the grid rounding errors
-    entity_isimip=fix_coords_isimip(entity_isimip, '0150as');
-    entity_isimip.assets.centroid_index = 1:length(entity_isimip.assets.centroid_index);
-    entity = entity_isimip;
-    save(entity_file_isimip,'entity');
-    clear entity;
+%     clear params;params.val_filename='0150as';
+%     [entity_isimip,params]=isimip_gdp_entity(country_iso3,params);
+%     % fix the grid rounding errors
+%     entity_isimip=fix_coords_isimip(entity_isimip, '0150as');
+%     entity_isimip.assets.centroid_index = 1:length(entity_isimip.assets.centroid_index);
+%     entity = entity_isimip;
+%     save(entity_file_isimip,'entity');
+%     clear entity;
 end
 entity_isimip.assets.centroid_index = 1:length(entity_isimip.assets.centroid_index);
 
 % Replace damage function with JRC
 [continent,damfun_file]=continent_jrc_damfun(country, params_damfun);
+% quick fix to ensure it works
+entity_isimip.assets.DamageFunID(:)=1;
 [~,entity_isimip]=climada_damagefunctions_read(damfun_file,entity_isimip);
-fprintf('* damage function from continent %s is used\n\n',continent);
+fprintf('    * damage function from continent %s is used\n',continent);
 % fprintf('*** ERROR: DAMAGE FUNCTION NOT REPLACED, IMPLEMENT THIS ***');
 % damfun_file = sprintf('%s_%s',cont,'entity_residential.xls');               % Get damagefunction
 %   % to first read an entity, then replace its damagefunctions
@@ -157,7 +161,7 @@ for i=1:length(protection_levels)
     if exist(hazard_FL_file, 'file')
         hazard_FL=climada_hazard_load(hazard_FL_file);
     else
-        fprintf('*** NOTE: generating FL hazard from %s\n\n',flood_filename);
+        fprintf('     * NOTE: generating FL hazard from %s\n',flood_filename);
 %         figure % new figure for the check_plot of isimip_flood_load
         hazard_FL=isimip_flood_load(flood_filename,hazard_FL_file,entity_isimip,0,isimip_simround,years_range,'nearest',1);
     end

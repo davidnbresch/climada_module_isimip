@@ -34,9 +34,12 @@
 % if just a test with 2 small countries
 TEST_ONLY=1;
 
-
-
-run_on_desktop=strcmp(climada_machine_run,'local'); % to test the job on a desktop
+% are we on euler?
+if strcmpi('GLNXA64',computer) % on Euler, 20180101
+    run_on_desktop=0;
+else
+    run_on_desktop=1;
+end
 
 if ~run_on_desktop
     cd /cluster/home/bguillod/climada % to make sure the cluster finds climada
@@ -99,7 +102,8 @@ for iGHM=1:length(ghms)
     for iForcing=1:length(forcings)
         ghm=ghms{iGHM};
         forcing = forcings{iForcing};
-    
+        fprintf('\n***** Running model %s-%s *****\n', ghm, forcing);
+
         % check that this forcing-ghm combination exists
         [flddph_filename,~,fld_path] = isimip_get_flood_filename('2a', ghm, forcing, '0', 'historical');
         flood_filename=[fld_path filesep flddph_filename];
@@ -109,6 +113,7 @@ for iGHM=1:length(ghms)
 
         for i=1:length(all_countries)
             country=all_countries{i};
+            fprintf('\n   -> country: %s:\n', country);
             output_i = isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, params_damfun);
 %             output = cat(2, all_years, repmat(string(country_iso3), [length(all_years) 1]),...
 %                 repmat(string(continent), [length(all_years) 1]),...
@@ -128,7 +133,7 @@ for iGHM=1:length(ghms)
         output_all(ismissing(output_all))='NA';
         output_all2=cellstr(output_all);
         writetable(cell2table(output_all2),output_file,'writevariablenames',0);
-
+        fprintf('** Output file written: %s **\n', output_file);
         
     end
 end
