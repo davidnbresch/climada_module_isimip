@@ -51,6 +51,8 @@ function output=isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, p
 %   damage function, still needs to save the file
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180326, set all values
 %   in entity_isimip.assets.DamageFunID to 1 just to be sure.
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180327,
+%   climada_global.damage_at_centroid=1 moved outside the loop
 %-
 
 global climada_global
@@ -147,6 +149,10 @@ country_area = sum(centroids_area);
 % isimip data files
 % -----------------
 
+% switch to FULL RESOLUTION OUTPUT, i.e. event damage at each centroid
+initial_damage_at_centroid=climada_global.damage_at_centroid; % the one used globally
+climada_global.damage_at_centroid=1; % pass on, reset at the end
+
 % generic parameters
 protection_levels = {'0', '100', 'flopros'};
 time_period = 'historical'; % not needed for ISIMIP-2a
@@ -161,9 +167,6 @@ for i=1:length(protection_levels)
     flood_filename=[fld_path filesep flddph_filename];
     hazard_FL_file=isimip_get_flood_hazard_filename(flood_filename,entity_isimip,isimip_simround,years_range);
 
-    % switch to FULL RESOLUTION OUTPUT, i.e. event damage at each centroid
-    initial_damage_at_centroid=climada_global.damage_at_centroid; % the one used globally
-    climada_global.damage_at_centroid=1; % pass on, reset at the end
     
     % -----------------
     % HAZARD LOADING AND CONVERTING TO ASSET CENTROIDS

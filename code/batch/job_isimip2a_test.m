@@ -11,7 +11,8 @@
 %
 %   some hints to work with the cluster (explicit paths, edit this ;-)
 %   copy job to cluster:       scp -r ${climada_modules_folder}/isimip/code/batch/job_isimip2a_test.m bguillod@euler.ethz.ch:/cluster/home/bguillod/euler_jobs/
-%   run on cluster:            bsub -R "rusage[mem=1000]" -n 1 matlab -nodisplay -singleCompThread -r job_isimip2a_test
+%   run on cluster (mem=10000, 1000 does not work for Canada):
+%                              bsub -R "rusage[mem=10000]" -n 1 matlab -nodisplay -singleCompThread -r job_isimip2a_test
 %
 %   copy results back local:   scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/entities/*.mat Documents/_GIT/climada_data/entities/.
 % CALLING SEQUENCE:
