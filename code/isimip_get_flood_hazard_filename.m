@@ -1,4 +1,4 @@
-function hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,isimip_simround,years_range)
+function hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,isimip_simround,years_range,subtract_matsiro)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -35,12 +35,16 @@ function hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,
 %       within the climada_data/isimip folder.
 %   years_range: vector of length 2 containing the first and the last year
 %       to be loaded from the netcdf file. If empty or [0 0], loads all data.
+%   subtract_matsiro: =1 to subtract the 2-yr return value of MATSIRO flood
+%       fraction from the data. Default =0.
 % OUTPUTS:
 %   hazard_filename: a file name for the .mat hazard file on entity grid.
 % MODIFICATION HISTORY:
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20171130, initial
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180118, changed a few
 % things to be consistent.
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180518, new function
+%   argument 'subtract_matsiro'
 %-
 
 global climada_global
@@ -52,6 +56,7 @@ if ~exist('flood_filename','var'),         flood_filename=         '';end
 if ~exist('entity','var'),                 entity=                 '';end
 if ~exist('years_range','var'),            years_range=         [0 0];end
 if ~exist('isimip_simround','var'),        isimip_simround=        '';end
+if ~exist('subtract_matsiro','var'),       subtract_matsiro=        0;end
 
 % define paths
 isimip_data_dir = [climada_global.data_dir filesep 'isimip' filesep isimip_simround];
@@ -96,10 +101,11 @@ end
 % fN2 should start with 'flddph', in which case replace with 'FLOOD'
 fN2=strrep(fN2, 'flddph', 'FLOOD');
 fN=strrep(fN,'_entity','');
+if subtract_matsiro fN3='_mFRCmastiro';, else fN3='';end;
 if isequal(years_range, [0 0])
-    hazard_filename=[isimip_hazard_dir filesep fN2 '_' fN '_FL.mat'];
+    hazard_filename=[isimip_hazard_dir filesep fN2 '_' fN fN3 '_FL.mat'];
 else
-    hazard_filename=[isimip_hazard_dir filesep fN2 '_' fN '_' num2str(years_range(1)) '-' num2str(years_range(2)) '_FL.mat'];
+    hazard_filename=[isimip_hazard_dir filesep fN2 '_' fN '_' num2str(years_range(1)) '-' num2str(years_range(2)) fN3 '_FL.mat'];
 end
 
 % hazard_filename: complete path, if missing

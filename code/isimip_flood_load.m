@@ -1,4 +1,4 @@
-function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_plot,isimip_simround,years_range,interpn_method,silent_mode)
+function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_plot,isimip_simround,years_range,interpn_method,silent_mode,subtract_matsiro)
 
 % climada isimip flood
 % MODULE:
@@ -62,6 +62,8 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 %       'linear', 'nearest','spline','cubic'.
 %   silent_mode: if 1, no output is given (expect errors etc), if 0 many
 %       output given
+%   subtract_matsiro: =1 to subtract the 2-yr return value of MATSIRO flood
+%       fraction from the data. Default =0.
 % OUTPUTS:
 %   hazard: a climada hazard structure, see manual
 %       in addition to the standard hazard.intensity, this hazard also
@@ -77,6 +79,8 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 %   argument 'isimip_data_subdir', and improved treatment of the time axis
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180118, fixes to use
 % ISIMIP-2a (previous version kept as isimip_flood_load_orig.m
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180518, new function
+%   argument 'subtract_matsiro'
 %-
 
 hazard=[];
@@ -280,6 +284,14 @@ t0       = clock;
 mod_step = 1; % first time estimate after 10 events, then every 100
 format_str='%s';
 
+% load 2-yr flood fraction from matsiro if needed
+if subtract_matsiro
+    matsiro_file = [climada_global.hazards_dir filesep 'isimip' filesep 'matsiro_2yr_data' filesep 'fldfrc24_2.nc'];
+    matsiro_fraction = ncread(matsiro_file,'fldfrc',[lon_index_min lat_index_min 1],[index_dlon+1 index_dlat+1 1]); % lon, lat, time
+    matsiro_fraction   =interpn(tile_lon,tile_lat,matsiro_fraction,hazard.lon,hazard.lat,interpn_method);
+    matsiro_fraction(isnan(matsiro_fraction))      =0; % replace NaN with zeros
+end
+
 for event_i=1:n_events
     
     event_i_nc=event_keep_which(event_i);
@@ -301,6 +313,11 @@ for event_i=1:n_events
     
     fraction_tile=interpn(tile_lon,tile_lat,nc.fraction,hazard.lon,hazard.lat,interpn_method);
     fraction_tile(isnan(fraction_tile))=0; % replace NaN with zeros
+    % subtract 2-yr matsiro flood fraction if needed
+    if subtract_matsiro
+        fraction_tile = fraction_tile - matsiro_fraction;
+        fraction_tile(fraction_tile<0)=0;
+    end
     if isfield(hazard,'isgridpoint'),fraction_tile(hazard.isgridpoint)=0;end % regular grid 'around' assets
     hazard.fraction(event_i,:) =fraction_tile;
     

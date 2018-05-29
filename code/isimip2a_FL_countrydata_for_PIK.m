@@ -1,4 +1,4 @@
-function output=isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, params_damfun)
+function output=isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, params_damfun, subtract_matsiro)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -24,7 +24,7 @@ function output=isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, p
 %   [status,output_filename]=isimip2a_FL_countrydata_for_PIK(country,ghm,forcing,params,params_damfun)
 % INPUTS:
 %   country: country name (full name or ISO3)
-%   ghm: Global hydroloical model name
+%   ghm: Global hydrological model name
 %   forcing: observational forcing name
 % OPTIONAL INPUT PARAMETERS:
 %   params: a structure with fields:
@@ -39,6 +39,8 @@ function output=isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, p
 %    filepath: the path which contains the damage function file.
 %       Default is [climada_global.data_dir filesep
 %       'isimip/entities/damfun'.
+%   subtract_matsiro: =1 to subtract the 2-yr return value of MATSIRO flood
+%       fraction from the data. Default =0.
 % OUTPUTS:
 %   status: 1 if successful, 0 if not.
 %   output_filename: a file name for the .csv file generated.
@@ -53,6 +55,9 @@ function output=isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, p
 %   in entity_isimip.assets.DamageFunID to 1 just to be sure.
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180327,
 %   climada_global.damage_at_centroid=1 moved outside the loop
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180529, adding em-dat
+%   data to output, and inserting function argument 'subtract_matsiro'
+%   
 %-
 
 global climada_global
@@ -65,6 +70,7 @@ if ~exist('ghm','var'),                     ghm=                     '';end
 if ~exist('forcing','var'),                 forcing=                 '';end
 if ~exist('params','var'),                  params=              struct;end
 if ~exist('params_damfun','var'),           params_damfun=       struct;end
+if ~exist('subtract_matsiro','var'),        subtract_matsiro=         0;end
 
 % check for some parameter fields we need
 if ~isfield(params,'entity_folder'),    params.entity_folder=[climada_global.data_dir filesep 'isimip/entities'];end
@@ -165,7 +171,7 @@ for i=1:length(protection_levels)
     % define the climada hazard set files (to be generated below)
     [flddph_filename,fldfrc_filename,fld_path] = isimip_get_flood_filename(isimip_simround, ghm, forcing, protection, time_period);
     flood_filename=[fld_path filesep flddph_filename];
-    hazard_FL_file=isimip_get_flood_hazard_filename(flood_filename,entity_isimip,isimip_simround,years_range);
+    hazard_FL_file=isimip_get_flood_hazard_filename(flood_filename,entity_isimip,isimip_simround,years_range,subtract_matsiro);
 
     
     % -----------------
@@ -176,7 +182,7 @@ for i=1:length(protection_levels)
     else
         fprintf('     * NOTE: generating FL hazard from %s\n',flood_filename);
 %         figure % new figure for the check_plot of isimip_flood_load
-        hazard_FL=isimip_flood_load(flood_filename,hazard_FL_file,entity_isimip,0,isimip_simround,years_range,'nearest',1);
+        hazard_FL=isimip_flood_load(flood_filename,hazard_FL_file,entity_isimip,0,isimip_simround,years_range,'nearest',1,subtract_matsiro);
     end
     hazard_FL.yyyy = double(string(hazard_FL.yyyy));
 
@@ -258,14 +264,22 @@ for i=1:length(protection_levels)
     
 end
 
-% create final matrix
+% read EM-DAT data
+em_data=emdat_read('',country_iso3,['FL';'F1';'F2'],2005,0);
+emdat_damage_2005 = zeros([length(all_years) 1]);
+emdat_damage_yearly = zeros([length(all_years) 1]);
+for i=1:length(em_data.year)
+    emdat_damage_2005(all_years == em_data.year(i),1) = em_data.damage(i);
+    emdat_damage_yearly(all_years == em_data.year(i),1) = em_data.damage_orig(i);
+end
 
+% create final matrix
 output = cat(2, all_years, repmat(string(country_iso3), [length(all_years) 1]),...
     repmat(string(continent), [length(all_years) 1]),...
     affected_area,  mean_flddph,...
     total_asset_value, total_asset_value_2005, ...
     exposed_asset_value, exposed_asset_value_2005, ...
-    damage, damage_2005);
+    damage, damage_2005, emdat_damage_yearly, emdat_damage_2005);
 
 output_names = [string('year') string('country') string('continent')...
     string(['affected_area_',protection_levels{1}])...
@@ -287,7 +301,8 @@ output_names = [string('year') string('country') string('continent')...
     string(['damage',protection_levels{3}])...`
     string(['damage_2005',protection_levels{1}])...
     string(['damage_2005',protection_levels{2}])...
-    string(['damage_2005',protection_levels{3}])];
+    string(['damage_2005',protection_levels{3}])...
+    string('emdat') string('emdat_2005')];
 
 output = cat(1, output_names, output);
     
