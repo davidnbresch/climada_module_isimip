@@ -286,7 +286,7 @@ format_str='%s';
 
 % load 2-yr flood fraction from matsiro if needed
 if subtract_matsiro
-    matsiro_file = [climada_global.hazards_dir filesep 'isimip' filesep 'matsiro_2yr_data' filesep 'fldfrc24_2.nc'];
+    matsiro_file = [climada_global.data_dir filesep 'isimip' filesep 'matsiro_2yr_data' filesep 'fldfrc24_2.nc'];
     matsiro_fraction = ncread(matsiro_file,'fldfrc',[lon_index_min lat_index_min 1],[index_dlon+1 index_dlat+1 1]); % lon, lat, time
     matsiro_fraction   =interpn(tile_lon,tile_lat,matsiro_fraction,hazard.lon,hazard.lat,interpn_method);
     matsiro_fraction(isnan(matsiro_fraction))      =0; % replace NaN with zeros
