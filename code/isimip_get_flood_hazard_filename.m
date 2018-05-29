@@ -101,7 +101,7 @@ end
 % fN2 should start with 'flddph', in which case replace with 'FLOOD'
 fN2=strrep(fN2, 'flddph', 'FLOOD');
 fN=strrep(fN,'_entity','');
-if subtract_matsiro fN3='_mFRCmastiro';, else fN3='';end;
+if subtract_matsiro fN3='_mFRCmatsiro';, else fN3='';end;
 if isequal(years_range, [0 0])
     hazard_filename=[isimip_hazard_dir filesep fN2 '_' fN fN3 '_FL.mat'];
 else
