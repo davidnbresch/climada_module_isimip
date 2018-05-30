@@ -268,9 +268,12 @@ end
 em_data=emdat_read('',country_iso3,['FL';'F1';'F2'],2005,0);
 emdat_damage_2005 = zeros([length(all_years) 1]);
 emdat_damage_yearly = zeros([length(all_years) 1]);
-for i=1:length(em_data.year)
-    emdat_damage_2005(all_years == em_data.year(i),1) = em_data.damage(i);
-    emdat_damage_yearly(all_years == em_data.year(i),1) = em_data.damage_orig(i);
+% if EM-DAT data available for this country, use, if not leave zeros
+if ~isempty(em_data)
+    for i=1:length(em_data.year)
+        emdat_damage_2005(all_years == em_data.year(i),1) = em_data.damage(i);
+        emdat_damage_yearly(all_years == em_data.year(i),1) = em_data.damage_orig(i);
+    end
 end
 
 % create final matrix
