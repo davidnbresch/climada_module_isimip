@@ -4,12 +4,7 @@
 % NAME:
 %   job_isimip2a_test
 % PURPOSE:
-%   Deprecated - because this function used to crash, now split in 2
-%   scripts: 'job_isimip2a_template_savematfiles', which saves 1 .mat file
-%   for each country; if it crashes, can be re-launched and will start from
-%   where it crashed. Once all countries completed, the script
-%   'job_isimip2a_template_matfiles2csv' load all the .mat files and saves
-%   the .csv file containing all data.
+%   PROPER DOCUMENTATION NEEDS UPDATING HERE
 %   generate isimip flood damage with PAA=1 for all countries and save as a
 %   csv file.
 %   The job can be tested on a desktop, see run_on_desktop below and the
@@ -33,8 +28,8 @@
 % OUTPUTS:
 %   to work disk, see PARAMETERS
 % MODIFICATION HISTORY:
-% Benoit P. Guillod, bguillod@env.ethz.ch, 20180316, copy from
-%   job_isimip_entities.m
+% Benoit P. Guillod, bguillod@env.ethz.ch, 20180718, initial based on
+% job_isimip2a_template.m
 %-
 
 
@@ -119,6 +114,7 @@ fprintf('\n***** Running model %s-%s *****\n', ghm, forcing);
 [flddph_filename,~,fld_path] = isimip_get_flood_filename('2a', ghm, forcing, '0', 'historical');
 flood_filename=[fld_path filesep flddph_filename];
 if ~exist(flood_filename)
+    %          continue
     fprintf('\n   ** THIS MODEL COMBINATION DOES NOT EXIST, CANCEL SCRIPT: %s:\n', flood_filename);
     return
 end
@@ -126,18 +122,21 @@ end
 for i=1:length(all_countries)
     country=all_countries{i};
     fprintf('\n   -> country: %s:\n', country);
-    output_i = isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, params_damfun, subtract_matsiro);
-    if i==1
-        output_all = output_i;
-    else
-        output_all = cat(1, output_all, output_i(2:end,:));
+    % temporary output folder for individual country data
+    output_folder_temp=[output_folder filesep 'step_data' filesep ghm '_' forcing];
+    if ~exist(output_folder_temp, 'dir')
+        mkdir(output_folder_temp);
     end
+    file_out = [output_folder_temp filesep ghm '_' forcing append_name_matsiro '_' country '.mat'];
+    % if temporary file for this country exists, go to next
+    if exist(file_out, 'file')
+        continue
+    end
+    output_i = isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, params_damfun, subtract_matsiro);
+    % save temporary file with country data
+    save(file_out,'output_i');
+    fprintf('** Output file for one country written: %s **\n', file_out);
 end
-output_file = [output_folder filesep 'output_' ghm '_' forcing '_testFULL' append_name_matsiro '.csv'];
-output_all(ismissing(output_all))='NA';
-output_all2=cellstr(output_all);
-writetable(cell2table(output_all2),output_file,'writevariablenames',0);
-fprintf('** Output file written: %s **\n', output_file);
 
 
 exit % the cluster appreciates this, gives back memory etc.
