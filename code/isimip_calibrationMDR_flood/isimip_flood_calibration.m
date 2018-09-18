@@ -14,7 +14,7 @@ function [status,output_filename]=isimip_flood_calibration(RegionID,years_range,
 %   [status,output_filename]=isimip_flood_calibration(RegionID,years_range)
 % EXAMPLE:
 %   RegionID='NAM';
-%   years_range=[1990 2010];
+%   years_range=[1990 2000];
 %   params.entity_folder='/cluster/work/climate/dbresch/climada_data/isimip/entities';
 %   params.entity_prefix='FL1950';
 %   [status,output_filename]=isimip_flood_calibration(RegionID,years_range)
@@ -54,7 +54,6 @@ if ~isfield(params,'RegID_def_folder'), params.RegID_def_folder=[climada_global.
 if ~isfield(params,'entity_prefix'),    params.entity_prefix='FL1950';end
 if ~isfield(params,'hazard_protection'),params.hazard_protection='flopros';end
 if ~isfield(params,'subtract_matsiro'), params.subtract_matsiro=0;end
-
 if ~isempty(params.entity_prefix)
     if ~strcmp(params.entity_prefix(end),'_'),params.entity_prefix=[params.entity_prefix '_'];end
 end
@@ -92,9 +91,8 @@ for i=1:length(countries)
     if sum(ismember(years_range(1):years_range(2), entity_isimip_i.assets.Values_yyyy)) ~= diff(years_range)+1
         error('*** ERROR: not all requested years are available in the entities **\n\n');
     end
-    % hazard
-%     hazard_yyyy_pos=find(entity.assets.Values_yyyy>=years_range(1) & entity.assets.Values_yyyy<=years_range(2));
-    entity_list{i}=entity_isimip_i;
+    % Subset years
+    entity_list{i}=climada_subset_years(entity_isimip_i, 'entity', years_range(1):years_range(2));
 end
 
 
@@ -115,20 +113,22 @@ for i=1:length(countries)
             if exist(hazard_FL_file, 'file')
                 hazard_FL=climada_hazard_load(hazard_FL_file);
                 hazard_FL.yyyy = double(string(hazard_FL.yyyy));
-                hazard_yyyy_pos=find(hazard_FL.yyyy>=years_range(1) & hazard_FL.yyyy<=years_range(2));
-                hazard_FL.intensity       =hazard_FL.intensity(hazard_yyyy_pos,:);
-                hazard_FL.fraction        =hazard_FL.fraction(hazard_yyyy_pos,:);
-                hazard_FL.frequency       =hazard_FL.frequency(hazard_yyyy_pos); % all one (i.e. we sum up)
-                hazard_FL.orig_event_count=length(hazard_yyyy_pos);
-                hazard_FL.event_count     =length(hazard_yyyy_pos);
-                hazard_FL.event_ID        =hazard_FL.event_ID(hazard_yyyy_pos);
-                hazard_FL.orig_event_flag =hazard_FL.orig_event_flag(hazard_yyyy_pos);
-                hazard_FL.yyyy            =hazard_FL.yyyy(hazard_yyyy_pos);
-                hazard_FL.orig_years      =1;
+                try
+                    hazard_FL=climada_subset_years(hazard_FL, 'hazard', years_range(1):years_range(2));
+                catch ME
+                    switch ME.identifier
+                        case 'climada_subset_years:missingYear'
+                            fprintf('     * Warning: not all requested years are included in the hazard data - skipping %s\n', flood_filename);
+                            continue;
+                        otherwise
+                            error(['     * Error when subsetting the years - skipping ' flood_filename '***']);
+                            continue;
+                    end
+                end
                 ii=ii+1;
                 hazard_list{i}{ii}=hazard_FL;
             else
-                fprintf('     * FL hazard missing, probably inexistent model combination %s\n',flood_filename);
+                fprintf('     * Warning: FL hazard missing, probably inexistent model combination %s\n',flood_filename);
                 continue
             end
         end
@@ -137,7 +137,7 @@ end
         
 % 3) load EM-DAT
 emdat_list={};
-all_years = hazard_FL.yyyy;
+all_years = years_range(1):years_range(2);
 for i=1:length(countries)
     country_iso3 = countries_iso3{i};
     em_data_i=emdat_read('',country_iso3,['FL';'F1';'F2'],2005,0);
@@ -160,8 +160,15 @@ end
 FunctionHandle = str2func('make_MDR_function_1mExp');
 MDR_func = @(x,scale,shape)FunctionHandle(x,scale,shape);
 % maybe the range of the parameters should also be provided here?
+scale_range = [0 1];
+shape_range = [0 5];
+
+params.pars_range = {};
+params.pars_range{1} = scale_range;
+params.pars_range{2} = shape_range;
 
 % 5) Call calibrate_MDR_steps (TO DO)
-% calibrate_MDR_steps(entity_list, hazard_list, emdat_list, MDR_func, ...)
+params.years_range = years_range;
+% calibrate_MDR_steps(RegionID, entity_list, hazard_list, emdat_list, MDR_func, params, ...)
 
 end
