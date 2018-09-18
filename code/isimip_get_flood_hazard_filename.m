@@ -1,4 +1,4 @@
-function hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,isimip_simround,years_range,subtract_matsiro)
+function hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,isimip_simround,years_range,subtract_matsiro,silent_mode)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -37,6 +37,7 @@ function hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,
 %       to be loaded from the netcdf file. If empty or [0 0], loads all data.
 %   subtract_matsiro: =1 to subtract the 2-yr return value of MATSIRO flood
 %       fraction from the data. Default =0.
+%   silent_mode: =1 do not print anything if the file does not exist
 % OUTPUTS:
 %   hazard_filename: a file name for the .mat hazard file on entity grid.
 % MODIFICATION HISTORY:
@@ -45,6 +46,8 @@ function hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,
 % things to be consistent.
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180518, new function
 %   argument 'subtract_matsiro'
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180918, adding argument
+%   silent_mode
 %-
 
 global climada_global
@@ -57,6 +60,7 @@ if ~exist('entity','var'),                 entity=                 '';end
 if ~exist('years_range','var'),            years_range=         [0 0];end
 if ~exist('isimip_simround','var'),        isimip_simround=        '';end
 if ~exist('subtract_matsiro','var'),       subtract_matsiro=        0;end
+if ~exist('silent_mode','var'),            silent_mode=             1;end
 
 % define paths
 isimip_data_dir = [climada_global.data_dir filesep 'isimip' filesep isimip_simround];
@@ -91,8 +95,10 @@ end
 if isempty(fP),fP=isimip_data_dir;end
 if isempty(fE),fE='.mat';end
 flood_filename=[fP filesep fN fE];
-if ~exist(flood_filename,'file')
-    fprintf('Error: %s not found\n',flood_filename);
+if ~silent_mode
+    if ~exist(flood_filename,'file')
+        fprintf('Error: %s not found\n',flood_filename);
+    end
 end
 
 
