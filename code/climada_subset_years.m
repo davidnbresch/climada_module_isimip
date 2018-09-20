@@ -84,7 +84,7 @@ elseif strcmp(obj_type, 'obs')
         error(errorStruct);
     end
     obj_sub.values=obj_sub.values(obj_yyyy_pos);
-    obj_sub.year==obj_sub.year(obj_yyyy_pos);
+    obj_sub.year=obj_sub.year(obj_yyyy_pos);
 else
     error('***** Error: obj_type had unexpected value *****')
 end
