@@ -26,6 +26,7 @@ function obj_sub=climada_subset_years(obj, obj_type, years_in, silent_mode)
 %   obj_sub: as input 'obj' but with only the years specified by years_in
 % MODIFICATION HISTORY:
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180918, initial
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180920, bug fixes
 %-
 
 damage_data=[]; % init output
@@ -83,6 +84,7 @@ elseif strcmp(obj_type, 'obs')
         error(errorStruct);
     end
     obj_sub.values=obj_sub.values(obj_yyyy_pos);
+    obj_sub.year==obj_sub.year(obj_yyyy_pos);
 else
     error('***** Error: obj_type had unexpected value *****')
 end
