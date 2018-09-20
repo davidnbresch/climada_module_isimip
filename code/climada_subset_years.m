@@ -55,14 +55,14 @@ errorStruct.message = ['*** Error: not all requested years are included in the '
 errorStruct.identifier = 'climada_subset_years:missingYear';
 
 
-if obj_type == 'entity'
+if strcmp(obj_type, 'entity')
     obj_yyyy_pos=find(ismember(obj.assets.Values_yyyy, years_in));
     if length(obj_yyyy_pos) < length(years_in)
         error(errorStruct);
     end
     obj_sub.assets.Values=obj_sub.assets.Values(obj_yyyy_pos,:);
     obj_sub.assets.Values_yyyy=obj_sub.assets.Values_yyyy(obj_yyyy_pos,:);
-elseif obj_type == 'hazard'
+elseif strcmp(obj_type, 'hazard')
     obj_yyyy_pos=find(ismember(obj_sub.yyyy, years_in));
     if length(obj_yyyy_pos) < length(years_in)
         error(errorStruct);
@@ -77,7 +77,7 @@ elseif obj_type == 'hazard'
     obj_sub.mm              =obj_sub.mm(obj_yyyy_pos);
     obj_sub.dd              =obj_sub.dd(obj_yyyy_pos);
     obj_sub.name            =obj_sub.name(obj_yyyy_pos);
-elseif obj_type == 'obs'
+elseif strcmp(obj_type, 'obs')
     obj_yyyy_pos=find(ismember(obj.year, years_in));
     if length(obj_yyyy_pos) < length(years_in)
         error(errorStruct);
