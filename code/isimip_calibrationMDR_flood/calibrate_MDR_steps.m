@@ -23,7 +23,7 @@ if ~isfield(params,'entity_prefix'),    params.entity_prefix='FL1950';end
 if ~isfield(params,'hazard_protection'),params.hazard_protection='flopros';end
 if ~isfield(params,'subtract_matsiro'), params.subtract_matsiro=0;end
 if ~isfield(params,'years_range'),      params.years_range=emdat_list{1}.year;end
-if ~isfield(params,'remove_years_0emdat'),params.remove_years_0emdat=0;end % if =0, keep all years; if =1, keep only years with non-zero EM-DAT damage
+if ~isfield(params,'remove_years_0emdat_regTotals'),params.remove_years_0emdat_regTotals=0;end %if =0, keep all years; if =1, keep only years with non-zero EM-DAT damage (region totals per year)
 if ~isfield(params,'remove_years_0emdat_bycountry'),params.remove_years_0emdat_bycountry=1;end % if =1, subselect years by country; if =1, subselects the same years for all countries (at least one country has EM-DAT damage)
 if ~isfield(params,'savedir'),          error('Input parameter params.savedir is missing');end
 if ~isempty(params.entity_prefix)
@@ -34,6 +34,17 @@ if ~isfield(params, 'pars_range')
     params.pars_range{1} = [0 1];
     params.pars_range{2} = [0 5];
 end
+
+if params.remove_years_0emdat_regTotals && params.remove_years_0emdat_bycountry
+    error('both params.remove_years_0emdat_regTotals and params.remove_years_0emdat_bycountry are set to 1, cannot decide which one to choose')
+end
+
+
+
+
+
+
+
 % if ~exist('calibrate_countries','var'),calibrate_countries=[];end
 % if ~exist('hazard_filename','var'),hazard_filename=[];end
 % if ~exist('number_free_parameters','var'),number_free_parameters=[];end
@@ -71,109 +82,64 @@ if ~exist(savedir,'dir') && save_output
 end
 
 % determine useful parameters
+country_list=cellfun(@(x) x.assets.admin0_ISO3,entity_list, 'UniformOutput', 0);
 n_countries = length(emdat_list);
 
 
 % CHECK TIME PERIOD
-all_years_avail = emdat_list{1}.year';
-years_range = params.years_range;
+same_period = check_time_period(params.years_range, emdat_list, entity_list, hazard_list);
 % 1) if years_range is not the same as all_years_avail, print message
 % and abort
-if ~isequal(all_years_avail, (years_range(1):years_range(2))')
-    if years_range(1) < min(all_years_avail)
-        fprintf('years_range(1) not covered by input data - aborted\n');
-        return
-    elseif years_range(1) > max(all_years_avail)
-        fprintf('years_range(2) not covered by input data - aborted\n');
-        return
-    else
-        fprintf('years_range exceeded by input data - aborted\n');
-        return
-    end
-end
-% 2) Check that entity_list, hazard_list and emdat_list include the same years
-for i = 1:n_countries
-    if ~isequal(entity_list{i}.assets.Values_yyyy, all_years_avail)
-        fprintf('Not all same years in entity_list{%i}\n',i);
-        return
-    end
-    if ~isequal(emdat_list{i}.year', all_years_avail)
-        fprintf('Not all same years in emdat_list{%i}\n',i);
-        return
-    end
-    for j = 1:length(hazard_list{i})        
-        if ~isequal(hazard_list{i}{j}.yyyy, all_years_avail)
-            fprintf('Not all same years in hazard_list{%i}{%j}\n',i,j);
-            return
-       end
-    end
+if ~same_period
+    error('** ERROR ** mismatch in the time period *****')
 end
 % Now we know that all input have consistent time period:
 % params.years_range and the entities, hazard and emdat data lists.
 
 
-% CODE WRITING HERE
 % are years without damage in EM-DAT to be removed?
-if params.remove_years_0emdat
+if params.remove_years_0emdat_regTotals | remove_years_0emdat_bycountry
     all_years_in = years_range(1):years_range(2);
-    years_in = zeros(length(all_years_in), n_countries);
+    years_in = false(length(all_years_in), n_countries);
     % find out non-zero EM-DAT damages
     for i = 1:n_countries
         years_in(:,i) = emdat_list{i}.values > 0;
     end
+    % if remove years not by country but only years without any EM-DAT
+    %     damage in any country
     if ~remove_years_0emdat_bycountry
         years_in_temp = sum(years_in, 2)>0;
         for i = 1:n_countries
             years_in(:,i) = years_in_temp;
         end
+        fprintf('A total of %i year(s) are considered for calibration (between %i and %i)\n',...
+            sum(years_in_temp),min(all_years_in(years_in_temp)),max(all_years_in(years_in_temp)));
+    else
+        list_to_print = ['Total of year(s) considered for calibration for each country (' num2str(min(all_years_in)) '-' num2str(max(all_years_in)) ') :'];
+        for i = 1:n_countries
+            list_to_print=[list_to_print ' ' country_list{i} ': ' num2str(sum(years_in(:,i)))];
+        end
+        fprintf([list_to_print, '\n'])
     end
     % remove years from all data
     for i = 1:n_countries
-        
-        if ~isequal(entity_list{i}.assets.Values_yyyy, all_years_avail)
-            fprintf('Not all same years in entity_list{%i}\n',i);
-            return
-        end
-        if ~isequal(emdat_list{i}.year', all_years_avail)
-            fprintf('Not all same years in emdat_list{%i}\n',i);
-            return
-        end
+        entity_list{i}=climada_subset_years(entity_list{i}, 'entity', all_years_in(years_in(:,i)));
+        emdat_list{i}=climada_subset_years(emdat_list{i}, 'obs', all_years_in(years_in(:,i)));
         for j = 1:length(hazard_list{i})
-            if ~isequal(hazard_list{i}{j}.yyyy, all_years_avail)
-                fprintf('Not all same years in hazard_list{%i}{%j}\n',i,j);
-                return
-            end
+            hazard_list{i}{j}=climada_subset_years(hazard_list{i}{j}, 'hazard', all_years_in(years_in(:,i)));
         end
-        
     end
 
-else
-    % if not removing years
 end
     
-    years_considered=em_data_region.year;
-else % set em-data damage 0 for all years not member of years_considered:
-    ix_years_considered=ismember(em_data_region.year,years_considered);
-    em_data_region.damage=em_data_region.damage.*ix_years_considered;
-    if calibrate_countries
-        for i_c = 1:length(country_list)
-        	em_data_region.(['damage_' country_list{i_c}])=em_data_region.(['damage_' country_list{i_c}]).*ix_years_considered;
-        end
-    end    
-end
-fprintf('A total of %i year(s) are considered for calibration (between %i and %i)\n',length(years_considered),min(years_considered),max(years_considered));
-%%
 
 
-% admin0_ISO3=country_list{i_country};
-% [admin0_name,admin0_ISO3] = climada_country_name(admin0_ISO3); % get full name
-% entity_filename = [admin0_ISO3 '_GDP_LitPop_BM2016_', num2str(resolution), 'arcsec_ry' num2str(reference_year)];
-%
-entity = climada_entity_load(entity_region_file);
-hazard = climada_hazard_load(hazard_filename);
-hazard = climada_hazard_reset_yearset(hazard,1);
-if encode, entity = climada_assets_encode(entity,hazard,40000);end
+% CODE WRITING HERE
 
+
+% FILTER OUT YEARS WITHOUT ANY SIMULATED DAMAGE IN EACH REGION (NO EVENT),
+% TO DO SO TAKE A SIMPLE DAMAGE FUNCTION AND DETECT YEARS WITH ANY DAMAGE.
+% REMOVE OTHER YEARS
 if remove_0_YDS_years
     % figure(9); hold on;plot(em_data_region.year, em_data_region.damage,'bo');hold off;
     v_threshold = 15;
@@ -191,11 +157,13 @@ if remove_0_YDS_years
     entity.damagefunctions.MDD(choose_DF==1)= scale * entity.damagefunctions.MDD(choose_DF==1);
     % (2) calculate YDS
     EDS = climada_EDS_calc(entity,hazard,[],[],2);
+    % SAM: this is just to sum damages per year - not relevant for me.
     [~,YDS] = evalc('climada_EDS2YDS(EDS,hazard)');
     [LIA,LOCB] = ismember(em_data_region.year,YDS.yyyy);
     % exclude years with 0-damage-entries:
     year_i_vector = find(LIA);
     year_i_vector(em_data_region.damage(year_i_vector)==0)=[]; 
+    % years without any event in climada (hazard set)
     year_i_vector(YDS.damage(LOCB(year_i_vector))==0)=[];
     em_data_region.damage = em_data_region.damage(year_i_vector);
     em_data_region.year = em_data_region.year(year_i_vector);
@@ -208,34 +176,14 @@ if remove_0_YDS_years
 end
 
 
-%% set bounbdaries and starting values
-switch TCBasinID
-    case 1 % NAT / USA
-        v_thres_0 = 29.8;
-    case 2 % NWP / JPN
-        v_thres_0 = 33.0;
-    case 3 % NIN / IND
-        v_thres_0 = 25.0;
-    case 4 % SIN / MDG
-        v_thres_0 = 25.0;
-    case 5 % SWP / AUS
-        v_thres_0 = 25.0;
-    otherwise
-        v_thres_0 = 30;
-end
+%% set boundaries and starting values
+% IDEALLY CHOOSE THE MIDDLE OF THE RANGE OF VALUES, AND DEFINE RANGE
+scale_0=0.5;
+shape_0=2.5;
+x0=[scale_0 shape_0];
+bounds.lb=[0.0001 1];
+bounds.up=[0.0001 5];
         
-        
-switch number_free_parameters
-    case 2
-        
-        % x0 is the starting value of both parameters
-        x0 = [.5*(max(v_thres_0,30) + v_thres_0) .5];
-        % lower and upper bounds of both parameters
-        bounds.lb = [max(v_thres_0,30)-5. 1e-9]; % never set lower bound of scale to 0! Otherwise calibration goes wrong.
-        bounds.ub = [v_thres_0+5. 1.];
-    otherwise
-        error('number_free_parameters other than 2 is not implemented yet');
-end
 
 % lower bounds are normalized to 1
 norm.lb = ones(size(bounds.lb));
@@ -329,4 +277,47 @@ end
 if on_cluster, cd /cluster/home/eberenzs/ ;exit; end;
 
 
+end
+
+
+function same_period = check_time_period(years_range, emdat_list, entity_list, hazard_list)
+% CHECK TIME PERIOD
+same_period=1;
+n_countries = length(emdat_list);
+all_years_avail = emdat_list{1}.year';
+% 1) if years_range is not the same as all_years_avail, print message
+% and abort
+if ~isequal(all_years_avail, (years_range(1):years_range(2))')
+    if years_range(1) < min(all_years_avail)
+        fprintf('years_range(1) not covered by input data - aborted\n');
+    elseif years_range(1) > max(all_years_avail)
+        fprintf('years_range(2) not covered by input data - aborted\n');
+    else
+        fprintf('years_range exceeded by input data - aborted\n');
+    end
+    same_period=0;
+    return
+end
+% 2) Check that entity_list, hazard_list and emdat_list include the same years
+for i = 1:n_countries
+    if ~isequal(entity_list{i}.assets.Values_yyyy, all_years_avail)
+        fprintf('Not all same years in entity_list{%i}\n',i);
+        same_period=0;
+        return
+    end
+    if ~isequal(emdat_list{i}.year', all_years_avail)
+        fprintf('Not all same years in emdat_list{%i}\n',i);
+        same_period=0;
+        return
+    end
+    for j = 1:length(hazard_list{i})
+        if ~isequal(hazard_list{i}{j}.yyyy, all_years_avail)
+            fprintf('Not all same years in hazard_list{%i}{%j}\n',i,j);
+            same_period=0;
+            return
+        end
+    end
+end
+% Now we know that all input have consistent time period:
+% params.years_range and the entities, hazard and emdat data lists.
 end
