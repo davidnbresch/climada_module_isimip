@@ -19,9 +19,8 @@ function [status,output_filename]=isimip_flood_calibration(RegionID,years_range,
 %   params.entity_prefix='FL1950';
 %   [status,output_filename]=isimip_flood_calibration(RegionID,years_range)
 % INPUTS:
-%   country: country name (full name or ISO3)
-%   ghm: Global hydrological model name
-%   forcing: observational forcing name
+%   RegionID: Region name (full name)
+%   years_range: Range of years to be used (e.g., [1990 2010])
 % OPTIONAL INPUT PARAMETERS:
 %   params: a structure with fields:
 %     entity_folder: the folder where the entities are located (default:

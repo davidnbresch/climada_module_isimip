@@ -1,8 +1,59 @@
 function result=calibrate_MDR_steps(RegionID, entity_list, hazard_list, emdat_list, MDR_func, params)
-% function result=calibrate_MDR_steps(RegionID,value_mode,calibrate_countries,...
-%     hazard_filename,number_free_parameters,years_considered)
-% result=calibrate_MDR_steps(4,2,1,300,0,[],2)
-
+% climada isimip flood
+% MODULE:
+%   isimip
+% NAME:
+%   calibrate_MDR_steps
+% PURPOSE:
+%   for a given Region (group of countries) and the corresponding lists (one
+%   element per country) of entities, hazard, EM-DAT damage data, calibrate
+%   the parameters of MDR_func to best match EM-DAT damages. Usually called
+%   from 'isimip_flood_calibration'.
+%
+% CALLING SEQUENCE:
+%   [status,output_filename]=calibrate_MDR_steps(RegionID, entity_list, hazard_list, emdat_list, MDR_func, params)
+% EXAMPLE:
+%   RegionID='NAM';
+%   years_range=[1990 2000];
+%   params.entity_folder='/cluster/work/climate/dbresch/climada_data/isimip/entities';
+%   params.entity_prefix='FL1950';
+%   [status,output_filename]=isimip_flood_calibration(RegionID,years_range)
+% INPUTS:
+%   RegionID: country name (full name or ISO3)
+%   entity_list: a list of entities (cell array), one per country
+%   hazard_list: a list of hazard (cell array), or several per country. If
+%      several, a cell array of cell arrays.
+%   emdat_list: a list of EM-DAT damages (cell array) containing the fields
+%      'year' and 'values'.
+%   MDR_func: a function of x (hazard intensity) and two parameters to be
+%      calibrated (e.g., scale and shape).
+% OPTIONAL INPUT PARAMETERS:
+%   params: a structure with fields:
+%     entity_folder: the folder where the entities are located (default:
+%        [climada_global.data_dir filesep 'isimip/entities'] ).
+%     RegID_def_folder: the folder where the file listing countries per
+%        Region is located.
+%     entity_prefix: if not ='', pre-pend the entity filename with it, e.g.
+%        entity_prefix='Try1' will result in Try1_DEU_0150as.mat
+%     hazard_protection: one of 'flopros' (default), '0', '100'
+%     subtract_matsiro: =1 to subtract the 2-yr return value of MATSIRO flood
+%        fraction from the data. Default =0.
+%     years_range: range of years to be included (e.g. [1990 2010])
+%     remove_years_0emdat: determines how to filter years with zero EM-DAT
+%        damages (e.g., no damage).
+%        0=no filter (all years retained);
+%        1=remove years for which the sum of EM-DAT damages over all
+%        countries is 0;
+%        2=for each year, remove countries with zero EM-DAT damages.
+%     pars_range: range of parameter values (cell array, each element as
+%        [min_val max_val].
+% OUTPUTS:
+%   status: 1 if successful, 0 if not.
+%   output_filename: a file name for the .mat file generated.
+% MODIFICATION HISTORY:
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180711, initial
+%   
+%-
 
 % https://ch.mathworks.com/help/gads/examples/constrained-minimization-using-pattern-search.html
 
@@ -23,8 +74,7 @@ if ~isfield(params,'entity_prefix'),    params.entity_prefix='FL1950';end
 if ~isfield(params,'hazard_protection'),params.hazard_protection='flopros';end
 if ~isfield(params,'subtract_matsiro'), params.subtract_matsiro=0;end
 if ~isfield(params,'years_range'),      params.years_range=emdat_list{1}.year;end
-if ~isfield(params,'remove_years_0emdat_regTotals'),params.remove_years_0emdat_regTotals=0;end %if =0, keep all years; if =1, keep only years with non-zero EM-DAT damage (region totals per year)
-if ~isfield(params,'remove_years_0emdat_bycountry'),params.remove_years_0emdat_bycountry=1;end % if =1, subselect years by country; if =1, subselects the same years for all countries (at least one country has EM-DAT damage)
+if ~isfield(params,'remove_years_0emdat'),params.remove_years_0emdat=0;end
 if ~isfield(params,'savedir'),          error('Input parameter params.savedir is missing');end
 if ~isempty(params.entity_prefix)
     if ~strcmp(params.entity_prefix(end),'_'),params.entity_prefix=[params.entity_prefix '_'];end
@@ -35,9 +85,6 @@ if ~isfield(params, 'pars_range')
     params.pars_range{2} = [0 5];
 end
 
-if params.remove_years_0emdat_regTotals && params.remove_years_0emdat_bycountry
-    error('both params.remove_years_0emdat_regTotals and params.remove_years_0emdat_bycountry are set to 1, cannot decide which one to choose')
-end
 
 
 
@@ -98,7 +145,7 @@ end
 
 
 % are years without damage in EM-DAT to be removed?
-if params.remove_years_0emdat_regTotals | remove_years_0emdat_bycountry
+if params.remove_years_0emdat
     all_years_in = years_range(1):years_range(2);
     years_in = false(length(all_years_in), n_countries);
     % find out non-zero EM-DAT damages
@@ -107,19 +154,22 @@ if params.remove_years_0emdat_regTotals | remove_years_0emdat_bycountry
     end
     % if remove years not by country but only years without any EM-DAT
     %     damage in any country
-    if ~remove_years_0emdat_bycountry
+    if params.remove_years_0emdat == 1
         years_in_temp = sum(years_in, 2)>0;
         for i = 1:n_countries
             years_in(:,i) = years_in_temp;
         end
         fprintf('A total of %i year(s) are considered for calibration (between %i and %i)\n',...
             sum(years_in_temp),min(all_years_in(years_in_temp)),max(all_years_in(years_in_temp)));
-    else
+    elseif params.remove_years_0emdat == 2
         list_to_print = ['Total of year(s) considered for calibration for each country (' num2str(min(all_years_in)) '-' num2str(max(all_years_in)) ') :'];
         for i = 1:n_countries
             list_to_print=[list_to_print ' ' country_list{i} ': ' num2str(sum(years_in(:,i)))];
         end
         fprintf([list_to_print, '\n'])
+    else
+        error('** ERROR ** unexpected value in params.remove_years_0emdat *****')
+        return
     end
     % remove years from all data
     for i = 1:n_countries
