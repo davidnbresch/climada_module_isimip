@@ -30,11 +30,18 @@ function [status,output_filename]=isimip_flood_calibration(RegionID,years_range,
 %     hazard_protection: one of 'flopros' (default), '0', '100'
 %     subtract_matsiro: =1 to subtract the 2-yr return value of MATSIRO flood
 %        fraction from the data. Default =0.
+%     entity_year: =0 to use yearly-varying assets (default; assumed is 2005
+%        USD value of yearly assets). Otherwise, specify fixed year of
+%        assets to be used (e.g., 2005). EM-DAT data will also be
+%        growth-corrected to the year provided, and left uncorrected if
+%        entity_year==0.
 % OUTPUTS:
 %   status: 1 if successful, 0 if not.
 %   output_filename: a file name for the .mat file generated.
 % MODIFICATION HISTORY:
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180711, initial
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181009, many changes
+%    including a new input parameter added 'entity_year'
 %   
 %-
 
@@ -53,6 +60,7 @@ if ~isfield(params,'RegID_def_folder'), params.RegID_def_folder=[climada_global.
 if ~isfield(params,'entity_prefix'),    params.entity_prefix='FL1950';end
 if ~isfield(params,'hazard_protection'),params.hazard_protection='flopros';end
 if ~isfield(params,'subtract_matsiro'), params.subtract_matsiro=0;end
+if ~isfield(params,'entity_year'), params.entity_year=0;end
 if ~isempty(params.entity_prefix)
     if ~strcmp(params.entity_prefix(end),'_'),params.entity_prefix=[params.entity_prefix '_'];end
 end
@@ -91,7 +99,13 @@ for i=1:length(countries)
         error('*** ERROR: not all requested years are available in the entities **\n\n');
     end
     % Subset years
-    entity_list{i}=climada_subset_years(entity_isimip_i, 'entity', years_range(1):years_range(2));
+    if params.entity_year
+        entity_list{i}=climada_subset_years(entity_isimip_i, 'entity', params.entity_year);
+        entity_list{i}.assets.Value=entity_list{i}.assets.Values(1,:);
+        entity_list{i}.assets.reference_year = params.entity_year;
+    else
+        entity_list{i}=climada_subset_years(entity_isimip_i, 'entity', years_range(1):years_range(2));
+    end
 end
 
 
@@ -139,18 +153,20 @@ emdat_list={};
 all_years = years_range(1):years_range(2);
 for i=1:length(countries)
     country_iso3 = countries_iso3{i};
-    em_data_i=emdat_read('',country_iso3,['FL';'F1';'F2'],2005,0);
-    emdat_damage_2005 = zeros([length(all_years) 1]);
+    % EM-DAT damages corrected by growth exposure only if fixed entities
+    % are used.
+    em_data_i=emdat_read('',country_iso3,['FL';'F1';'F2'],params.entity_year,0);
+    emdat_damage = zeros([length(all_years) 1]);
     % if EM-DAT data available for this country, use, if not leave zeros
     if ~isempty(em_data_i)
         for iy=1:length(all_years)
             ii=find(all_years(iy) == em_data_i.year);
             if length(ii)>0
-                emdat_damage_2005(iy,1) = sum(em_data_i.damage(ii));
+                emdat_damage(iy,1) = sum(em_data_i.damage(ii));
             end
         end
     end
-    emdat_list{i}.values=emdat_damage_2005;
+    emdat_list{i}.values=emdat_damage;
     emdat_list{i}.year=all_years;
 end
 
@@ -168,6 +184,7 @@ params.pars_range{2} = shape_range;
 
 % 5) Call calibrate_MDR_steps (TO DO)
 params.years_range = years_range;
+params.use_YDS = ~entity_year;
 % calibrate_MDR_steps(RegionID, entity_list, hazard_list, emdat_list, MDR_func, params, ...)
 
 end
