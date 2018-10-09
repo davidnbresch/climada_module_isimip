@@ -184,85 +184,10 @@ end
 [entity_list, hazard_list, emdat_list] = filter_years(params.remove_years_0emdat, params.remove_years_0YDS, params.years_range, entity_list, hazard_list, emdat_list, use_YDS)
 
 
-if params.remove_years_0emdat
-    all_years_in = params.years_range(1):params.years_range(2);
-    years_in = false(length(all_years_in), n_countries);
-    % find out non-zero EM-DAT damages
-    for i = 1:n_countries
-        years_in(:,i) = emdat_list{i}.values > 0;
-    end
-    % if remove years not by country but only years without any EM-DAT
-    %     damage in any country
-    if params.remove_years_0emdat == 1
-        years_in_temp = sum(years_in, 2)>0;
-        for i = 1:n_countries
-            years_in(:,i) = years_in_temp;
-        end
-        fprintf('A total of %i year(s) are considered for calibration (between %i and %i)\n',...
-            sum(years_in_temp),min(all_years_in(years_in_temp)),max(all_years_in(years_in_temp)));
-    elseif params.remove_years_0emdat == 2
-        list_to_print = ['Total of year(s) considered for calibration for each country (' num2str(min(all_years_in)) '-' num2str(max(all_years_in)) ') :'];
-        for i = 1:n_countries
-            list_to_print=[list_to_print ' ' country_list{i} ': ' num2str(sum(years_in(:,i)))];
-        end
-        fprintf([list_to_print, '\n'])
-    else
-        error('** ERROR ** unexpected value in params.remove_years_0emdat *****')
-        return
-    end
-    % remove years from all data
-    for i = 1:n_countries
-        entity_list{i}=climada_subset_years(entity_list{i}, 'entity', all_years_in(years_in(:,i)));
-        emdat_list{i}=climada_subset_years(emdat_list{i}, 'obs', all_years_in(years_in(:,i)));
-        for j = 1:length(hazard_list{i})
-            hazard_list{i}{j}=climada_subset_years(hazard_list{i}{j}, 'hazard', all_years_in(years_in(:,i)));
-        end
-    end
-
-end
     
 
 
 % CODE WRITING HERE
-
-
-% FILTER OUT YEARS WITHOUT ANY SIMULATED DAMAGE IN EACH REGION (NO EVENT),
-% TO DO SO TAKE A SIMPLE DAMAGE FUNCTION AND DETECT YEARS WITH ANY DAMAGE.
-% REMOVE OTHER YEARS
-if remove_0_YDS_years
-    % figure(9); hold on;plot(em_data_region.year, em_data_region.damage,'bo');hold off;
-    v_threshold = 15;
-    v_half = 20;
-    scale = 1;
-    choose_DF = strcmp(entity.damagefunctions.peril_ID,'TC') .* (entity.damagefunctions.DamageFunID==1);
-
-    % set PPA to 1 for all intensities
-    entity.damagefunctions.PAA(choose_DF==1) = 1;
-    % set MDD with x(1)= v_half [m/s] % 
-    % based on Elliott et al. 2015, similar also Sealy & Strobl et al. 2017 and Emanuel, 2011
-    VV_temp = max((entity.damagefunctions.Intensity(choose_DF==1) - v_threshold),0)/(v_half-v_threshold);
-    entity.damagefunctions.MDD(choose_DF==1)= VV_temp.^3 ./ (1+VV_temp.^3);
-    % linearly damp MDD by multiplication with scale x(2), 0<x(2)<=1
-    entity.damagefunctions.MDD(choose_DF==1)= scale * entity.damagefunctions.MDD(choose_DF==1);
-    % (2) calculate YDS
-    EDS = climada_EDS_calc(entity,hazard,[],[],2);
-    % SAM: this is just to sum damages per year - not relevant for me.
-    [~,YDS] = evalc('climada_EDS2YDS(EDS,hazard)');
-    [LIA,LOCB] = ismember(em_data_region.year,YDS.yyyy);
-    % exclude years with 0-damage-entries:
-    year_i_vector = find(LIA);
-    year_i_vector(em_data_region.damage(year_i_vector)==0)=[]; 
-    % years without any event in climada (hazard set)
-    year_i_vector(YDS.damage(LOCB(year_i_vector))==0)=[];
-    em_data_region.damage = em_data_region.damage(year_i_vector);
-    em_data_region.year = em_data_region.year(year_i_vector);
-    for i_c = 1:length(country_list)
-        em_data_region.(['damage_' country_list{i_c}])=em_data_region.(['damage_' country_list{i_c}])(year_i_vector);
-    end
-    % figure(9); hold on;plot(em_data_region.year, em_data_region.damage,'rx');hold off;
-    N_years = length(find(em_data_region.damage>0));
-    disp(N_years)
-end
 
 
 %% set boundaries and starting values
