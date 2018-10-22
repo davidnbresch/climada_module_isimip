@@ -1,4 +1,4 @@
-function [status,output_filename]=isimip_flood_calibration(RegionID,years_range,params)
+function [status,output_filename]=isimip_flood_calibration(RegionID,years_range,params,params_MDR,params_calibration)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -17,6 +17,7 @@ function [status,output_filename]=isimip_flood_calibration(RegionID,years_range,
 %   years_range=[1990 2000];
 %   params.entity_folder='/cluster/work/climate/dbresch/climada_data/isimip/entities';
 %   params.entity_prefix='FL1950';
+%   params_MDR.damFun_xVals=0:0.5:15;
 %   [status,output_filename]=isimip_flood_calibration(RegionID,years_range)
 % INPUTS:
 %   RegionID: Region name (full name)
@@ -35,6 +36,14 @@ function [status,output_filename]=isimip_flood_calibration(RegionID,years_range,
 %        assets to be used (e.g., 2005). EM-DAT data will also be
 %        growth-corrected to the year provided, and left uncorrected if
 %        entity_year==0.
+%   params_MDR: parameters to define the MDR function. A structure with fields:
+%     damFun_xVals: vector of value of hazard intensity to be used when
+%        creating the damage function based on MDR_func (e.g. 0:0.5:10).
+%        The second last values will be set to the last value in order to
+%        ensure a maximum MDR value.
+%   params_calibration: parameters for the calibration. A structure with fields:
+%     cost_function: string indicating the cost function to use in the
+%        calibration (see type in calibrate_params_MDR).
 % OUTPUTS:
 %   status: 1 if successful, 0 if not.
 %   output_filename: a file name for the .mat file generated.
@@ -42,6 +51,8 @@ function [status,output_filename]=isimip_flood_calibration(RegionID,years_range,
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180711, initial
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181009, many changes
 %    including a new input parameter added 'entity_year'
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181015, additional input
+%    parameter params.damFun_xVals.
 %   
 %-
 
@@ -53,6 +64,8 @@ if ~climada_init_vars,return;end % init/import global variables
 if ~exist('RegionID','var'),error('Input parameter RegionID is missing');end %
 if ~exist('years_range','var'),             years_range=    [1990 2010];end
 if ~exist('params','var'),                  params=              struct;end
+if ~exist('params_MDR','var'),              params_MDR=          struct;end
+if ~exist('params_calibration','var'),      params_calibration=  struct;end
 
 % check for some parameter fields we need
 if ~isfield(params,'entity_folder'),    params.entity_folder=[climada_global.data_dir filesep 'isimip/entities'];end
@@ -64,6 +77,8 @@ if ~isfield(params,'entity_year'), params.entity_year=0;end
 if ~isempty(params.entity_prefix)
     if ~strcmp(params.entity_prefix(end),'_'),params.entity_prefix=[params.entity_prefix '_'];end
 end
+if ~isfield(params_MDR,'damFun_xVals'), warning('** warning ** params_MDR.damFun_xVals not set, intensity steps of the default damage function will be used *****');end
+
 
 % get countries that belong to the region
 % for now, had oc for testing only
@@ -174,17 +189,24 @@ end
 % 4) Define MDR function shape and parameters
 FunctionHandle = str2func('make_MDR_function_1mExp');
 MDR_func = @(x,scale,shape)FunctionHandle(x,scale,shape);
-% maybe the range of the parameters should also be provided here?
+% maybe the range of the parameters should also be provided here? Or as
+% input parameters?
 scale_range = [0 1];
 shape_range = [0 5];
 
-params.pars_range = {};
-params.pars_range{1} = scale_range;
-params.pars_range{2} = shape_range;
+params_MDR.pars_range = {};
+params_MDR.pars_range{1} = scale_range;
+params_MDR.pars_range{2} = shape_range;
+params_MDR.years_range = years_range;
+params_MDR.use_YDS = ~params.entity_year;
+
+% params for calibrate_MDR_steps (example; TO DO)
+params_step=struct;
+params_step.savefile='test_file.mat';
+params_step.savedir=pwd;
 
 % 5) Call calibrate_MDR_steps (TO DO)
-params.years_range = years_range;
-params.use_YDS = ~entity_year;
-% calibrate_MDR_steps(RegionID, entity_list, hazard_list, emdat_list, MDR_func, params, ...)
+% calibrate_MDR_steps(RegionID, entity_list, hazard_list, emdat_list, MDR_func, params_MDR, ...)
+% save('input_calibrate_MDR_steps.mat','RegionID', 'entity_list', 'hazard_list', 'emdat_list', 'MDR_func','params_MDR','params_calibration','-v7.3')
 
 end

@@ -59,6 +59,10 @@ function result=calibrate_MDR_steps(RegionID, entity_list, hazard_list, emdat_li
 %     use_YDS: =1 to use yearly-varying assets. Default =0.
 %     pars_range: range of parameter values (cell array, each element as
 %        [min_val max_val].
+%     damFun_xVals: vector of value of hazard intensity to be used when
+%        creating the damage function based on MDR_func (e.g. 0:0.5:10).
+%        The second last values will be set to the last value in order to
+%        ensure a maximum MDR value.
 % OUTPUTS:
 %   status: 1 if successful, 0 if not.
 %   output_filename: a file name for the .mat file generated.
@@ -148,10 +152,8 @@ end
 
 
 
-delta_shape_parameter = 49; % v_half - v_threshold (m/s)
 encode = 0;
 optimizerType='R2';
-remove_0_YDS_years = 1;
 %optimizerType='R';
 %optimizerType='logR';
 
@@ -181,7 +183,7 @@ end
 
 
 % are years without damage in EM-DAT and/or without simulated damage to be removed?
-[entity_list, hazard_list, emdat_list] = filter_years(params.remove_years_0emdat, params.remove_years_0YDS, params.years_range, entity_list, hazard_list, emdat_list, use_YDS)
+[entity_list, hazard_list, emdat_list] = filter_years(params.remove_years_0emdat, params.remove_years_0YDS, params.years_range, entity_list, hazard_list, emdat_list, params.use_YDS)
 
 
     
@@ -195,8 +197,8 @@ end
 scale_0=0.5;
 shape_0=2.5;
 x0=[scale_0 shape_0];
-bounds.lb=[0.0001 1];
-bounds.up=[0.0001 5];
+bounds.lb=[0.0001 0.0001];
+bounds.ub=[1 5];
         
 
 % lower bounds are normalized to 1
@@ -211,7 +213,10 @@ norm.x0 = (x0-bounds.lb)./(bounds.ub-bounds.lb) .* (norm.ub-norm.lb) + norm.lb;
 % define anonymous function with input factor x (parameters of the damage
 % function):
 % delta_shape_parameter is specific to TCs, can be removed.
-fun = @(x)calibrate_TC_DF_emdat_region(x,delta_shape_parameter, entity, hazard, em_data_region, norm, bounds,optimizerType); % sets all inputvar for the function except for x, use normalized x.
+params_MDR=[];
+params_MDR.use_YDS = params.use_YDS;
+params_MDR.damFun_xVals = params.damFun_xVals;
+fun = @(x)calibrate_params_MDR(x,MDR_func, entity_list, hazard_list, emdat_list, norm, bounds,optimizerType,params_MDR); % sets all inputvar for the function except for x, use normalized x.
 
 
 %parpool('local_small')
