@@ -1,4 +1,5 @@
-function result=calibrate_MDR_steps(RegionID, entity_list, hazard_list, emdat_list, MDR_func, params)
+function result=calibrate_MDR_steps(RegionID, entity_list, hazard_list, ...
+    emdat_list, MDR_func, params, params_MDR, params_calibration)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -11,12 +12,9 @@ function result=calibrate_MDR_steps(RegionID, entity_list, hazard_list, emdat_li
 %   from 'isimip_flood_calibration'.
 %
 % CALLING SEQUENCE:
-%   [status,output_filename]=calibrate_MDR_steps(RegionID, entity_list, hazard_list, emdat_list, MDR_func, params)
+%   [status,output_filename]=calibrate_MDR_steps(RegionID, entity_list, hazard_list, emdat_list, MDR_func, params_MDR)
 % EXAMPLE:
 %   RegionID='NAM';
-%   years_range=[1990 2000];
-%   params.entity_folder='/cluster/work/climate/dbresch/climada_data/isimip/entities';
-%   params.entity_prefix='FL1950';
 %   [status,output_filename]=isimip_flood_calibration(RegionID,years_range)
 % INPUTS:
 %   RegionID: country name (full name or ISO3)
@@ -29,22 +27,17 @@ function result=calibrate_MDR_steps(RegionID, entity_list, hazard_list, emdat_li
 %      calibrated (e.g., scale and shape).
 % OPTIONAL INPUT PARAMETERS:
 %   params: a structure with fields:
-%     entity_folder: the folder where the entities are located (default:
-%        [climada_global.data_dir filesep 'isimip/entities'] ).
-%     RegID_def_folder: the folder where the file listing countries per
-%        Region is located.
-%     entity_prefix: if not ='', pre-pend the entity filename with it, e.g.
-%        entity_prefix='Try1' will result in Try1_DEU_0150as.mat
-%     hazard_protection: one of 'flopros' (default), '0', '100'
-%     subtract_matsiro: =1 to subtract the 2-yr return value of MATSIRO flood
-%        fraction from the data. Default =0.
+%     savefile: file where the output should be saved, either full path or
+%       file name only and path given as params.savedir.
+%     savedir: directory where the output should be saved (optional).
+%   params_MDR: a structure with fields:
 %     years_range: range of years to be included (e.g. [1990 2010])
 %     remove_years_0emdat: determines how to filter years with zero EM-DAT
 %        damages (e.g., no damage).
 %        0=no filter (all years retained);
 %        1=remove years for which the sum of EM-DAT damages over all
 %        countries is 0;
-%        2=for each year, remove countries with zero EM-DAT damages.
+%        2=for each country, remove years with zero EM-DAT damages.
 %     remove_years_0YDS: list defining whether to exclude years with zero
 %        simulated damage as follows:
 %        do: =1 to exclude years with zero simulated damage. Default =0.
@@ -63,6 +56,20 @@ function result=calibrate_MDR_steps(RegionID, entity_list, hazard_list, emdat_li
 %        creating the damage function based on MDR_func (e.g. 0:0.5:10).
 %        The second last values will be set to the last value in order to
 %        ensure a maximum MDR value.
+%   params_calibration: parameters for the calibration:
+%       type (string): cost function, one of:
+%           'AED':  "Annual Expected Damage": result is the squared
+%                   difference of mean year damage 
+%           'R2':   (DEFAULT) result is R^2 (= the sum of squared differences of
+%                   year damages of emdat and climada for each specific historical year).
+%           'R':    result is R (= the sum of the absolute differences of
+%                   year damages of emdat and climada for each specific historical year).
+%           'RP':   "Return Period": as AED but for different return
+%                   periods with weights (not implemented yet) - only makes
+%                   sense for long time series
+%       MM_how (string): how to deal with Multi-Model hazard sets, one of:
+%           'MMM':  Multi-Model Mean damage estimate vs observated damages.
+%           'MMMed':Multi-Model Median damage estimate vs observated damages.
 % OUTPUTS:
 %   status: 1 if successful, 0 if not.
 %   output_filename: a file name for the .mat file generated.
@@ -84,36 +91,31 @@ if ~exist('hazard_list','var'),error('Input parameter hazard_list is missing');e
 if ~exist('emdat_list','var'),error('Input parameter emdat_list is missing');end
 if ~exist('MDR_func','var'),error('Input parameter MDR_func is missing');end
 if ~exist('params','var'),                  params=              struct;end
+if ~exist('params_MDR','var'),              params_MDR=          struct;end
+if ~exist('params_calibration','var'),      params_calibration=  struct;end
 
 % check for some parameter fields we need
-if ~isfield(params,'entity_folder'),    params.entity_folder=[climada_global.data_dir filesep 'isimip/entities'];end
-if ~isfield(params,'RegID_def_folder'), params.RegID_def_folder=[climada_global.data_dir filesep 'isimip'];end
-if ~isfield(params,'entity_prefix'),    params.entity_prefix='FL1950';end
-if ~isfield(params,'hazard_protection'),params.hazard_protection='flopros';end
-if ~isfield(params,'subtract_matsiro'), params.subtract_matsiro=0;end
-if ~isfield(params,'years_range'),params.years_range=[min(emdat_list{1}.year) max(emdat_list{1}.year)];end
-if ~isfield(params,'remove_years_0emdat'),params.remove_years_0emdat=0;end
-if ~isfield(params,'remove_years_0YDS'),params.remove_years_0YDS.do=0;end
-if params.remove_years_0YDS.do
-    if ~isfield(params.remove_years_0YDS,'threshold')
-        error('** ERROR ** Input parameter params.remove_years_0YDS.threshold required since params.remove_years_0YDS.do==1 *****')
-    end
-    if ~isfield(params.remove_years_0YDS, 'what') && iscell(hazard_list{1})
-        error('** ERROR ** Input parameter params.remove_years_0YDS.what required since params.remove_years_0YDS.do==1 and multiple hazard per country are provided *****')
-    end
-    if ~isfield(params.remove_years_0YDS, 'min_val'),params.remove_years_0YDS.min_val=0;end
-end
 if ~isfield(params,'savedir'),          error('Input parameter params.savedir is missing');end
-if ~isempty(params.entity_prefix)
-    if ~strcmp(params.entity_prefix(end),'_'),params.entity_prefix=[params.entity_prefix '_'];end
+if ~isfield(params_MDR,'years_range'),params_MDR.years_range=[min(emdat_list{1}.year) max(emdat_list{1}.year)];end
+if ~isfield(params_MDR,'remove_years_0emdat'),params_MDR.remove_years_0emdat=0;end
+if ~isfield(params_MDR,'remove_years_0YDS'),params_MDR.remove_years_0YDS.do=0;end
+if params_MDR.remove_years_0YDS.do
+    if ~isfield(params_MDR.remove_years_0YDS,'threshold')
+        error('** ERROR ** Input parameter params_MDR.remove_years_0YDS.threshold required since params_MDR.remove_years_0YDS.do==1 *****')
+    end
+    if ~isfield(params_MDR.remove_years_0YDS, 'what') && iscell(hazard_list{1})
+        error('** ERROR ** Input parameter params_MDR.remove_years_0YDS.what required since params_MDR.remove_years_0YDS.do==1 and multiple hazard per country are provided *****')
+    end
+    if ~isfield(params_MDR.remove_years_0YDS, 'min_val'),params_MDR.remove_years_0YDS.min_val=0;end
 end
-if ~isfield(params,'use_YDS'),params.use_YDS=0;end
-if ~isfield(params, 'pars_range')
-    params.pars_range = {};
-    params.pars_range{1} = [0 1];
-    params.pars_range{2} = [0 5];
+if ~isfield(params_MDR,'use_YDS'),params_MDR.use_YDS=0;end
+if ~isfield(params_MDR, 'pars_range')
+    params_MDR.pars_range = {};
+    params_MDR.pars_range{1} = [0 1];
+    params_MDR.pars_range{2} = [0 5];
 end
-
+if ~isfield(params_calibration,'type'),params_calibration.type='R2';end
+if ~isfield(params_calibration,'MM_how'),params_calibration.MM_how='MMM';end
 
 % determine useful parameters
 country_list=cellfun(@(x) x.assets.admin0_ISO3,entity_list, 'UniformOutput', 0);
@@ -162,28 +164,22 @@ fminconSwitch = 0;
 save_output = 1;
 force_overwrite_output = 0;
 
-%
-
-savedir = [climada_global.data_dir filesep 'output_sam'];
-if ~exist(savedir,'dir') && save_output
-    system(['mkdir ' savedir]);
-end
-
-
 
 % CHECK TIME PERIOD
-same_period = check_time_period(params.years_range, emdat_list, entity_list, hazard_list, params.use_YDS);
+same_period = check_time_period(params_MDR.years_range, emdat_list, entity_list, hazard_list, params_MDR.use_YDS);
 % 1) if years_range is not the same as all_years_avail, print message
 % and abort
 if ~same_period
     error('** ERROR ** mismatch in the time period *****')
 end
 % Now we know that all input have consistent time period:
-% params.years_range and the entities, hazard and emdat data lists.
+% params_MDR.years_range and the entities, hazard and emdat data lists.
 
 
 % are years without damage in EM-DAT and/or without simulated damage to be removed?
-[entity_list, hazard_list, emdat_list] = filter_years(params.remove_years_0emdat, params.remove_years_0YDS, params.years_range, entity_list, hazard_list, emdat_list, params.use_YDS)
+[entity_list, hazard_list, emdat_list] = filter_years(params_MDR.remove_years_0emdat, ...
+    params_MDR.remove_years_0YDS, params_MDR.years_range, ...
+    entity_list, hazard_list, emdat_list, params_MDR.use_YDS);
 
 
     
@@ -194,12 +190,9 @@ end
 
 %% set boundaries and starting values
 % IDEALLY CHOOSE THE MIDDLE OF THE RANGE OF VALUES, AND DEFINE RANGE
-scale_0=0.5;
-shape_0=2.5;
-x0=[scale_0 shape_0];
-bounds.lb=[0.0001 0.0001];
-bounds.ub=[1 5];
-        
+x0=cellfun(@(x) mean(x),params_MDR.pars_range, 'UniformOutput', 1);
+bounds.lb=cellfun(@(x) x(1),params_MDR.pars_range, 'UniformOutput', 1);
+bounds.ub=cellfun(@(x) x(2),params_MDR.pars_range, 'UniformOutput', 1);
 
 % lower bounds are normalized to 1
 norm.lb = ones(size(bounds.lb));
@@ -213,11 +206,12 @@ norm.x0 = (x0-bounds.lb)./(bounds.ub-bounds.lb) .* (norm.ub-norm.lb) + norm.lb;
 % define anonymous function with input factor x (parameters of the damage
 % function):
 % delta_shape_parameter is specific to TCs, can be removed.
-params_MDR=[];
-params_MDR.use_YDS = params.use_YDS;
-params_MDR.damFun_xVals = params.damFun_xVals;
-fun = @(x)calibrate_params_MDR(x,MDR_func, entity_list, hazard_list, emdat_list, norm, bounds,optimizerType,params_MDR); % sets all inputvar for the function except for x, use normalized x.
-
+params_MDR2=[];
+params_MDR2.use_YDS = params_MDR.use_YDS;
+params_MDR2.damFun_xVals = params_MDR.damFun_xVals;
+% sets all inputvar for the function except for x, use normalized x.
+fun = @(x)calibrate_params_MDR(x,MDR_func, params_MDR.years_range, ...
+    entity_list, hazard_list, emdat_list, norm, bounds,optimizerType,params_MDR2);
 
 %parpool('local_small')
 if full_parameter_search
@@ -247,53 +241,9 @@ if full_parameter_search
 end
 % clear entity hazard
 
-% calibration of single countries with more than or equal to N_min damage years
-if calibrate_countries
-    N_min = 1;
-    
-    clear entity
-    em_data_country.year = em_data_region.year;
-    result.result_c = NaN*ones(length(country_list),length(x0));
-    result.fval_c = NaN*ones(length(country_list),1);
-    N_damageyears = result.fval_c;
-    options = optimoptions('patternsearch','UseParallel',false,...
-        'UseCompletePoll', true, 'UseVectorized', false,...
-        'MaxFunctionEvaluations',1200,'Display','iter',...
-        'Cache','on','InitialMeshSize',.25,...
-        'PollMethod','GPSPositiveBasis2N','StepTolerance',0.001);
-    
-    for i_c = 1:length(country_list)
-        %%
-        N_damageyears(i_c) = sum(em_data_region.(['damage_' country_list{i_c}])>0);
-        disp([country_list{i_c} ', N=' num2str(N_damageyears(i_c))]);
-        if N_damageyears(i_c) >= N_min
-            entity = climada_entity_load([country_list{i_c} '_GDP_LitPop_BM2016_' num2str(resolution) 'arcsec_ry' num2str(reference_year) '.mat']);
-            em_data_country.damage = em_data_region.(['damage_' country_list{i_c}]);
-            fun = @(x)calibrate_TC_DF_emdat_region(x,delta_shape_parameter, entity, hazard, em_data_country, norm, bounds,optimizerType);
-            if sum(entity.assets.Value)>0
-                [x_result,result.fval_c(i_c)] = patternsearch(fun,norm.x0,[],[],[],[],norm.lb,norm.ub,[],options);
-            
-                result.result_c(i_c,:)=(x_result-norm.lb).*(bounds.ub-bounds.lb)./(norm.ub-norm.lb)+bounds.lb
-            else
-                %result.result_c(i_c,:)=[NaN NaN];
-                warning('entity contains no values');
-            end
-        end
-    end
-    %%
-    if save_output
-        save_file_name = [savedir filesep regions.mapping.TCBasinName{find(regions.mapping.TCBasinID==TCBasinID,1)}...
-            '_' peril_ID '_decay_region_countries_calibrate_litpop_gdp_' num2str(number_free_parameters) '-' num2str(value_mode) '-' num2str(resolution) '.mat'];
-        
-        while (~force_overwrite_output && exist(save_file_name,'file')),save_file_name=strrep(save_file_name,'.mat','_.mat');end % avoid overwriting
-        
-        save(save_file_name,'country_list','result','fval','resolution','years_considered','-v7.3');
-        save_file_name
-    end
-end
 
 
-if on_cluster, cd /cluster/home/eberenzs/ ;exit; end;
+if on_cluster, exit; end;
 
 
 end
@@ -375,7 +325,7 @@ if remove_years_0emdat
         end
         fprintf([list_to_print, '\n'])
     else
-        error('** ERROR ** unexpected value in params.remove_years_0emdat *****')
+        error('** ERROR ** unexpected value in params_MDR.remove_years_0emdat *****')
         return
     end
 end
@@ -437,24 +387,6 @@ if remove_years_0YDS.do
     end
     % now add to years_in
     years_in = years_in & EDS_keep;
-    %     % (2) calculate YDS
-    %     EDS = climada_EDS_calc(entity,hazard,[],[],2);
-    %     % SAM: this is just to sum damages per year - not relevant for me.
-    %     [~,YDS] = evalc('climada_EDS2YDS(EDS,hazard)');
-    %     [LIA,LOCB] = ismember(em_data_region.year,YDS.yyyy);
-    %     % exclude years with 0-damage-entries:
-    %     year_i_vector = find(LIA);
-    %     year_i_vector(em_data_region.damage(year_i_vector)==0)=[];
-    %     % years without any event in climada (hazard set)
-    %     year_i_vector(YDS.damage(LOCB(year_i_vector))==0)=[];
-    %     em_data_region.damage = em_data_region.damage(year_i_vector);
-    %     em_data_region.year = em_data_region.year(year_i_vector);
-    %     for i_c = 1:length(country_list)
-    %         em_data_region.(['damage_' country_list{i_c}])=em_data_region.(['damage_' country_list{i_c}])(year_i_vector);
-    %     end
-    %     % figure(9); hold on;plot(em_data_region.year, em_data_region.damage,'rx');hold off;
-    %     N_years = length(find(em_data_region.damage>0));
-    %     disp(N_years)
 end
 
 % remove years from all data
