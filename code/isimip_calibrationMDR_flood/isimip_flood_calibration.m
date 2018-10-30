@@ -86,6 +86,7 @@ function [status,output_filename]=isimip_flood_calibration(RegionID,years_range,
 %           'MMMed':Multi-Model Median damage estimate vs observated damages.
 %       step_tolerance: parameter step tolerance for patternsearch
 %           algorithm. Default=0.001.
+%       parallel: =true to use parellelization for the optimization. Default=false.
 % OUTPUTS:
 %   status: 1 if successful, 0 if not.
 %   output_filename: a file name for the .mat file generated.
@@ -144,6 +145,7 @@ if ~isfield(params_MDR,'damFun_xVals'), warning('** warning ** params_MDR.damFun
 % params_calibration
 if ~isfield(params_calibration,'type'),params_calibration.type='R2';end
 if ~isfield(params_calibration,'MM_how'),params_calibration.MM_how='MMM';end
+if ~isfield(params_calibration,'parallel'),params_calibration.parallel=false;end
 
 
 %% 0) Get variables and paths

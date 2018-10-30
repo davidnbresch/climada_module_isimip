@@ -31,13 +31,15 @@ cd /cluster/home/bguillod/climada % to make sure the cluster finds climada
 startup % climada_global exists afterwards
 pwd % just to check where the job is running from
 N_pool_workers=24; % for parpool
-climada_global.parfor=1; % for parpool
+parallel_what='optim'; % 'optim' to parallelize the optimization algorithm, 'parfor' to parallelize the computation of damages etc.
+
 
 % prepare input parameters
 RegionID='NAM';
 years_range=[1990 2010];
 %params
 params=struct;
+params.entity_folder='/cluster/work/climate/dbresch/climada_data/isimip/entities';
 params.hazard_protection = 'flopros';
 params.subtract_matsiro = 0;
 params.entity_year = 0;
@@ -48,11 +50,24 @@ params_MDR.remove_years_0YDS.do=0;
 params_MDR.damFun_xVals=0:0.5:12;
 %params_calibration
 params_calibration=struct;
-params_calibration.type='R2';
+params_calibration.type='dlog2';
 params_calibration.MM_how='MMM';
 params_calibration.step_tolerance=0.05;
 
+switch parallel_what
+    case 'optim'
+        climada_global.parfor=0;
+        params_calibration.parallel=true;
+    case 'parfor'
+        climada_global.parfor=1;
+        params_calibration.parallel=false;
+    otherwise
+        error('** unexpected value in parallel_what **');
+end
+
+pool=parpool(N_pool_workers);
 [status,file_out]=isimip_flood_calibration(RegionID,years_range,params,params_MDR,params_calibration);
+delete(pool)
 
 if status
     fprintf('Calibration has succeeded\n');

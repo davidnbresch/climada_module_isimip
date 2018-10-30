@@ -201,7 +201,7 @@ result = cost_function(damages_yearly, emdat_yearly, params_calibration.type);
 % save result to file
 if isfield(params_calibration, 'write_outfile')
     fileID=fopen(params_calibration.write_outfile,'a');
-    fprintf(fileID,'%g %g %g',x(1),x(2),result);
+    fprintf(fileID,'%g %g %g\n',x(1),x(2),result);
     fclose(fileID);
 end
 
