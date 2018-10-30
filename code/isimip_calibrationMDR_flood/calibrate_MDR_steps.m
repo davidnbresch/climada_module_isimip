@@ -85,7 +85,6 @@ function [ optimal_pars ] = calibrate_MDR_steps(entity_list, hazard_list, ...
 global climada_global
 
 %% 0) check input arguments
-if ~exist('RegionID','var'),error('Input parameter RegionID is missing');end %
 if ~exist('entity_list','var'),error('Input parameter entity_list is missing');end
 if ~exist('hazard_list','var'),error('Input parameter hazard_list is missing');end
 if ~exist('emdat_list','var'),error('Input parameter emdat_list is missing');end
@@ -190,7 +189,7 @@ if full_parameter_search
     'UseCompletePoll', true, 'UseVectorized', false,...
     'MaxFunctionEvaluations',1200,'Display','iter',...
     'Cache','on','InitialMeshSize',.25,...
-    'PollMethod','GPSPositiveBasis2N','StepTolerance',step_tolerance);
+    'PollMethod','GPSPositiveBasis2N','StepTolerance',params_calibration.step_tolerance);
     tic
     [x_result,fval] = patternsearch(fun,norm_x0,[],[],[],[],norm.lb,norm.ub,[],options);
     toc

@@ -161,14 +161,14 @@ end
 %% 0+) prepare output: fill in params for calibrate_MDR_steps including file name to be saved
 params_step=struct;
 %define filename
-filename_calib = ['calib_' RegionID '_' years_range(1) '-' years_range(2) '_calib-' params_calibration.type '-' params_calibration.MM_how];
-filename_haz = ['Haz-Prot' params.hazard_protection '-subMATSIRO' params.subtract_matsiro];
-filename_ent = ['_Entity-Year' params.entity_year];
-filename_filter = ['_Filters-emdat' params_MDR.remove_years_0emdat '-YDS' params_MDR.remove_years_0YDS.do];
+filename_calib = ['calib_' RegionID '_' num2str(years_range(1)) '-' num2str(years_range(2)) '_calib-' params_calibration.type '-' params_calibration.MM_how '-step' num2str(params_calibration.step_tolerance)];
+filename_haz = ['Haz-Prot' params.hazard_protection '-subMATSIRO' num2str(params.subtract_matsiro)];
+filename_ent = ['_Entity-Year' num2str(params.entity_year)];
+filename_filter = ['_Filters-emdat' num2str(params_MDR.remove_years_0emdat) '-YDS' num2str(params_MDR.remove_years_0YDS.do)];
 if params_MDR.remove_years_0YDS.do
-   filename_filter = [filename_filter '-t' params_MDR.remove_years_0YDS.threshold '-w' params_MDR.remove_years_0YDS.what '-m' params_MDR.remove_years_0YDS.min_val];
+   filename_filter = [filename_filter '-t' num2str(params_MDR.remove_years_0YDS.threshold) '-w' params_MDR.remove_years_0YDS.what '-m' num2str(params_MDR.remove_years_0YDS.min_val)];
 end
-filename_pars = ['_pars' params_MDR.pars_range{1}(1) '-' params_MDR.pars_range{1}(2) '-' params_MDR.pars_range{2}(1) '-' params_MDR.pars_range{2}(2)];
+filename_pars = ['_pars' num2str(params_MDR.pars_range{1}(1)) '-' num2str(params_MDR.pars_range{1}(2)) '-' num2str(params_MDR.pars_range{2}(1)) '-' num2str(params_MDR.pars_range{2}(2))];
 filename = [filename_calib '_' filename_haz '_' filename_ent '_' filename_filter '_' filename_pars '.mat'];
 % add to params_step (params in calibrate_MDR_steps)
 params_step.savefile=[params.output_folder filesep filename];
@@ -176,7 +176,7 @@ output_filename=params_step.savefile;
 fprintf('Output file will be %s:\n', output_filename);
 
 %% 1) load entities - N entities for N countries
-entity_list=cell(length(countries));
+entity_list=cell(length(countries),1);
 for i=1:length(countries)
     country_iso3 = countries_iso3{i};
     entity_file_isimip_i=[params.entity_folder filesep params.entity_prefix strtrim(country_iso3) '_0150as_entity'];
@@ -203,7 +203,7 @@ end
 %% 2) load hazards. 46*N hazards, as there are 46 model combinations
 ghms = {'CLM', 'DBH', 'H08', 'JULES-TUC', 'JULES-UoE', 'LPJmL', 'MATSIRO', 'MPI-HM', 'ORCHIDEE', 'PCR-GLOBWB', 'VEGAS', 'VIC', 'WaterGAP'};
 forcings = {'gswp3', 'princeton', 'watch', 'wfdei'};
-hazard_list=cell(length(countries));
+hazard_list=cell(length(countries),1);
 for i=1:length(countries)
     hazard_list{i} = {};
     ii = 0;
@@ -241,7 +241,7 @@ end
 
 
 %% 3) load EM-DAT
-emdat_list=cell(length(countries));
+emdat_list=cell(length(countries),1);
 all_years = years_range(1):years_range(2);
 for i=1:length(countries)
     country_iso3 = countries_iso3{i};
