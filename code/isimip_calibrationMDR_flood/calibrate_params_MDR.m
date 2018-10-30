@@ -65,6 +65,8 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,...
 %       MM_how (string): how to deal with Multi-Model hazard sets, one of:
 %           'MMM':  Multi-Model Mean damage estimate vs observated damages.
 %           'MMMed':Multi-Model Median damage estimate vs observated damages.
+%       step_tolerance: parameter step tolerance for patternsearch
+%           algorithm. Default=0.001.
 % OUTPUTS:
 %   status: 1 if successful, 0 if not.
 %   output_filename: a file name for the .mat file generated.
