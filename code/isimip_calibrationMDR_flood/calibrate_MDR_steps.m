@@ -53,12 +53,18 @@ function [ optimal_pars ] = calibrate_MDR_steps(entity_list, hazard_list, ...
 %        ensure a maximum MDR value.
 %   params_calibration: parameters for the calibration:
 %       type (string): cost function, one of:
-%           'AED':  "Annual Expected Damage": result is the squared
+%           'AED2':  "Annual Expected Damage": result is the squared
 %                   difference of mean year damage 
-%           'R2':   (DEFAULT) result is R^2 (= the sum of squared differences of
+%           'R2':   (DEFAULT) result is R^2 (= the mean of squared differences of
+%                   year damages of emdat and climada for each specific historical year).
+%           'R4':   result is R^4 (= the sum of ^4 differences of
 %                   year damages of emdat and climada for each specific historical year).
 %           'R':    result is R (= the sum of the absolute differences of
 %                   year damages of emdat and climada for each specific historical year).
+%           'dlog2':as R2 but with log: result is R (= the mean of the squared differences of
+%                   year log damages of emdat and climada for each specific historical year).
+%           'dabslog':as R but with log (= the mean of the absolute differences of
+%                   yearly log damages of emdat and climada for each specific historical year).
 %           'RP':   "Return Period": as AED but for different return
 %                   periods with weights (not implemented yet) - only makes
 %                   sense for long time series
@@ -67,6 +73,8 @@ function [ optimal_pars ] = calibrate_MDR_steps(entity_list, hazard_list, ...
 %           'MMMed':Multi-Model Median damage estimate vs observated damages.
 %       step_tolerance: parameter step tolerance for patternsearch
 %           algorithm. Default=0.001.
+%       write_outfile: name of a file where the result from each step
+%           should be saved.
 % OPTIONAL INPUT PARAMETERS:
 %   params: a structure with fields:
 %     savefile: file where the output should be saved.
@@ -82,7 +90,7 @@ function [ optimal_pars ] = calibrate_MDR_steps(entity_list, hazard_list, ...
 % https://ch.mathworks.com/help/gads/examples/constrained-minimization-using-pattern-search.html
 
 % initialization
-global climada_global
+global climada_global;
 
 %% 0) check input arguments
 if ~exist('entity_list','var'),error('Input parameter entity_list is missing');end
@@ -186,10 +194,17 @@ if full_parameter_search
     
     
     options = optimoptions('patternsearch','UseParallel',false,...
-    'UseCompletePoll', true, 'UseVectorized', false,...
-    'MaxFunctionEvaluations',1200,'Display','iter',...
-    'Cache','on','InitialMeshSize',.25,...
-    'PollMethod','GPSPositiveBasis2N','StepTolerance',params_calibration.step_tolerance);
+        'UseCompletePoll', true, 'UseVectorized', false,...
+        'MaxFunctionEvaluations',1200,'Display','iter',...
+        'Cache','on','InitialMeshSize',.25,...
+        'PollMethod','GPSPositiveBasis2N','StepTolerance',params_calibration.step_tolerance);
+
+    if isfield(params_calibration, 'write_outfile')
+        fileID=fopen(params_calibration.write_outfile,'w');
+        fprintf(fileID,'%s %s %s','x(1)','x(2)','cost_value');
+        fclose(fileID);
+    end
+
     tic
     [x_result,fval] = patternsearch(fun,norm_x0,[],[],[],[],norm.lb,norm.ub,[],options);
     toc

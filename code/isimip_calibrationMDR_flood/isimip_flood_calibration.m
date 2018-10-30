@@ -66,12 +66,18 @@ function [status,output_filename]=isimip_flood_calibration(RegionID,years_range,
 %        ensure a maximum MDR value.
 %   params_calibration: parameters for the calibration. A structure with fields:
 %       type (string): cost function, one of:
-%           'AED':  "Annual Expected Damage": result is the squared
+%           'AED2':  "Annual Expected Damage": result is the squared
 %                   difference of mean year damage 
-%           'R2':   (DEFAULT) result is R^2 (= the sum of squared differences of
+%           'R2':   (DEFAULT) result is R^2 (= the mean of squared differences of
+%                   year damages of emdat and climada for each specific historical year).
+%           'R4':   result is R^4 (= the sum of ^4 differences of
 %                   year damages of emdat and climada for each specific historical year).
 %           'R':    result is R (= the sum of the absolute differences of
 %                   year damages of emdat and climada for each specific historical year).
+%           'dlog2':as R2 but with log: result is R (= the mean of the squared differences of
+%                   year log damages of emdat and climada for each specific historical year).
+%           'dabslog':as R but with log (= the mean of the absolute differences of
+%                   yearly log damages of emdat and climada for each specific historical year).
 %           'RP':   "Return Period": as AED but for different return
 %                   periods with weights (not implemented yet) - only makes
 %                   sense for long time series
@@ -173,7 +179,10 @@ filename = [filename_calib '_' filename_haz '_' filename_ent '_' filename_filter
 % add to params_step (params in calibrate_MDR_steps)
 params_step.savefile=[params.output_folder filesep filename];
 output_filename=params_step.savefile;
-fprintf('Output file will be %s:\n', output_filename);
+fprintf('Output file will be: %s\n', output_filename);
+[temp1,temp2,temp3]=fileparts(output_filename);
+params_calibration.write_outfile=[temp1 filesep temp2 '_steps.dat'];
+fprintf('Results from each optimization steps will be saved in: %s\n', params_calibration.write_outfile);
 
 %% 1) load entities - N entities for N countries
 entity_list=cell(length(countries),1);

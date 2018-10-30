@@ -53,12 +53,18 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,...
 %           entity_list{1}.assets.DamageFunID (must be unique in the entity)
 %   params_calibration: parameters for the calibration:
 %       type (string): cost function, one of:
-%           'AED':  "Annual Expected Damage": result is the squared
+%           'AED2':  "Annual Expected Damage": result is the squared
 %                   difference of mean year damage 
-%           'R2':   (DEFAULT) result is R^2 (= the sum of squared differences of
+%           'R2':   (DEFAULT) result is R^2 (= the mean of squared differences of
+%                   year damages of emdat and climada for each specific historical year).
+%           'R4':   result is R^4 (= the sum of ^4 differences of
 %                   year damages of emdat and climada for each specific historical year).
 %           'R':    result is R (= the sum of the absolute differences of
 %                   year damages of emdat and climada for each specific historical year).
+%           'dlog2':as R2 but with log: result is R (= the mean of the squared differences of
+%                   year log damages of emdat and climada for each specific historical year).
+%           'dabslog':as R but with log (= the mean of the absolute differences of
+%                   yearly log damages of emdat and climada for each specific historical year).
 %           'RP':   "Return Period": as AED but for different return
 %                   periods with weights (not implemented yet) - only makes
 %                   sense for long time series
@@ -67,6 +73,8 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,...
 %           'MMMed':Multi-Model Median damage estimate vs observated damages.
 %       step_tolerance: parameter step tolerance for patternsearch
 %           algorithm. Default=0.001.
+%       write_outfile: name of a file where the result from each step
+%           should be saved.
 % OUTPUTS:
 %   status: 1 if successful, 0 if not.
 %   output_filename: a file name for the .mat file generated.
@@ -190,6 +198,13 @@ damages_yearly=damages_yearly(not_nans);
 %% (3) provide difference to em_data
 result = cost_function(damages_yearly, emdat_yearly, params_calibration.type);
 
+% save result to file
+if isfield(params_calibration, 'write_outfile')
+    fileID=fopen(params_calibration.write_outfile,'a');
+    fprintf(fileID,'%g %g %g',x(1),x(2),result);
+    fclose(fileID);
+end
+
 climada_global.damage_at_centroid = damage_at_centroid_temp;
 clear EDS YDS em_data LIA LOCB year_i damage_at_centroid_temp
 
@@ -201,7 +216,7 @@ result=nan;
 switch type
     case 'AED2'
         % squared of the difference in yearly mean damage
-        result = (mean(emdat_yearly)-mean(damages_yearly))^2;
+        result = (mean(emdat_yearly)-mean(damages_yearly)).^2;
     case 'R2'
         % mean of the yearly squared difference
         result = mean(diff_yearly.^2);
@@ -213,7 +228,7 @@ switch type
         result = mean(abs(diff_yearly));
     case 'dlog2'
         % mean of the yearly squared difference of the log
-        result = mean((log(emdat_yearly)-log(damages_yearly))^2);
+        result = mean((log(emdat_yearly)-log(damages_yearly)).^2);
     case 'dabslog'
         % mean of the yearly absolute difference of the log
         result = mean(abs(log(emdat_yearly)-log(damages_yearly)));

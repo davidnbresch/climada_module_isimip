@@ -50,6 +50,7 @@ params_MDR.damFun_xVals=0:0.5:12;
 params_calibration=struct;
 params_calibration.type='R2';
 params_calibration.MM_how='MMM';
+params_calibration.step_tolerance=0.05;
 
 [status,file_out]=isimip_flood_calibration(RegionID,years_range,params,params_MDR,params_calibration);
 
