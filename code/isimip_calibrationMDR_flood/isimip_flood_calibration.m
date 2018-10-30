@@ -116,7 +116,7 @@ if ~isfield(params,'entity_year'), params.entity_year=0;end
 if ~isempty(params.entity_prefix)
     if ~strcmp(params.entity_prefix(end),'_'),params.entity_prefix=[params.entity_prefix '_'];end
 end
-if ~isfield(params, 'output_folder'),output_folder=[climada_global.data_dir filesep 'isimip/results/calibration'];end
+if ~isfield(params, 'output_folder'),params.output_folder=[climada_global.data_dir filesep 'isimip/results/calibration'];end
 % params_MDR
 if ~isfield(params_MDR,'remove_years_0emdat'),params_MDR.remove_years_0emdat=0;end
 if ~isfield(params_MDR,'remove_years_0YDS'),params_MDR.remove_years_0YDS.do=0;end
@@ -140,7 +140,7 @@ if ~isfield(params_calibration,'type'),params_calibration.type='R2';end
 if ~isfield(params_calibration,'MM_how'),params_calibration.MM_how='MMM';end
 
 
-%% Get variables and paths
+%% 0) Get variables and paths
 % get countries that belong to the region
 NatID_RegID_file = [params.RegID_def_folder filesep 'NatID_RegID_isimip_flood.csv'];
 NatID_RegID_flood = readtable(NatID_RegID_file);
@@ -158,6 +158,22 @@ for i=1:length(countries)
     [~,countries_iso3{i}] =  climada_country_name(countries{i});
 end
 
+%% 0+) prepare output: fill in params for calibrate_MDR_steps including file name to be saved
+params_step=struct;
+%define filename
+filename_calib = ['calib_' RegionID '_' years_range(1) '-' years_range(2) '_calib-' params_calibration.type '-' params_calibration.MM_how];
+filename_haz = ['Haz-Prot' params.hazard_protection '-subMATSIRO' params.subtract_matsiro];
+filename_ent = ['_Entity-Year' params.entity_year];
+filename_filter = ['_Filters-emdat' params_MDR.remove_years_0emdat '-YDS' params_MDR.remove_years_0YDS.do];
+if params_MDR.remove_years_0YDS.do
+   filename_filter = [filename_filter '-t' params_MDR.remove_years_0YDS.threshold '-w' params_MDR.remove_years_0YDS.what '-m' params_MDR.remove_years_0YDS.min_val];
+end
+filename_pars = ['_pars' params_MDR.pars_range{1}(1) '-' params_MDR.pars_range{1}(2) '-' params_MDR.pars_range{2}(1) '-' params_MDR.pars_range{2}(2)];
+filename = [filename_calib '_' filename_haz '_' filename_ent '_' filename_filter '_' filename_pars '.mat'];
+% add to params_step (params in calibrate_MDR_steps)
+params_step.savefile=[params.output_folder filesep filename];
+output_filename=params_step.savefile;
+fprintf('Output file will be %s:\n', output_filename);
 
 %% 1) load entities - N entities for N countries
 entity_list=cell(length(countries));
@@ -255,23 +271,6 @@ MDR_fun = @(x,pars)FunctionHandle(x,pars);
 %% 5) fill in params_MDR including file name to be saved
 params_MDR.years_range = years_range;
 params_MDR.use_YDS = ~params.entity_year;
-
-%% 5) fill in params for calibrate_MDR_steps including file name to be saved
-params_step=struct;
-%define filename
-filename_calib = ['calib_' RegionID '_' years_range(1) '-' years_range(2) '_calib-' params_calibration.type '-' params_calibration.MM_how];
-filename_haz = ['Haz-Prot' params.hazard_protection '-subMATSIRO' params.subtract_matsiro];
-filename_ent = ['_Entity-Year' params.entity_year];
-filename_filter = ['_Filters-emdat' params_MDR.remove_years_0emdat '-YDS' params_MDR.remove_years_0YDS.do];
-if params_MDR.remove_years_0YDS.do
-   filename_filter = [filename_filter '-t' params_MDR.remove_years_0YDS.threshold '-w' params_MDR.remove_years_0YDS.what '-m' params_MDR.remove_years_0YDS.min_val];
-end
-filename_pars = ['_pars' params_MDR.pars_range{1}(1) '-' params_MDR.pars_range{1}(2) '-' params_MDR.pars_range{2}(1) '-' params_MDR.pars_range{2}(2)];
-filename = [filename_calib '_' filename_haz '_' filename_ent '_' filename_filter '_' filename_pars '.mat'];
-% add to params_step (params in calibrate_MDR_steps)
-params_step.savefile=[params.output_folder filesep filename];
-output_filename=params_step.savefile;
-fprintf('Output file will be %s:\n', output_filename);
 
 
 
