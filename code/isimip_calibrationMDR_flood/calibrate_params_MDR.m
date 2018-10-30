@@ -1,4 +1,6 @@
-function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,entity_list, hazard_list, emdat_list,norm_bnds,bounds,params_MDR,params_calibration)
+function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,...
+    entity_list, hazard_list, emdat_list,norm,bounds,...
+    params_MDR,params_calibration)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -22,7 +24,7 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,entity_list, ha
 %   [result]=calibrate_params_MDR([1.5 1.5],...[to be completed])
 % INPUTS:
 %   x: double/vector, the two parameters to be calibrated (normalized value
-%       if arguments norm_bnds and bounds are provided; otherwise assumed
+%       if arguments norm and bounds are provided; otherwise assumed
 %       to be non-normalized).
 %   MDR_fun: function with three arguments: hazard_intensity, and both
 %       parameters
@@ -31,18 +33,24 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,entity_list, ha
 %   hazard_list: list of hazard, see function calibrate_MDR_steps
 %   emdat_list: list of observed damages, see function calibrate_MDR_steps
 % OPTIONAL INPUT PARAMETERS:
-%   norm_bnds: structure containing lb and ub, the lower and upper normalization
-%       (never set to 0) bounds of both parameters (norm.lb, norm.ub)
+%   norm: structure containing lb and ub, the lower and upper normalization
+%       (never set to 0) bounds of both parameters (norm.lb, norm.ub).
+%       Usually, norm.lb=[1 1] and norm.ub=[2 2].
 %   bounds: structure containing lb and ub, the lower and upper bounds of
-%       parameter values (bounds.ub, bounds.lb) expressed as normalized
-%       values. Goes along with norm_bnds: Must be provided if norm_bnds is
-%       provided, cannot be provided if norm_bnds is not provided.
+%       parameter values (bounds.ub, bounds.lb) expressed as non-normalized
+%       values. Goes along with norm: Must be provided if norm is
+%       provided, cannot be provided if norm is not provided. These
+%       two input parameters are used to compute the raw x value if x is
+%       given as a normalized value.
 %   params_MDR: parameters for the damage function:
 %       damFun_xVals: vector of value of hazard intensity to be used when
-%           creating the damage function based on MDR_func (e.g. 0:0.5:10).
-%           The second last values will be set to the last value in order to
-%           ensure a maximum MDR value.
+%           creating the damage function based on MDR_fun (e.g. 0:0.5:10).
+%           The last value will be repeated a second time at
+%           max(damFun_xVals)+5 in order to ensure a maximum MDD value.
 %       use_YDS: =1 to use yearly-varying assets. Default =0.
+%       peril_ID: if not given, is retrieved from hazard_list{1}{1}.peril_ID
+%       DamFunID: if not given, is retrieved from
+%           entity_list{1}.assets.DamageFunID (must be unique in the entity)
 %   params_calibration: parameters for the calibration:
 %       type (string): cost function, one of:
 %           'AED':  "Annual Expected Damage": result is the squared
@@ -62,6 +70,8 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,entity_list, ha
 %   output_filename: a file name for the .mat file generated.
 % MODIFICATION HISTORY:
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181015, initial
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181022, split into
+%    sub-functions, test works
 %   
 %-
 
@@ -75,7 +85,7 @@ climada_global.damage_at_centroid = 0;
 peril_ID = hazard_list{1}{1}.peril_ID;
 DamFunID=unique(entity_list{1}.assets.DamageFunID(~isnan(entity_list{1}.assets.DamageFunID)));
 
-% check input arguments
+%% 0) check input arguments
 if ~exist('x','var'),error('Input parameter x is missing');end %
 if ~exist('MDR_fun','var'),error('Input parameter MDR_fun is missing');end %
 if ~exist('entity_list','var'),error('Input parameter entity_list is missing');end %
@@ -87,13 +97,15 @@ elseif (exist('norm','var') && exist('bounds','var')) % compute x from normalize
     norm.x = x; % if x was given normalized, do inverse normalization to get actual value of x
     x=(norm.x-norm.lb).*(bounds.ub-bounds.lb)./(norm.ub-norm.lb)+bounds.lb;
 end
-if ~exist(params_calibration),params_calibration=[];end
+if ~exist('params_calibration','var'),params_calibration=[];end
+if ~exist('params_MDR','var'),params_MDR=[];end
+
+% check for some parameter fields we need
 if ~isfield(params_calibration,'type'),params_calibration.type='R2';end
 if ~isfield(params_calibration,'MM_how'),params_calibration.MM_how='MMM';end
 if ~ismember(params_calibration.MM_how, {'MMM', 'MMMed'})
     error('Unexpected input value in params_calibration.MM_how')
 end
-if ~exist(params_MDR),params_MDR=[];end
 if ~isfield(params_MDR,'damFun_xVals')
     % give intensity scale the one of the existing damage function in the entity
     choose_DF = find(strcmp(entity_list{1}.damagefunctions.peril_ID,peril_ID) .* (entity_list{1}.damagefunctions.DamageFunID==DamFunID(1)));
@@ -113,7 +125,7 @@ for i=1:length(entity_list)
     entity_list{i}.damagefunctions=damFun;
 end
 
-%% (2) calculate YDS
+%% (2) calculate damages (YDS or EDS)
 
 % commented lines below just for reference, can be deleted later on
 %     EDS_FL_2005=climada_EDS_calc(entity_isimip,hazard_FL,'',0,2); % the damage calculation
@@ -147,12 +159,12 @@ for i=1:length(entity_list)
 end
 
 % MM_how (string): how to deal with Multi-Model hazard sets, one of:
-damages_mat = zeros([length(entity_list),length(hazard_list{1})]);
+%damages_mat = zeros([length(entity_list),length(hazard_list{1})]);
 switch params_calibration.MM_how
     case 'MMM'
         damages_mat = squeeze(mean(damages_fullmat,2));
     case 'MMMed'
-        damages_mat = median(damages_fullmat,2);
+        damages_mat = squeeze(median(damages_fullmat,2));
     otherwise
         error('** ERROR ** unexpected value in params_calibration.MM_how *****');
 end
@@ -171,7 +183,6 @@ if ~all(check_nans)
 end
 emdat_yearly=emdat_yearly(not_nans);
 damages_yearly=damages_yearly(not_nans);
-diff_yearly=damages_yearly-emdat_yearly;
 
 
 %% (3) provide difference to em_data
@@ -187,28 +198,25 @@ diff_yearly=damages_yearly-emdat_yearly;
 result=nan;
 switch type
     case 'AED2'
-%       squared of the difference in yearly mean damage
+        % squared of the difference in yearly mean damage
         result = (mean(emdat_yearly)-mean(damages_yearly))^2;
     case 'R2'
         % mean of the yearly squared difference
         result = mean(diff_yearly.^2);
     case 'R4'
+        % mean of the yearly ^4 difference
         result = mean(diff_yearly.^4);
     case 'R'
-        result = sum(abs(diff_yearly));
-    case 'logR'
-                [~,YDS] = evalc('climada_EDS2YDS(EDS,hazard)');
-        [LIA,LOCB] = ismember(em_data.year,YDS.yyyy);
-        % exclude years with 0-damage-entries:
-        year_i_vector = find(LIA);
-        year_i_vector(em_data.damage(year_i_vector)==0)=[]; 
-     %   year_i_vector(YDS.damage(LOCB(year_i_vector))==0)=[];
-
-        result = sum(log(abs(em_data.damage(year_i_vector) - YDS.damage(LOCB(year_i_vector)))));
-
-
+        % mean of the yearly absolute difference
+        result = mean(abs(diff_yearly));
+    case 'dlog2'
+        % mean of the yearly squared difference of the log
+        result = mean((log(emdat_yearly)-log(damages_yearly))^2);
+    case 'dabslog'
+        % mean of the yearly absolute difference of the log
+        result = mean(abs(log(emdat_yearly)-log(damages_yearly)));
     case 'RP'
-        warning('Type RP not yet implemented, returning squared difference in AED instead');
+        error('Type RP not yet implemented, returning squared difference in AED instead');
         em_data_yyyy_allYears = em_data.year(1):em_data.year(end);
         em_data_damage_allYears = zeros(size(em_data_yyyy_allYears));
         for year_i = em_data_yyyy_allYears
@@ -227,12 +235,9 @@ function damFun = create_damagefunction_from_fun(MDR_fun, x, params_MDR)
 %   Creates a damage function based on function MDR_fun with parameters
 %   x(1) and x(2), with intensity values given by params_MDR.damFun_xVals
 %   and peril_ID and DamageFunID given by params_MDR.peril_ID and
-%   params_MDR.DamFunID, respectively. PAA is set to 1, and the second last
-%   value of MDD is set equal to the last value in order to ensure a
+%   params_MDR.DamFunID, respectively. PAA is set to 1, and the last
+%   value of MDD is repeated at max(Intensity)+5 in order to ensure a
 %   maximum value that is not exceeded.
-
-%global climada_global
-if ~climada_init_vars,return;end % init/import global variables
 
 % correctly position vectors
 if size(params_MDR.damFun_xVals,1)>size(params_MDR.damFun_xVals,2),params_MDR.damFun_xVals=params_MDR.damFun_xVals';end
@@ -240,13 +245,14 @@ if size(params_MDR.damFun_xVals,1)>size(params_MDR.damFun_xVals,2),params_MDR.da
 % create a damage function
 damFun=[]; % init output
 damFun.filename='create_damagefunction_from_fun';
-damFun.Intensity=params_MDR.damFun_xVals;
+damFun.Intensity=[params_MDR.damFun_xVals max(params_MDR.damFun_xVals)+5];
 damFun.DamageFunID=params_MDR.DamFunID*ones(size(damFun.Intensity));
 damFun.peril_ID=cellstr(repmat(params_MDR.peril_ID,length(damFun.Intensity),1))';
 damFun.Intensity_unit=repmat({'m'}',size(damFun.Intensity));
 damFun.peril_ID=cellstr(repmat(params_MDR.peril_ID,length(damFun.Intensity),1))';
-damFun.MDD = MDR_func(damFun.Intensity, x(1), x(2));
-damFun.MDD(length(damFun.MDD)-1) = damFun.MDD(end);
+damFun.MDD = MDR_fun(damFun.Intensity, x);
+% set the last value of MDD to second last value
+damFun.MDD(end) = damFun.MDD(end-1);
 damFun.PAA = ones(size(damFun.Intensity));
 name = 'Calibration damage function';
 damFun.name = repmat({name},size(damFun.Intensity));

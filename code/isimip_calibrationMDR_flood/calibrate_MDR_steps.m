@@ -1,5 +1,5 @@
-function result=calibrate_MDR_steps(RegionID, entity_list, hazard_list, ...
-    emdat_list, MDR_func, params, params_MDR, params_calibration)
+function [ optimal_pars ] = calibrate_MDR_steps(entity_list, hazard_list, ...
+    emdat_list, MDR_fun, params, params_MDR, params_calibration)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -8,52 +8,47 @@ function result=calibrate_MDR_steps(RegionID, entity_list, hazard_list, ...
 % PURPOSE:
 %   for a given Region (group of countries) and the corresponding lists (one
 %   element per country) of entities, hazard, EM-DAT damage data, calibrate
-%   the parameters of MDR_func to best match EM-DAT damages. Usually called
+%   the parameters of MDR_fun to best match EM-DAT damages. Usually called
 %   from 'isimip_flood_calibration'.
 %
 % CALLING SEQUENCE:
-%   [status,output_filename]=calibrate_MDR_steps(RegionID, entity_list, hazard_list, emdat_list, MDR_func, params_MDR)
+%   [status,output_filename]=calibrate_MDR_steps(entity_list, hazard_list, emdat_list, MDR_fun, params_MDR)
 % EXAMPLE:
-%   RegionID='NAM';
-%   [status,output_filename]=isimip_flood_calibration(RegionID,years_range)
+%   [status,output_filename]=calibrate_MDR_steps(entity_list, hazard_list, emdat_list, MDR_fun, params_MDR)
 % INPUTS:
-%   RegionID: country name (full name or ISO3)
 %   entity_list: a list of entities (cell array), one per country
 %   hazard_list: a list of hazard (cell array), or several per country. If
 %      several, a cell array of cell arrays.
 %   emdat_list: a list of EM-DAT damages (cell array) containing the fields
 %      'year' and 'values'.
-%   MDR_func: a function of x (hazard intensity) and two parameters to be
+%   MDR_fun: a function of x (hazard intensity) and two parameters to be
 %      calibrated (e.g., scale and shape).
-% OPTIONAL INPUT PARAMETERS:
-%   params: a structure with fields:
-%     savefile: file where the output should be saved, either full path or
-%       file name only and path given as params.savedir.
-%     savedir: directory where the output should be saved (optional).
 %   params_MDR: a structure with fields:
-%     years_range: range of years to be included (e.g. [1990 2010])
+%     years_range (optional): range of years to be included (e.g. [1990
+%        2010]). If not provided, retrieved from emdat_list{1}.year .
+%     use_YDS: =1 to use yearly-varying assets. =0 to use fixed asset values.
 %     remove_years_0emdat: determines how to filter years with zero EM-DAT
 %        damages (e.g., no damage).
 %        0=no filter (all years retained);
 %        1=remove years for which the sum of EM-DAT damages over all
 %        countries is 0;
 %        2=for each country, remove years with zero EM-DAT damages.
-%     remove_years_0YDS: list defining whether to exclude years with zero
-%        simulated damage as follows:
-%        do: =1 to exclude years with zero simulated damage. Default =0.
-%        threshold: value above which (>) damage is considered to occur to
-%           filter out years (required if do==1).
+%     remove_years_0YDS: list defining whether and how to exclude years
+%        with zero simulated damage as follows:
+%        do: =1 to exclude years with zero simulated damage. If =0, the
+%           other fields are not required.
+%        threshold: hazard intensity value above which (>) damage is
+%           considered to occur to filter out years (required if do==1).
 %        what: determines how to choose if several hazards are provided per
 %           country (possible choices: 'any', 'all', 'mean', 'median'). For
 %           instance, if 'any', then if any hazard set gives 0 damage the
 %           year-country event is removed.
-%        min_val: damage value below which damage is not considered to
-%           occur (default =0).
-%     use_YDS: =1 to use yearly-varying assets. Default =0.
+%        min_val: damage value (e.g. in USD) below which damage is not
+%           considered to occur (default =0).
 %     pars_range: range of parameter values (cell array, each element as
 %        [min_val max_val].
 %     damFun_xVals: vector of value of hazard intensity to be used when
-%        creating the damage function based on MDR_func (e.g. 0:0.5:10).
+%        creating the damage function based on MDR_fun (e.g. 0:0.5:10).
 %        The second last values will be set to the last value in order to
 %        ensure a maximum MDR value.
 %   params_calibration: parameters for the calibration:
@@ -70,9 +65,13 @@ function result=calibrate_MDR_steps(RegionID, entity_list, hazard_list, ...
 %       MM_how (string): how to deal with Multi-Model hazard sets, one of:
 %           'MMM':  Multi-Model Mean damage estimate vs observated damages.
 %           'MMMed':Multi-Model Median damage estimate vs observated damages.
+%       step_tolerance: parameter step tolerance for patternsearch
+%           algorithm. Default=0.001.
+% OPTIONAL INPUT PARAMETERS:
+%   params: a structure with fields:
+%     savefile: file where the output should be saved.
 % OUTPUTS:
-%   status: 1 if successful, 0 if not.
-%   output_filename: a file name for the .mat file generated.
+%   optimal pars: the values of the optimal parameter combination.
 % MODIFICATION HISTORY:
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180911, initial
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181009, split into
@@ -82,23 +81,25 @@ function result=calibrate_MDR_steps(RegionID, entity_list, hazard_list, ...
 
 % https://ch.mathworks.com/help/gads/examples/constrained-minimization-using-pattern-search.html
 
-%%
+% initialization
+global climada_global
 
-
+%% 0) check input arguments
 if ~exist('RegionID','var'),error('Input parameter RegionID is missing');end %
 if ~exist('entity_list','var'),error('Input parameter entity_list is missing');end
 if ~exist('hazard_list','var'),error('Input parameter hazard_list is missing');end
 if ~exist('emdat_list','var'),error('Input parameter emdat_list is missing');end
-if ~exist('MDR_func','var'),error('Input parameter MDR_func is missing');end
+if ~exist('MDR_fun','var'),error('Input parameter MDR_fun is missing');end
 if ~exist('params','var'),                  params=              struct;end
-if ~exist('params_MDR','var'),              params_MDR=          struct;end
-if ~exist('params_calibration','var'),      params_calibration=  struct;end
+if ~exist('params_MDR','var'),error('Input parameter params_MDR is missing');end
+if ~exist('params_calibration','var'),error('Input parameter params_calibration is missing');end
 
 % check for some parameter fields we need
-if ~isfield(params,'savedir'),          error('Input parameter params.savedir is missing');end
+% params_MDR
 if ~isfield(params_MDR,'years_range'),params_MDR.years_range=[min(emdat_list{1}.year) max(emdat_list{1}.year)];end
-if ~isfield(params_MDR,'remove_years_0emdat'),params_MDR.remove_years_0emdat=0;end
-if ~isfield(params_MDR,'remove_years_0YDS'),params_MDR.remove_years_0YDS.do=0;end
+if ~isfield(params_MDR,'use_YDS'),error('Input parameter params_MDR.use_YDS is missing');end
+if ~isfield(params_MDR,'remove_years_0emdat'),error('Input parameter params_MDR.remove_years_0emdat is missing');end
+if ~isfield(params_MDR,'remove_years_0YDS'),error('Input parameter params_MDR.remove_years_0YDS is missing');end
 if params_MDR.remove_years_0YDS.do
     if ~isfield(params_MDR.remove_years_0YDS,'threshold')
         error('** ERROR ** Input parameter params_MDR.remove_years_0YDS.threshold required since params_MDR.remove_years_0YDS.do==1 *****')
@@ -108,18 +109,16 @@ if params_MDR.remove_years_0YDS.do
     end
     if ~isfield(params_MDR.remove_years_0YDS, 'min_val'),params_MDR.remove_years_0YDS.min_val=0;end
 end
-if ~isfield(params_MDR,'use_YDS'),params_MDR.use_YDS=0;end
-if ~isfield(params_MDR, 'pars_range')
-    params_MDR.pars_range = {};
-    params_MDR.pars_range{1} = [0 1];
-    params_MDR.pars_range{2} = [0 5];
-end
-if ~isfield(params_calibration,'type'),params_calibration.type='R2';end
-if ~isfield(params_calibration,'MM_how'),params_calibration.MM_how='MMM';end
+if ~isfield(params_MDR, 'pars_range'),error('Input parameter params_MDR.pars_range is missing');end
+if ~isfield(params_MDR,'damFun_xVals'), warning('** warning ** params_MDR.damFun_xVals not set, intensity steps of the default damage function will be used *****');end
+% params_calibration
+if ~isfield(params_calibration,'type'),error('Input parameter params_calibration.type is missing');end
+if ~isfield(params_calibration,'MM_how'),error('Input parameter params_calibration.MM_how is missing');end
+if ~isfield(params_calibration,'step_tolerance'),params_calibration.step_tolerance=0.001;end
 
-% determine useful parameters
+%% 1) determine useful parameters, formatting
 country_list=cellfun(@(x) x.assets.admin0_ISO3,entity_list, 'UniformOutput', 0);
-n_countries = length(emdat_list);
+n_countries = length(country_list);
 
 % put hazard_list in double-cell mode in case only 1 hazard was provided.
 if ~iscell(hazard_list{1})
@@ -131,41 +130,10 @@ if ~iscell(hazard_list{1})
     end
 end
 
-
-
-
-
-
-
-% if ~exist('calibrate_countries','var'),calibrate_countries=[];end
-% if ~exist('hazard_filename','var'),hazard_filename=[];end
-% if ~exist('number_free_parameters','var'),number_free_parameters=[];end
-% if ~exist('years_considered','var'),years_considered=[];end
-
-
-
-% TCbasins = {'NAT' 'NWP' 'NIN' 'SIN' 'SWP' 'NNN'};
-% TCbasinIDs=[ 1     2     3     4     5     0];
-% if isempty(TCBasinID),TCBasinID=1;end
-% if isempty(resolution),resolution=300;end
-% if isempty(calibrate_countries),calibrate_countries=0;end
-% if isempty(hazard_filename),hazard_filename=['GLB_0360as_',peril_ID,'_hist'];end
-% if isempty(number_free_parameters),number_free_parameters=2;end
-
-
-
-encode = 0;
-optimizerType='R2';
-%optimizerType='R';
-%optimizerType='logR';
-
 full_parameter_search = 1;
-fminconSwitch = 0;
-save_output = 1;
-force_overwrite_output = 0;
 
 
-% CHECK TIME PERIOD
+%% 2) check time period
 same_period = check_time_period(params_MDR.years_range, emdat_list, entity_list, hazard_list, params_MDR.use_YDS);
 % 1) if years_range is not the same as all_years_avail, print message
 % and abort
@@ -176,33 +144,31 @@ end
 % params_MDR.years_range and the entities, hazard and emdat data lists.
 
 
+%% 3) filter years without EM-DAT or simulated damages
 % are years without damage in EM-DAT and/or without simulated damage to be removed?
 [entity_list, hazard_list, emdat_list] = filter_years(params_MDR.remove_years_0emdat, ...
     params_MDR.remove_years_0YDS, params_MDR.years_range, ...
     entity_list, hazard_list, emdat_list, params_MDR.use_YDS);
 
 
-    
 
-
-% CODE WRITING HERE
-
-
-%% set boundaries and starting values
-% IDEALLY CHOOSE THE MIDDLE OF THE RANGE OF VALUES, AND DEFINE RANGE
+%% 4) set boundaries and starting parameter values
+% Choose the middle of the range of values as a starting point
 x0=cellfun(@(x) mean(x),params_MDR.pars_range, 'UniformOutput', 1);
+% retrieve the lower and upper bounds of the parameter
 bounds.lb=cellfun(@(x) x(1),params_MDR.pars_range, 'UniformOutput', 1);
 bounds.ub=cellfun(@(x) x(2),params_MDR.pars_range, 'UniformOutput', 1);
 
+% normalization of parameter values
 % lower bounds are normalized to 1
 norm.lb = ones(size(bounds.lb));
 % upper bounds are normalized to 2
 norm.ub = norm.lb+1;
-% normalization of the starting values
-norm.x0 = (x0-bounds.lb)./(bounds.ub-bounds.lb) .* (norm.ub-norm.lb) + norm.lb;
+% normalization of the starting values for initialization pattern search
+norm_x0 = (x0-bounds.lb)./(bounds.ub-bounds.lb) .* (norm.ub-norm.lb) + norm.lb;
 
 
-%%
+%% 5) prepare calibration function
 % define anonymous function with input factor x (parameters of the damage
 % function):
 % delta_shape_parameter is specific to TCs, can be removed.
@@ -210,40 +176,48 @@ params_MDR2=[];
 params_MDR2.use_YDS = params_MDR.use_YDS;
 params_MDR2.damFun_xVals = params_MDR.damFun_xVals;
 % sets all inputvar for the function except for x, use normalized x.
-fun = @(x)calibrate_params_MDR(x,MDR_func, params_MDR.years_range, ...
-    entity_list, hazard_list, emdat_list, norm, bounds,optimizerType,params_MDR2);
+fun = @(x)calibrate_params_MDR(x,MDR_fun, params_MDR.years_range, ...
+    entity_list, hazard_list, emdat_list, norm, bounds,...
+    params_MDR2,params_calibration);
 
+
+%% 6) optimization of parameters
 %parpool('local_small')
 if full_parameter_search
+    
     
     options = optimoptions('patternsearch','UseParallel',false,...
     'UseCompletePoll', true, 'UseVectorized', false,...
     'MaxFunctionEvaluations',1200,'Display','iter',...
     'Cache','on','InitialMeshSize',.25,...
-    'PollMethod','GPSPositiveBasis2N','StepTolerance',0.001);
+    'PollMethod','GPSPositiveBasis2N','StepTolerance',step_tolerance);
     tic
-    [x_result,fval] = patternsearch(fun,norm.x0,[],[],[],[],norm.lb,norm.ub,[],options);
+    [x_result,fval] = patternsearch(fun,norm_x0,[],[],[],[],norm.lb,norm.ub,[],options);
     toc
     % convert normalized value of calibrated parameters to their 'real'
     % values
-    result.region=(x_result-norm.lb).*(bounds.ub-bounds.lb)./(norm.ub-norm.lb)+bounds.lb
-    fval
-    if save_output && ~calibrate_countries
-        
-        save_file_name=[savedir filesep regions.mapping.TCBasinName{find(regions.mapping.TCBasinID==TCBasinID,1)}...
-            '_' peril_ID '_decay_region_calibrate_litpop_gdp_' num2str(number_free_parameters) '-' num2str(value_mode) '-' num2str(resolution) '.mat'];
-        
-        while (~force_overwrite_output && exist(save_file_name,'file')),save_file_name=strrep(save_file_name,'.mat','_.mat');end % avoid overwriting
-        
-        save(save_file_name,'result','fval','resolution','years_considered','-v7.3');
-        
+    result.region=(x_result-norm.lb).*(bounds.ub-bounds.lb)./(norm.ub-norm.lb)+bounds.lb;
+    optimal_pars=result.region;
+    fval;
+    if isfield(params,'savefile')
+        save(params.savefile,'result','fval','params_MDR','params_calibration','-v7.3');
     end
+%     if save_output && ~calibrate_countries
+%         
+%         save_file_name=[savedir filesep regions.mapping.TCBasinName{find(regions.mapping.TCBasinID==TCBasinID,1)}...
+%             '_' peril_ID '_decay_region_calibrate_litpop_gdp_' num2str(number_free_parameters) '-' num2str(value_mode) '-' num2str(resolution) '.mat'];
+%         
+%         while (~force_overwrite_output && exist(save_file_name,'file')),save_file_name=strrep(save_file_name,'.mat','_.mat');end % avoid overwriting
+%         
+%         save(save_file_name,'result','fval','resolution','years_considered','-v7.3');
+%         
+%     end
 end
 % clear entity hazard
 
 
 
-if on_cluster, exit; end;
+% if on_cluster, exit; end
 
 
 end
