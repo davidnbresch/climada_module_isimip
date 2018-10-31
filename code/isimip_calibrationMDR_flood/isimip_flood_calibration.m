@@ -169,14 +169,14 @@ end
 %% 0+) prepare output: fill in params for calibrate_MDR_steps including file name to be saved
 params_step=struct;
 %define filename
-filename_calib = ['calib_' RegionID '_' num2str(years_range(1)) '-' num2str(years_range(2)) '_calib-' params_calibration.type '-' params_calibration.MM_how '-step' num2str(params_calibration.step_tolerance)];
+filename_calib = ['calib_' RegionID '_' num2str(years_range(1)) '-' num2str(years_range(2)) '_' params_calibration.type '-' params_calibration.MM_how '-step' num2str(params_calibration.step_tolerance)];
 filename_haz = ['Haz-Prot' params.hazard_protection '-subMATSIRO' num2str(params.subtract_matsiro)];
-filename_ent = ['_Entity-Year' num2str(params.entity_year)];
-filename_filter = ['_Filters-emdat' num2str(params_MDR.remove_years_0emdat) '-YDS' num2str(params_MDR.remove_years_0YDS.do)];
+filename_ent = ['Entity-Year' num2str(params.entity_year)];
+filename_filter = ['Filters-emdat' num2str(params_MDR.remove_years_0emdat) '-YDS' num2str(params_MDR.remove_years_0YDS.do)];
 if params_MDR.remove_years_0YDS.do
    filename_filter = [filename_filter '-t' num2str(params_MDR.remove_years_0YDS.threshold) '-w' params_MDR.remove_years_0YDS.what '-m' num2str(params_MDR.remove_years_0YDS.min_val)];
 end
-filename_pars = ['_pars' num2str(params_MDR.pars_range{1}(1)) '-' num2str(params_MDR.pars_range{1}(2)) '-' num2str(params_MDR.pars_range{2}(1)) '-' num2str(params_MDR.pars_range{2}(2))];
+filename_pars = ['pars' num2str(params_MDR.pars_range{1}(1)) '-' num2str(params_MDR.pars_range{1}(2)) '-' num2str(params_MDR.pars_range{2}(1)) '-' num2str(params_MDR.pars_range{2}(2))];
 filename = [filename_calib '_' filename_haz '_' filename_ent '_' filename_filter '_' filename_pars '.mat'];
 % add to params_step (params in calibrate_MDR_steps)
 params_step.savefile=[params.output_folder filesep filename];
