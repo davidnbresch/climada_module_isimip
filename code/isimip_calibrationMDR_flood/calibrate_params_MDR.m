@@ -161,7 +161,7 @@ for i=1:length(entity_list)
             EDS_list{i}{j} = climada_EDS_calc(entity_list{i}, hazard_list{i}{j},[],[],2);
         end
         % get years IDs
-        [~,iis] = ismember(EDS_list{i}{j}.yyyy, all_years);
+        [~,iis] = ismember(hazard_list{i}{j}.yyyy', all_years);
         damages_fullmat(i,j,iis) = EDS_list{i}{j}.damage*entity_list{i}.assets.currency_unit;
         [~,iis2] = ismember(emdat_list{i}.year, all_years);
         emdat_fullmat(i,iis2) = emdat_list{i}.values;
