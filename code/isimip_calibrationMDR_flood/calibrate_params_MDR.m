@@ -82,6 +82,7 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,...
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181015, initial
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181022, split into
 %    sub-functions, test works
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181106, fast damage computation
 %   
 %-
 
@@ -131,9 +132,9 @@ if DamFunID~=params_MDR.DamFunID,error('** ERROR ** DamFunID does not match ****
 
 %% (1) change damage function of entity
 damFun = create_damagefunction_from_fun(MDR_fun, x, params_MDR);
-for i=1:length(entity_list)
-    entity_list{i}.damagefunctions=damFun;
-end
+% for i=1:length(entity_list)
+%     entity_list{i}.damagefunctions=damFun;
+% end
 
 %% (2) calculate damages (YDS or EDS)
 
@@ -146,26 +147,26 @@ end
 %     YDS_FL=isimip_YDS_calc(entity_isimip,hazard_FL,yds_params);
 %     damage(:,i) = YDS_FL.damage*EDS_FL_2005.currency_unit;
 
-clear yds_params;
-yds_params.silent_mode=2;
+% clear yds_params;
+% yds_params.silent_mode=2;
 all_years = years_range(1):years_range(2);
-EDS_list = {};
 damages_fullmat = NaN([length(entity_list),length(hazard_list{1}),length(all_years)]);
 emdat_fullmat = NaN([length(entity_list),length(all_years)]);
 for i=1:length(entity_list)
-    EDS_list{i}={};
     for j = 1:length(hazard_list{i})
-        if params_MDR.use_YDS
-            EDS_list{i}{j} = isimip_YDS_calc(entity_list{i}, hazard_list{i}{j}, yds_params);
-        else
-            EDS_list{i}{j} = climada_EDS_calc(entity_list{i}, hazard_list{i}{j},[],[],2);
-        end
+        temp = climada_damage_quick(entity_list{i}, hazard_list{i}{j}, damFun, params_MDR.use_YDS);
+%         if params_MDR.use_YDS
+%             temp = isimip_YDS_calc(entity_list{i}, hazard_list{i}{j}, yds_params);
+%         else
+%             temp = climada_EDS_calc(entity_list{i}, hazard_list{i}{j},[],[],2);
+%         end
         % get years IDs
         [~,iis] = ismember(hazard_list{i}{j}.yyyy', all_years);
-        damages_fullmat(i,j,iis) = EDS_list{i}{j}.damage*entity_list{i}.assets.currency_unit;
-        [~,iis2] = ismember(emdat_list{i}.year, all_years);
-        emdat_fullmat(i,iis2) = emdat_list{i}.values;
+        damages_fullmat(i,j,iis) = temp*entity_list{i}.assets.currency_unit;
+        clear temp;
     end
+    [~,iis2] = ismember(emdat_list{i}.year, all_years);
+    emdat_fullmat(i,iis2) = emdat_list{i}.values;
 end
 
 % MM_how (string): how to deal with Multi-Model hazard sets, one of:
@@ -178,7 +179,7 @@ switch params_calibration.MM_how
     otherwise
         error('** ERROR ** unexpected value in params_calibration.MM_how *****');
 end
-clear  yds_params;
+clear  yds_params damages_fullmat;
 
 % sum damages per year over the whole region. keep only damages for
 % selected years (i.e., ignore NaNs)
@@ -264,7 +265,6 @@ damFun=[]; % init output
 damFun.filename='create_damagefunction_from_fun';
 damFun.Intensity=[params_MDR.damFun_xVals max(params_MDR.damFun_xVals)+5];
 damFun.DamageFunID=params_MDR.DamFunID*ones(size(damFun.Intensity));
-damFun.peril_ID=cellstr(repmat(params_MDR.peril_ID,length(damFun.Intensity),1))';
 damFun.Intensity_unit=repmat({'m'}',size(damFun.Intensity));
 damFun.peril_ID=cellstr(repmat(params_MDR.peril_ID,length(damFun.Intensity),1))';
 damFun.MDD = MDR_fun(damFun.Intensity, x);
@@ -274,5 +274,21 @@ damFun.PAA = ones(size(damFun.Intensity));
 name = 'Calibration damage function';
 damFun.name = repmat({name},size(damFun.Intensity));
 damFun.datenum = zeros(size(damFun.Intensity))+ now;
+end
 
+function damage=climada_damage_quick(entity, hazard, damFun, use_YDS)
+
+n_events=size(hazard.intensity,1);
+if use_YDS
+    event_assets=entity.assets.Values;
+else
+    event_assets=repmat(entity.assets.Value,[n_events 1]);
+end
+
+MDD=climada_interp1(damFun.Intensity, damFun.MDD, full(hazard.intensity),'linear','extrap');
+PAA=ones(size(MDD));
+MDR=MDD.*PAA;
+clear MDD PAA n_events;
+exposed_val=event_assets.*hazard.fraction;
+damage=full(sum(exposed_val.*MDR,2))';
 end
