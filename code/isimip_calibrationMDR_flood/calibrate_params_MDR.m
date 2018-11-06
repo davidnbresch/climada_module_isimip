@@ -284,7 +284,12 @@ if use_YDS
 else
     event_assets=repmat(entity.assets.Value,[n_events 1]);
 end
-
+% remove assets with nan or 0 values
+keep_in=sum(event_assets,1)>0;
+event_assets=event_assets(:,keep_in);
+hazard.intensity=hazard.intensity(:,keep_in);
+hazard.fraction=hazard.fraction(:,keep_in);
+% damage computation
 MDD=climada_interp1(damFun.Intensity, damFun.MDD, full(hazard.intensity),'linear','extrap');
 PAA=ones(size(MDD));
 MDR=MDD.*PAA;
