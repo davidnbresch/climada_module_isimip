@@ -1,4 +1,4 @@
-function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_plot,isimip_data_subdir,years_range)
+function hazard=isimip_flood_load_orig(flood_filename,hazard_filename,entity,check_plot,isimip_data_subdir,years_range)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -6,7 +6,8 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 %   isimip_flood_load
 % PURPOSE:
 %   load .mat file with flood footprints and construct a climada flood
-%   hazard event set
+%   hazard event set. There is alos a version isimip_flood_load, please
+%   check with benoit.guillod@env.ethz.ch
 %
 %   flood data reference: sven.willner@pik-potsdam.de
 %
@@ -65,6 +66,7 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 % David N. Bresch, david.bresch@gmail.com, 20170705, climada_global.save_file_version
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20171130, add optional
 %   argument 'isimip_data_subdir', and improved treatment of the time axis
+% David N. Bresch, david.bresch@gmail.com, 20180914, ievent_keep_which
 %-
 
 hazard=[];
@@ -238,8 +240,10 @@ if ~isequal(years_range, [0 0])
     fprintf('keeping subset of years (%i out of %i)',sum(event_keep),length(hazard.yyyy));
     hazard.datenum=hazard.datenum(event_keep);
     warning('** to be fixed: event_keep must be used in the loading event loop... Otherwise the first n events are loaded but these are likely the wrong ones **');
+else
+    event_keep_which=1:length(hazard.yyyy);
 end
-hazard.yyyy=datestr(hazard.datenum, 'yyyy')
+hazard.yyyy=datestr(hazard.datenum, 'yyyy');
 hazard.mm=datestr(hazard.datenum, 'mm');
 hazard.dd=datestr(hazard.datenum, 'dd');
 n_events=length(hazard.yyyy);
@@ -281,7 +285,7 @@ format_str='%s';
 
 for event_i=1:n_events
     
-    event_i_nc=event_keep_which(i)
+    event_i_nc=event_keep_which(event_i);
     % get single timestep and reduced 'tile'
     nc.fraction = ncread(flood_filename,'fldfrc',[lon_index_min lat_index_min event_i_nc],[index_dlon+1 index_dlat+1 1]); % lon, lat, time
     nc.depth    = ncread(flood_filename,'flddph',[lon_index_min lat_index_min event_i_nc],[index_dlon+1 index_dlat+1 1]); % lon, lat, time
