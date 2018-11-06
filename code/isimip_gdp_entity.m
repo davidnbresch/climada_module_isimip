@@ -144,9 +144,9 @@ function [entity,params]=isimip_gdp_entity(ISO3,params,first_year,last_year,add_
 %       timesteps processed)
 %    entity_prefix: if not ='', pre-pend the entity filename with it, e.g.
 %       entity_prefix='Try1' will result in Try1_DEU_0150as.mat
-%   first_year: the first year to store, if not passed or empty (=[]), the
+%    first_year: the first year to store, if not passed or empty (=[]), the
 %       first year in the val (gdp) dataset, see there.
-%   last_year: the last year to store, if not passed or empty (=[]), the
+%    last_year: the last year to store, if not passed or empty (=[]), the
 %       last year in the val (gdp) dataset, see there.
 %   add_population: if =1, add population, =0 not (default)
 % OUTPUTS:
@@ -205,6 +205,7 @@ function [entity,params]=isimip_gdp_entity(ISO3,params,first_year,last_year,add_
 % David N. Bresch, david.bresch@gmail.com, 20180316, Population_yyyy and Population2_yyyy added
 % David N. Bresch, david.bresch@gmail.com, 20180317, parfor removed (might lead to parallel netCDF reading)
 % David N. Bresch, david.bresch@gmail.com, 20180322, corrupted years for 0150as corrected (see correct_time)
+% David N. Bresch, david.bresch@gmail.com, 20180322, first_year and last_year idented in header above
 %-
 
 entity=[]; % init output
