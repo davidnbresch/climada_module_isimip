@@ -96,6 +96,8 @@ function [status,output_filename]=isimip_flood_calibration(RegionID,years_range,
 %    including a new input parameter added 'entity_year'
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181015, additional input
 %    parameter params.damFun_xVals.
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181107, fixed formatting
+%    of parameters in the fprint at the end
 %   
 %-
 
@@ -288,7 +290,7 @@ params_MDR.use_YDS = ~params.entity_year;
 %% 6) Call calibrate_MDR_steps (TO DO)
 opt_pars = calibrate_MDR_steps(entity_list, hazard_list, emdat_list, ...
     MDR_fun, params_step, params_MDR, params_calibration);
-fprintf('best set of parameters identified for region %s: %s %s\n', RegionID, opt_pars(1), opt_pars(2));
+fprintf('best set of parameters identified for region %s: scale=%g , shape=%g\n', RegionID, opt_pars(1), opt_pars(2));
 % save('input_calibrate_MDR_steps.mat','RegionID', 'entity_list', 'hazard_list', 'emdat_list', 'MDR_fun','params_MDR','params_calibration','-v7.3')
 
 status=1;
