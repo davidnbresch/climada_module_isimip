@@ -1,4 +1,4 @@
-function [status,output_filename]=isimip_flood_calibration(RegionID,years_range,params,params_MDR,params_calibration)
+function [status,output_filename,output]=isimip_flood_calibration(RegionID,years_range,params,params_MDR,params_calibration)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -18,7 +18,7 @@ function [status,output_filename]=isimip_flood_calibration(RegionID,years_range,
 %   params.entity_folder='/cluster/work/climate/dbresch/climada_data/isimip/entities';
 %   params.entity_prefix='FL1950';
 %   params_MDR.damFun_xVals=0:0.5:15;
-%   [status,output_filename]=isimip_flood_calibration(RegionID,years_range)
+%   [status,output_filename]=isimip_flood_calibration(RegionID,years_range,params,params_MDR)
 % INPUTS:
 %   RegionID: Region name (full name)
 %   years_range: Range of years to be used (e.g., [1990 2010])
@@ -98,6 +98,8 @@ function [status,output_filename]=isimip_flood_calibration(RegionID,years_range,
 %    parameter params.damFun_xVals.
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181107, fixed formatting
 %    of parameters in the fprint at the end
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181127, add output,
+%    direct definition of MDR_fun and adding call to isimip_compute_calibrated
 %   
 %-
 
@@ -116,7 +118,7 @@ if ~exist('params_calibration','var'),      params_calibration=  struct;end
 
 %% check for some parameter fields we need
 % params
-if ~isfield(params,'entity_folder'),    params.entity_folder=[climada_global.data_dir filesep 'isimip/entities'];end
+if ~isfield(params,'entity_folder'),    params.entity_folder='/cluster/work/climate/dbresch/climada_data/isimip/entities';end
 if ~isfield(params,'RegID_def_folder'), params.RegID_def_folder=[climada_global.data_dir filesep 'isimip'];end
 if ~isfield(params,'entity_prefix'),    params.entity_prefix='FL1950';end
 if ~isfield(params,'hazard_protection'),params.hazard_protection='flopros';end
@@ -148,6 +150,7 @@ if ~isfield(params_MDR,'damFun_xVals'), warning('** warning ** params_MDR.damFun
 if ~isfield(params_calibration,'type'),params_calibration.type='R2';end
 if ~isfield(params_calibration,'MM_how'),params_calibration.MM_how='MMM';end
 if ~isfield(params_calibration,'parallel'),params_calibration.parallel=false;end
+if ~isfield(params_calibration,'step_tolerance'),params_calibration.step_tolerance=0.01;end
 
 
 %% 0) Get variables and paths
@@ -184,9 +187,11 @@ filename = [filename_calib '_' filename_haz '_' filename_ent '_' filename_filter
 params_step.savefile=[params.output_folder filesep filename];
 output_filename=params_step.savefile;
 fprintf('Output file will be: %s\n', output_filename);
-[temp1,temp2,temp3]=fileparts(output_filename);
+[temp1,temp2,~]=fileparts(output_filename);
 params_calibration.write_outfile=[temp1 filesep temp2 '_steps.dat'];
 fprintf('Results from each optimization steps will be saved in: %s\n', params_calibration.write_outfile);
+output_eval_filename=[temp1 filesep temp2 '_eval.mat'];
+output_eval_filename2=[temp1 filesep temp2 '_eval.csv'];
 
 %% 1) load entities - N entities for N countries
 entity_list=cell(length(countries),1);
@@ -277,8 +282,7 @@ end
 
 
 %% 4) Define MDR function shape and parameters
-FunctionHandle = str2func('MDR_functional_shape');
-MDR_fun = @(x,pars)FunctionHandle(x,pars);
+MDR_fun=@(x,pars)pars(1)*(1-exp(-pars(2)*x));
 
 
 %% 5) fill in params_MDR including file name to be saved
@@ -288,48 +292,27 @@ params_MDR.use_YDS = ~params.entity_year;
 
 
 %% 6) Call calibrate_MDR_steps (TO DO)
-opt_pars = calibrate_MDR_steps(entity_list, hazard_list, emdat_list, ...
+[ opt_pars, years_i_in] = calibrate_MDR_steps(entity_list, hazard_list, emdat_list, ...
     MDR_fun, params_step, params_MDR, params_calibration);
 fprintf('best set of parameters identified for region %s: scale=%g , shape=%g\n', RegionID, opt_pars(1), opt_pars(2));
 % save('input_calibrate_MDR_steps.mat','RegionID', 'entity_list', 'hazard_list', 'emdat_list', 'MDR_fun','params_MDR','params_calibration','-v7.3')
 
 status=1;
 
+%% 7) Compute damages per country and year for each combination using the identified optimal parameter combination
+[ status, output ]=...
+    isimip_compute_calibrated(entity_list, hazard_list, emdat_list, ...
+    MDR_fun, opt_pars, params_MDR, years_i_in);
+if status
+%    save(output_eval_filename,'opt_pars','output_table','years_range','years_i_in','countries_iso3','-v7.3');
+    fprintf('Results from each optimization steps will be saved in: %s\n', output_eval_filename2);
+%     output_table(ismissing(output_table))='NA';
+%     output_all2=cellstr(output_table);
+    %     writetable(cell2table(output_all2),output_eval_filename2,'writevariablenames',0);
+    writetable(output,output_eval_filename2);
+    
+else
+    fprintf('Evaluation of isimip_compute_calibrated failed\n')
 end
 
-
-function mdr = MDR_functional_shape(x,pars) %scale,shape)
-% climada isimip create MDR function of x (hazard intensity) as a function
-%   of n parameters 'pars' (here, scale and shape)
-% MODULE:
-%   isimip
-% NAME:
-%   MDR_functional_shape
-% PURPOSE:
-%   create MDR function of x (hazard intensity) as a function
-%   of scale and shape.
-%   next call: isimip...
-% CALLING SEQUENCE:
-%   mdr_func=MDR_functional_shape([scale,shape])
-% EXAMPLE:
-%   mdr_func=MDR_functional_shape([0.5,0.5])
-% INPUTS:
-%   scale: scale parameter of function scale*(1-exp(-shape*x))
-%   shape: scale parameter of function scale*(1-exp(-shape*x))
-% OPTIONAL INPUT PARAMETERS:
-%   none.
-% OUTPUTS:
-%   mdr: function of x which returns scale*(1-exp(-shape*x))
-%
-% MODIFICATION HISTORY:
-% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180911, initial
-%-
-
-if length(pars)~=2
-    error('** ERROR ** 2 parameters should be provided *****')
 end
-
-mdr=pars(1)*(1-exp(-pars(2)*x));
-
-end
-

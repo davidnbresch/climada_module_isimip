@@ -1,4 +1,4 @@
-function [ optimal_pars ] = calibrate_MDR_steps(entity_list, hazard_list, ...
+function [ optimal_pars, years_i_in ] = calibrate_MDR_steps(entity_list, hazard_list, ...
     emdat_list, MDR_fun, params, params_MDR, params_calibration)
 % climada isimip flood
 % MODULE:
@@ -85,8 +85,9 @@ function [ optimal_pars ] = calibrate_MDR_steps(entity_list, hazard_list, ...
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180911, initial
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181009, split into
 %    sub-functions and progress in implementation
-%   
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181127, added output years_i_in
 %-
+
 
 % https://ch.mathworks.com/help/gads/examples/constrained-minimization-using-pattern-search.html
 
@@ -155,7 +156,7 @@ end
 
 %% 3) filter years without EM-DAT or simulated damages
 % are years without damage in EM-DAT and/or without simulated damage to be removed?
-[entity_list, hazard_list, emdat_list] = filter_years(params_MDR.remove_years_0emdat, ...
+[entity_list, hazard_list, emdat_list, years_i_in] = filter_years(params_MDR.remove_years_0emdat, ...
     params_MDR.remove_years_0YDS, params_MDR.years_range, ...
     entity_list, hazard_list, emdat_list, params_MDR.use_YDS);
 
@@ -180,7 +181,6 @@ norm_x0 = (x0-bounds.lb)./(bounds.ub-bounds.lb) .* (norm.ub-norm.lb) + norm.lb;
 %% 5) prepare calibration function
 % define anonymous function with input factor x (parameters of the damage
 % function):
-% delta_shape_parameter is specific to TCs, can be removed.
 params_MDR2=[];
 params_MDR2.use_YDS = params_MDR.use_YDS;
 params_MDR2.damFun_xVals = params_MDR.damFun_xVals;
@@ -189,9 +189,12 @@ fun = @(x)calibrate_params_MDR(x,MDR_fun, params_MDR.years_range, ...
     entity_list, hazard_list, emdat_list, norm, bounds,...
     params_MDR2,params_calibration);
 
+%just for testing
+% test=calibrate_params_MDR(norm_x0,MDR_fun, params_MDR.years_range, ...
+%     entity_list, hazard_list, emdat_list, norm, bounds,...
+%     params_MDR2,params_calibration);
 
 %% 6) optimization of parameters
-%parpool('local_small')
 if full_parameter_search
     
     
@@ -215,26 +218,12 @@ if full_parameter_search
     result.region=(x_result-norm.lb).*(bounds.ub-bounds.lb)./(norm.ub-norm.lb)+bounds.lb;
     optimal_pars=result.region;
     fval;
+    
+    % computation of damages with the optimal parameter combination
     if isfield(params,'savefile')
         save(params.savefile,'result','fval','params_MDR','params_calibration','-v7.3');
     end
-%     if save_output && ~calibrate_countries
-%         
-%         save_file_name=[savedir filesep regions.mapping.TCBasinName{find(regions.mapping.TCBasinID==TCBasinID,1)}...
-%             '_' peril_ID '_decay_region_calibrate_litpop_gdp_' num2str(number_free_parameters) '-' num2str(value_mode) '-' num2str(resolution) '.mat'];
-%         
-%         while (~force_overwrite_output && exist(save_file_name,'file')),save_file_name=strrep(save_file_name,'.mat','_.mat');end % avoid overwriting
-%         
-%         save(save_file_name,'result','fval','resolution','years_considered','-v7.3');
-%         
-%     end
 end
-% clear entity hazard
-
-
-
-% if on_cluster, exit; end
-
 
 end
 
@@ -286,7 +275,7 @@ end
 
 
 
-function [entity_list, hazard_list, emdat_list] = filter_years(remove_years_0emdat, remove_years_0YDS, years_range, entity_list, hazard_list, emdat_list, use_YDS)
+function [entity_list, hazard_list, emdat_list, years_in ] = filter_years(remove_years_0emdat, remove_years_0YDS, years_range, entity_list, hazard_list, emdat_list, use_YDS)
 % function to filter out years, depending on remove_years_0emdat and remove_years_0YDS
 country_list=cellfun(@(x) x.assets.admin0_ISO3,entity_list, 'UniformOutput', 0);
 n_countries = length(emdat_list);

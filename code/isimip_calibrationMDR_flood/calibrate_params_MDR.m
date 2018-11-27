@@ -83,7 +83,7 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,...
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181022, split into
 %    sub-functions, test works
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181106, fast damage computation
-%   
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181127, use climada_EDS_calc_fast and climada_damagefunctions_generate_from_fun
 %-
 
 % initialization
@@ -128,41 +128,19 @@ if ~isfield(params_MDR,'DamFunID'),params_MDR.DamFunID=DamFunID;end
 if ~strcmp(peril_ID, params_MDR.peril_ID),error('** ERROR ** peril_ID does not match *****');end
 if DamFunID~=params_MDR.DamFunID,error('** ERROR ** DamFunID does not match *****');end
 
-
-
 %% (1) change damage function of entity
-damFun = create_damagefunction_from_fun(MDR_fun, x, params_MDR);
-% for i=1:length(entity_list)
-%     entity_list{i}.damagefunctions=damFun;
-% end
+damFun = climada_damagefunctions_generate_from_fun(params_MDR.damFun_xVals, MDR_fun, x, params_MDR);
 
 %% (2) calculate damages (YDS or EDS)
-
-% commented lines below just for reference, can be deleted later on
-%     EDS_FL_2005=climada_EDS_calc(entity_isimip,hazard_FL,'',0,2); % the damage calculation
-%     damage_2005(:,i) = EDS_FL_2005.damage*EDS_FL_2005.currency_unit;
-%     % for damage, look into isimip_YDS_calc?
-%     
-%     yds_params.silent_mode=2;
-%     YDS_FL=isimip_YDS_calc(entity_isimip,hazard_FL,yds_params);
-%     damage(:,i) = YDS_FL.damage*EDS_FL_2005.currency_unit;
-
-% clear yds_params;
-% yds_params.silent_mode=2;
 all_years = years_range(1):years_range(2);
 damages_fullmat = NaN([length(entity_list),length(hazard_list{1}),length(all_years)]);
 emdat_fullmat = NaN([length(entity_list),length(all_years)]);
 for i=1:length(entity_list)
     for j = 1:length(hazard_list{i})
-        temp = climada_damage_quick(entity_list{i}, hazard_list{i}{j}, damFun, params_MDR.use_YDS);
-%         if params_MDR.use_YDS
-%             temp = isimip_YDS_calc(entity_list{i}, hazard_list{i}{j}, yds_params);
-%         else
-%             temp = climada_EDS_calc(entity_list{i}, hazard_list{i}{j},[],[],2);
-%         end
+        temp = climada_EDS_calc_fast(entity_list{i}, hazard_list{i}{j}, damFun, params_MDR.use_YDS,1,'',0,1);
         % get years IDs
         [~,iis] = ismember(hazard_list{i}{j}.yyyy', all_years);
-        damages_fullmat(i,j,iis) = temp*entity_list{i}.assets.currency_unit;
+        damages_fullmat(i,j,iis) = temp.damage*entity_list{i}.assets.currency_unit;
         clear temp;
     end
     [~,iis2] = ismember(emdat_list{i}.year, all_years);
@@ -234,6 +212,10 @@ switch type
         % mean of the yearly absolute difference of the log
         result = mean(abs(log(emdat_yearly)-log(damages_yearly)));
     case 'RP'
+        % fit GEV
+%         pd = fitdist(emdat_yearly', 'GeneralizedExtremeValue');
+%         'haha'
+%         'hoho'
         error('Type RP not yet implemented, returning squared difference in AED instead');
         em_data_yyyy_allYears = em_data.year(1):em_data.year(end);
         em_data_damage_allYears = zeros(size(em_data_yyyy_allYears));
@@ -246,54 +228,4 @@ switch type
     otherwise
         error('** ERROR ** unexpected calibration type *****')
 end
-end
-
-function damFun = create_damagefunction_from_fun(MDR_fun, x, params_MDR)
-% function create_damagefunction_from_fun
-%   Creates a damage function based on function MDR_fun with parameters
-%   x(1) and x(2), with intensity values given by params_MDR.damFun_xVals
-%   and peril_ID and DamageFunID given by params_MDR.peril_ID and
-%   params_MDR.DamFunID, respectively. PAA is set to 1, and the last
-%   value of MDD is repeated at max(Intensity)+5 in order to ensure a
-%   maximum value that is not exceeded.
-
-% correctly position vectors
-if size(params_MDR.damFun_xVals,1)>size(params_MDR.damFun_xVals,2),params_MDR.damFun_xVals=params_MDR.damFun_xVals';end
-
-% create a damage function
-damFun=[]; % init output
-damFun.filename='create_damagefunction_from_fun';
-damFun.Intensity=[params_MDR.damFun_xVals max(params_MDR.damFun_xVals)+5];
-damFun.DamageFunID=params_MDR.DamFunID*ones(size(damFun.Intensity));
-damFun.Intensity_unit=repmat({'m'}',size(damFun.Intensity));
-damFun.peril_ID=cellstr(repmat(params_MDR.peril_ID,length(damFun.Intensity),1))';
-damFun.MDD = MDR_fun(damFun.Intensity, x);
-% set the last value of MDD to second last value
-damFun.MDD(end) = damFun.MDD(end-1);
-damFun.PAA = ones(size(damFun.Intensity));
-name = 'Calibration damage function';
-damFun.name = repmat({name},size(damFun.Intensity));
-damFun.datenum = zeros(size(damFun.Intensity))+ now;
-end
-
-function damage=climada_damage_quick(entity, hazard, damFun, use_YDS)
-
-n_events=size(hazard.intensity,1);
-if use_YDS
-    event_assets=entity.assets.Values;
-else
-    event_assets=repmat(entity.assets.Value,[n_events 1]);
-end
-% remove assets with nan or 0 values
-keep_in=sum(event_assets,1)>0;
-event_assets=event_assets(:,keep_in);
-hazard.intensity=hazard.intensity(:,keep_in);
-hazard.fraction=hazard.fraction(:,keep_in);
-% damage computation
-MDD=climada_interp1(damFun.Intensity, damFun.MDD, full(hazard.intensity),'linear','extrap');
-PAA=ones(size(MDD));
-MDR=MDD.*PAA;
-clear MDD PAA n_events;
-exposed_val=event_assets.*hazard.fraction;
-damage=full(sum(exposed_val.*MDR,2))';
 end

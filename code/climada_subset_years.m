@@ -21,7 +21,7 @@ function obj_sub=climada_subset_years(obj, obj_type, years_in, silent_mode)
 %   obj_type: type of object, can be 'hazard', 'entity', 'obs'
 %   years_in: vector of years to be retained in the output
 % OPTIONAL INPUT PARAMETERS:
-%   silent_mode: =1 prints a confirmation, prevented if =0 (default), 
+%   silent_mode: =0 prints a confirmation, prevented if =1 (default), 
 % OUTPUTS:
 %   obj_sub: as input 'obj' but with only the years specified by years_in
 % MODIFICATION HISTORY:
