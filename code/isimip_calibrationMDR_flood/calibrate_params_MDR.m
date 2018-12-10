@@ -84,6 +84,7 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,...
 %    sub-functions, test works
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181106, fast damage computation
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181127, use climada_EDS_calc_fast and climada_damagefunctions_generate_from_fun
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181210, use log10 instead of log
 %-
 
 % initialization
@@ -207,24 +208,27 @@ switch type
         result = mean(abs(diff_yearly));
     case 'dlog2'
         % mean of the yearly squared difference of the log
-        result = mean((log(emdat_yearly)-log(damages_yearly)).^2);
+        result = mean((log10(emdat_yearly)-log10(damages_yearly)).^2);
     case 'dabslog'
         % mean of the yearly absolute difference of the log
-        result = mean(abs(log(emdat_yearly)-log(damages_yearly)));
+        result = mean(abs(log10(emdat_yearly)-log10(damages_yearly)));
     case 'RP'
         % fit GEV
 %         pd = fitdist(emdat_yearly', 'GeneralizedExtremeValue');
 %         'haha'
 %         'hoho'
         error('Type RP not yet implemented, returning squared difference in AED instead');
-        em_data_yyyy_allYears = em_data.year(1):em_data.year(end);
-        em_data_damage_allYears = zeros(size(em_data_yyyy_allYears));
-        for year_i = em_data_yyyy_allYears
-            if max(ismember(em_data.year,year_i))
-                em_data_damage_allYears(em_data_yyyy_allYears==year_i)= em_data.damage(em_data.year==year_i);
-            end
-        end
-        result = (mean(em_data_damage_allYears)-EDS.ED)^2;
+        damages_yearly(damages_yearly==0)=1;
+        emdat_yearly(emdat_yearly==0)=1;
+        rts = (length(damages_yearly)+1)./(length(damages_yearly):-1:1);
+        plot(log10(rts), sort(damages_yearly));hold on;
+        plot(log10(rts), sort(emdat_yearly),'r');
+        figure;
+        plot(log10(rts), sort(log10(damages_yearly)));hold on;
+        plot(log10(rts), sort(log10(emdat_yearly)),'r');
+        % area between the curves
+        plot(log10(rts),abs(sort(log10(damages_yearly))-sort(log10(emdat_yearly))))
+        result = trapz(log10(rts),abs(sort(log10(damages_yearly))-sort(log10(emdat_yearly))));
     otherwise
         error('** ERROR ** unexpected calibration type *****')
 end
