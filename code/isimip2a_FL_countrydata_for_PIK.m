@@ -57,6 +57,7 @@ function output=isimip2a_FL_countrydata_for_PIK(country, ghm, forcing, params, p
 %   climada_global.damage_at_centroid=1 moved outside the loop
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180529, adding em-dat
 %   data to output, and inserting function argument 'subtract_matsiro'
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190110, fixed issues with country names in EM-DAT, use of climada_EDS_calc_fast
 %   
 %-
 
@@ -85,7 +86,28 @@ end
 % define variables and paths
 isimip_simround = '2a';
 isimip_data_dir = [climada_global.data_dir filesep 'isimip'];
-[country country_iso3] =  climada_country_name(country);
+
+% country
+country_iso3 = country;
+country_name_for_continent = climada_country_name(country);
+[country_emdat,~,cl] = emdat_get_country_names(country_iso3,['FL';'F1';'F2'],[1971 2010]);
+if (cl == -1) || (cl == -3)
+    error('*** ERROR: changes_list=%i for country %s - skipped\n\n',cl,country);
+end
+% fix country name for continent
+if isempty(country_name_for_continent)
+    % deal with countries not recognized in climada
+    switch country
+        case 'SCG'
+            country_name_for_continent = 'Serbia';
+        case 'ANT' % actually will return an error for ANT earlier on
+            country_name_for_continent = 'Aruba';
+        case 'PSE'
+            country_name_for_continent = climada_country_name('PSX');
+        otherwise
+            fprintf('*** ERROR: country name not recognized at all for %s **\n',country);
+    end
+end
 
 % define entity files for asset source (at resolution 'as0150')
 entity_file_isimip=[params.entity_folder filesep params.entity_prefix strtrim(country_iso3) '_0150as_entity'];
@@ -111,10 +133,10 @@ end
 entity_isimip.assets.centroid_index = 1:length(entity_isimip.assets.centroid_index);
 
 % Replace damage function with JRC
-[continent,damfun_file]=continent_jrc_damfun(country, params_damfun);
+[continent,damfun_file]=continent_jrc_damfun(country_name_for_continent, params_damfun);
 % quick fix to ensure it works
 if sum(isnan(entity_isimip.assets.Value))>0
-    fprintf('    * set entity value NaN to 0 for %s\n',country);
+    fprintf('    * set entity value NaN to 0 for %s\n',country_name_for_continent);
     entity_isimip.assets.DamageFunID(:)=1;
     entity_isimip.assets.Value(isnan(entity_isimip.assets.Value))=0;
     entity_isimip.assets.Cover      =entity_isimip.assets.Value;
@@ -124,7 +146,7 @@ if sum(isnan(entity_isimip.assets.Value))>0
     entity_isimip.assets.Values(isnan(entity_isimip.assets.Values))=0;
 end
 
-[~,entity_isimip]=climada_damagefunctions_read(damfun_file,entity_isimip);
+[damFun,entity_isimip]=climada_damagefunctions_read(damfun_file,entity_isimip);
 fprintf('    * damage function from continent %s is used\n',continent);
 % fprintf('*** ERROR: DAMAGE FUNCTION NOT REPLACED, IMPLEMENT THIS ***');
 % damfun_file = sprintf('%s_%s',cont,'entity_residential.xls');               % Get damagefunction
@@ -143,11 +165,11 @@ ellipsoid = referenceEllipsoid('wgs84','kilometers');
 dlon = 360/8640;
 dlat   = 180/4320;
 for i=1:length(entity_isimip.assets.lon)
-    centroids_area(i) = areaquad(entity_isimip.assets.lat(i)-dlon/2,...
-        entity_isimip.assets.lon(i)-dlon/2,entity_isimip.assets.lat(i)+dlon/2,...
+    centroids_area(i) = areaquad(entity_isimip.assets.lat(i)-dlat/2,...
+        entity_isimip.assets.lon(i)-dlon/2,entity_isimip.assets.lat(i)+dlat/2,...
         entity_isimip.assets.lon(i)+dlon/2,ellipsoid);
 end
-country_area = sum(centroids_area);
+%country_area = sum(centroids_area);
 
 
 % -----------------
@@ -169,7 +191,7 @@ for i=1:length(protection_levels)
     protection = protection_levels{i};
     
     % define the climada hazard set files (to be generated below)
-    [flddph_filename,fldfrc_filename,fld_path] = isimip_get_flood_filename(isimip_simround, ghm, forcing, protection, time_period);
+    [flddph_filename,~,fld_path] = isimip_get_flood_filename(isimip_simround, ghm, forcing, protection, time_period);
     flood_filename=[fld_path filesep flddph_filename];
     hazard_FL_file=isimip_get_flood_hazard_filename(flood_filename,entity_isimip,isimip_simround,years_range,subtract_matsiro);
 
@@ -254,25 +276,51 @@ for i=1:length(protection_levels)
         end
     end
     
-    EDS_FL_2005=climada_EDS_calc(entity_isimip,hazard_FL,'',0,2); % the damage calculation
-    damage_2005(:,i) = EDS_FL_2005.damage*EDS_FL_2005.currency_unit;
+    %EDS_FL_2005=climada_EDS_calc(entity_isimip,hazard_FL,'',0,2); % the damage calculation
+    EDS_FL_2005 = climada_EDS_calc_fast(entity_isimip,hazard_FL,damFun,0,1,'',0,2);
+    damage_2005(:,i) = EDS_FL_2005.damage*entity_isimip.assets.currency_unit;
     % for damage, look into isimip_YDS_calc?
     
-    yds_params.silent_mode=2;
-    YDS_FL=isimip_YDS_calc(entity_isimip,hazard_FL,yds_params);
-    damage(:,i) = YDS_FL.damage*EDS_FL_2005.currency_unit;
+    YDS_FL=climada_EDS_calc_fast(climada_subset_years(entity_isimip,'entity',all_years,1),hazard_FL,damFun,1,1,'',0,2);
+    damage(:,i) = YDS_FL.damage*entity_isimip.assets.currency_unit;
     
 end
 
 % read EM-DAT data
-em_data=emdat_read('',country_iso3,['FL';'F1';'F2'],2005,0);
 emdat_damage_2005 = zeros([length(all_years) 1]);
 emdat_damage_yearly = zeros([length(all_years) 1]);
-% if EM-DAT data available for this country, use, if not leave zeros
-if ~isempty(em_data)
-    for i=1:length(em_data.year)
-        emdat_damage_2005(all_years == em_data.year(i),1) = em_data.damage(i);
-        emdat_damage_yearly(all_years == em_data.year(i),1) = em_data.damage_orig(i);
+if cl > 3
+    % will only work for some years - check year by year
+    for i=1:length(all_years)
+        [country_emdat_i,~,cl_i] = emdat_get_country_names(country_iso3,['FL';'F1';'F2'],[all_years(i) all_years(i)]);
+        if cl_i > 3
+            emdat_damage_2005(i,1) = NaN;
+            emdat_damage_yearly(i,1) = NaN;
+        elseif cl_i >= 0
+            em_data_i=emdat_read('',country_emdat_i,['FL';'F1';'F2'],2005,0,[],1);
+            % if EM-DAT data available for this country, use, if not leave zeros
+            if ~isempty(em_data_i)
+                ii = find(all_years(i) == em_data_i.year);
+                if ~isempty(ii)
+                    emdat_damage_2005(i,1) = sum(em_data_i.damage(ii));
+                    emdat_damage_yearly(i,1) = sum(em_data_i.damage_orig(ii));
+                end
+            end
+        else
+            fprintf('** WARNING ** country %s: emdat_get_country_names suggests changes_list=99 over the whole time period, but changes_list is negative for year %s *****\n',country_iso3,all_years(i))
+        end
+    end
+else
+    em_data=emdat_read('',country_emdat,['FL';'F1';'F2'],2005,0,[],1);
+    % if EM-DAT data available for this country, use, if not leave zeros
+    if ~isempty(em_data)
+        for i=1:length(all_years)
+            ii = find(all_years(i) == em_data.year);
+            if ~isempty(ii)
+                emdat_damage_2005(i,1) = sum(em_data.damage(ii));
+                emdat_damage_yearly(i,1) = sum(em_data.damage_orig(ii));
+            end
+        end
     end
 end
 
