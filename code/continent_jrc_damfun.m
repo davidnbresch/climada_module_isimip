@@ -28,6 +28,7 @@ function [continent,jrc_file]=continent_jrc_damfun(country, params)
 %
 % MODIFICATION HISTORY:
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180316, initial
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180316, minor bug fixes
 %-
 
 global climada_global
@@ -50,12 +51,12 @@ if ~isfield(params,'filepath'),             params.filepath='';end
 
 
 % get country and ISO3 names
-[country country_iso3] =  climada_country_name(country);
+[country, country_iso3] =  climada_country_name(country);
 
 shapes = climada_shaperead(climada_global.map_border_file);
 shapes_country = string({shapes(:).NAME});
 ish = find(shapes_country==country);
-if length(ish)==0
+if isempty(ish)
     fprintf('*** ERROR: no country match, continent cannot be identified %s\n\n',country_iso3);
     return
 elseif length(ish)>1
