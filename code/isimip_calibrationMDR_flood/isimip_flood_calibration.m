@@ -21,8 +21,8 @@ function [status,output_filename,output]=isimip_flood_calibration(RegionID,years
 %   [status,output_filename]=isimip_flood_calibration(RegionID,years_range,params,params_MDR)
 % INPUTS:
 %   RegionID: Region name (full name)
-%   years_range: Range of years to be used (e.g., [1990 2010])
 % OPTIONAL INPUT PARAMETERS:
+%   years_range: Range of years to be used. Default = [1992 2010].
 %   params: a structure with fields:
 %     entity_folder: the folder where the entities are located (default:
 %        [climada_global.data_dir filesep 'isimip/entities'] ).
@@ -39,6 +39,16 @@ function [status,output_filename,output]=isimip_flood_calibration(RegionID,years
 %     output_folder: the folder where the calibration results are to be
 %        saved. Default in isimip/results/calibration whitin the
 %        climada_global.data_dir folder.
+%     keep_countries_0emdat: how to deal with countries with 0 EM-DAT
+%        damage, as follows (see also emdat_get_country_names, emdat_isdata+1):
+%        0 = keep all countries with an EM-DAT entry even if no
+%        damage>0 is recorded;
+%        1 = keep countries with at least one entry with damage>0 even if
+%        these entries are outside of the considered years and perilID;
+%        2 (default) = to keep only the countries with at least one entry with
+%        damage>0 for the requested peril_ID and years.
+%     verbose_excluded_countries: =1 to display the reason for each
+%        excluded country (default=0).
 %   params_MDR: parameters to define the MDR function. A structure with fields:
 %     remove_years_0emdat: determines how to filter years with zero EM-DAT
 %        damages (e.g., no damage).
@@ -100,17 +110,21 @@ function [status,output_filename,output]=isimip_flood_calibration(RegionID,years
 %    of parameters in the fprint at the end
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181127, add output,
 %    direct definition of MDR_fun and adding call to isimip_compute_calibrated
-%   
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190103, filter out countries which do not 'exist' as ISO3
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190114, adding params.keep_countries_0emdat as a country filtering criterion.
 %-
 
 global climada_global
 if ~climada_init_vars,return;end % init/import global variables
 status=0;
 
+output=[];
+output_filename=[];
+
 %% poor man's version to check arguments
 % and to set default value where  appropriate
 if ~exist('RegionID','var'),error('Input parameter RegionID is missing');end %
-if ~exist('years_range','var'),             years_range=    [1990 2010];end
+if ~exist('years_range','var'),             years_range=    [1992 2010];end
 if ~exist('params','var'),                  params=              struct;end
 if ~exist('params_MDR','var'),              params_MDR=          struct;end
 if ~exist('params_calibration','var'),      params_calibration=  struct;end
@@ -128,6 +142,9 @@ if ~isempty(params.entity_prefix)
     if ~strcmp(params.entity_prefix(end),'_'),params.entity_prefix=[params.entity_prefix '_'];end
 end
 if ~isfield(params, 'output_folder'),params.output_folder=[climada_global.data_dir filesep 'isimip/results/calibration'];end
+if ~isfield(params,'keep_countries_0emdat'), params.keep_countries_0emdat=2;end
+if ~ismember(params.keep_countries_0emdat, 0:2),error('** ERROR ** input parameter params.keep_countries_0emdat should be one of 0,1,2 *****');end
+if ~isfield(params,'verbose_excluded_countries'),params.verbose_excluded_countries=0;end
 % params_MDR
 if ~isfield(params_MDR,'remove_years_0emdat'),params_MDR.remove_years_0emdat=0;end
 if ~isfield(params_MDR,'remove_years_0YDS'),params_MDR.remove_years_0YDS.do=0;end
@@ -154,22 +171,38 @@ if ~isfield(params_calibration,'step_tolerance'),params_calibration.step_toleran
 
 
 %% 0) Get variables and paths
-% get countries that belong to the region
+isimip_simround = '2a';
+all_years = years_range(1):years_range(2);% get countries that belong to the region
 NatID_RegID_file = [params.RegID_def_folder filesep 'NatID_RegID_isimip_flood.csv'];
 NatID_RegID_flood = readtable(NatID_RegID_file);
 NatID_RegID_flood.Reg_name = string(NatID_RegID_flood.Reg_name);
 if sum(NatID_RegID_flood.Reg_name == RegionID)==0
     error('no country belonging to the given RegionID, perhaps non-existing RegionID?');
 end
-countries=NatID_RegID_flood.ISO(NatID_RegID_flood.Reg_name == RegionID);
-
-% define variables and paths
-isimip_simround = '2a';
-% isimip_data_dir = [climada_global.data_dir filesep 'isimip'];
-countries_iso3=cell(length(countries));
-for i=1:length(countries)
-    [~,countries_iso3{i}] =  climada_country_name(countries{i});
+countries_iso3=NatID_RegID_flood.ISO(NatID_RegID_flood.Reg_name == RegionID);
+% keep only countries which 'exist' as ISO3
+countries_keep=true(1,length(countries_iso3));
+for i=1:length(countries_iso3)
+    evalc("[countries_emdat,countries_climada,cl,em] = emdat_get_country_names(countries_iso3{i},['FL';'F1';'F2'],years_range,0);"); %silent
+    if cl<0
+        if params.verbose_excluded_countries,fprintf('*** WARNING: changes_list=%i for country %s - skipped\n\n',cl,countries_iso3{i});end
+        countries_keep(i) = false;
+    elseif cl==99
+        fprintf('** ERROR ** country %s cannot be dealt with (cl=99); aborted *****',countries_iso3{i})
+        error('Country cannot be dealt with')
+    elseif em+1 < params.keep_countries_0emdat
+        if params.verbose_excluded_countries,fprintf('*** WARNING: EM-DAT data availability excludes country %s - skipped\n\n',countries_iso3{i});end
+        countries_keep(i) = false;
+    end
 end
+if sum(~countries_keep) > 0
+    fprintf('WARNING: Region %s: Skipping the following %s countries:\n',RegionID, num2str(sum(~countries_keep)));
+    disp(countries_iso3(~countries_keep))
+else
+    fprintf('Region %s: No country has to be skipped\n',RegionID);
+end
+countries_iso3=countries_iso3(countries_keep);
+clear countries_keep country_exists;
 
 %% 0+) prepare output: fill in params for calibrate_MDR_steps including file name to be saved
 params_step=struct;
@@ -177,7 +210,7 @@ params_step=struct;
 filename_calib = ['calib_' RegionID '_' num2str(years_range(1)) '-' num2str(years_range(2)) '_' params_calibration.type '-' params_calibration.MM_how '-step' num2str(params_calibration.step_tolerance)];
 filename_haz = ['Haz-Prot' params.hazard_protection '-subMATSIRO' num2str(params.subtract_matsiro)];
 filename_ent = ['Entity-Year' num2str(params.entity_year)];
-filename_filter = ['Filters-emdat' num2str(params_MDR.remove_years_0emdat) '-YDS' num2str(params_MDR.remove_years_0YDS.do)];
+filename_filter = ['Filters-Country' num2str(params.keep_countries_0emdat) '-emdat' num2str(params_MDR.remove_years_0emdat) '-YDS' num2str(params_MDR.remove_years_0YDS.do)];
 if params_MDR.remove_years_0YDS.do
    filename_filter = [filename_filter '-t' num2str(params_MDR.remove_years_0YDS.threshold) '-w' params_MDR.remove_years_0YDS.what '-m' num2str(params_MDR.remove_years_0YDS.min_val)];
 end
@@ -194,8 +227,8 @@ output_eval_filename=[temp1 filesep temp2 '_eval.mat'];
 output_eval_filename2=[temp1 filesep temp2 '_eval.csv'];
 
 %% 1) load entities - N entities for N countries
-entity_list=cell(length(countries),1);
-for i=1:length(countries)
+entity_list=cell(length(countries_iso3),1);
+for i=1:length(countries_iso3)
     country_iso3 = countries_iso3{i};
     entity_file_isimip_i=[params.entity_folder filesep params.entity_prefix strtrim(country_iso3) '_0150as_entity'];
     entity_isimip_i=climada_entity_load(entity_file_isimip_i,1); % try to load, flag to 1 to avoir overwrite
@@ -204,7 +237,7 @@ for i=1:length(countries)
     end
     entity_isimip_i.assets.centroid_index = 1:length(entity_isimip_i.assets.centroid_index);
     % check that all analysed years are included
-    if sum(ismember(years_range(1):years_range(2), entity_isimip_i.assets.Values_yyyy)) ~= diff(years_range)+1
+    if sum(ismember(all_years, entity_isimip_i.assets.Values_yyyy)) ~= diff(years_range)+1
         error('*** ERROR: not all requested years are available in the entities **\n\n');
     end
     % Subset years
@@ -213,7 +246,7 @@ for i=1:length(countries)
         entity_list{i}.assets.Value=entity_list{i}.assets.Values(1,:);
         entity_list{i}.assets.reference_year = params.entity_year;
     else
-        entity_list{i}=climada_subset_years(entity_isimip_i, 'entity', years_range(1):years_range(2));
+        entity_list{i}=climada_subset_years(entity_isimip_i, 'entity', all_years);
     end
 end
 
@@ -221,8 +254,8 @@ end
 %% 2) load hazards. 46*N hazards, as there are 46 model combinations
 ghms = {'CLM', 'DBH', 'H08', 'JULES-TUC', 'JULES-UoE', 'LPJmL', 'MATSIRO', 'MPI-HM', 'ORCHIDEE', 'PCR-GLOBWB', 'VEGAS', 'VIC', 'WaterGAP'};
 forcings = {'gswp3', 'princeton', 'watch', 'wfdei'};
-hazard_list=cell(length(countries),1);
-for i=1:length(countries)
+hazard_list=cell(length(countries_iso3),1);
+for i=1:length(countries_iso3)
     hazard_list{i} = {};
     ii = 0;
     for j=1:length(ghms)
@@ -236,7 +269,7 @@ for i=1:length(countries)
                 hazard_FL=climada_hazard_load(hazard_FL_file);
                 hazard_FL.yyyy = double(string(hazard_FL.yyyy));
                 try
-                    hazard_FL=climada_subset_years(hazard_FL, 'hazard', years_range(1):years_range(2));
+                    hazard_FL=climada_subset_years(hazard_FL, 'hazard', all_years);
                 catch ME
                     switch ME.identifier
                         case 'climada_subset_years:missingYear'
@@ -259,13 +292,12 @@ end
 
 
 %% 3) load EM-DAT
-emdat_list=cell(length(countries),1);
-all_years = years_range(1):years_range(2);
-for i=1:length(countries)
-    country_iso3 = countries_iso3{i};
+emdat_list=cell(length(countries_iso3),1);
+for i=1:length(countries_iso3)
+    evalc("country_emdat = emdat_get_country_names(countries_iso3{i},['FL';'F1';'F2'],years_range,0);");%silent
     % EM-DAT damages corrected by growth exposure only if fixed entities
     % are used.
-    em_data_i=emdat_read('',country_iso3,['FL';'F1';'F2'],params.entity_year,0);
+    em_data_i=emdat_read('',country_emdat,['FL';'F1';'F2'],params.entity_year,0);
     emdat_damage = zeros([length(all_years) 1]);
     % if EM-DAT data available for this country, use, if not leave zeros
     if ~isempty(em_data_i)
