@@ -172,37 +172,54 @@ if ~isfield(params_calibration,'step_tolerance'),params_calibration.step_toleran
 
 %% 0) Get variables and paths
 isimip_simround = '2a';
-all_years = years_range(1):years_range(2);% get countries that belong to the region
-NatID_RegID_file = [params.RegID_def_folder filesep 'NatID_RegID_isimip_flood.csv'];
-NatID_RegID_flood = readtable(NatID_RegID_file);
+all_years = years_range(1):years_range(2);
+% get countries that belong to the region, those used for calibration and
+% those used only for 'extrapolation'
+NatID_RegID_file=[params.RegID_def_folder filesep 'NatID_RegID_isimip_flood_filtered_' num2str(years_range(1)) '-' num2str(years_range(2)) '.csv'];
+if exist(NatID_RegID_file,'file')
+    NatID_RegID_flood = readtable(NatID_RegID_file);
+else
+    [flag,NatID_RegID_flood] = isimip_FL_select_countries(NatID_RegID_file,[],years_range);
+    if ~flag
+        fprintf('** ERROR ** unable to retrieve file %s *****',NatID_RegID_file)
+        error('unable to load the NatID_RegID_file')
+    end
+end
 NatID_RegID_flood.Reg_name = string(NatID_RegID_flood.Reg_name);
 if sum(NatID_RegID_flood.Reg_name == RegionID)==0
     error('no country belonging to the given RegionID, perhaps non-existing RegionID?');
 end
-countries_iso3=NatID_RegID_flood.ISO(NatID_RegID_flood.Reg_name == RegionID);
-% keep only countries which 'exist' as ISO3
-countries_keep=true(1,length(countries_iso3));
-for i=1:length(countries_iso3)
-    evalc("[countries_emdat,countries_climada,cl,em] = emdat_get_country_names(countries_iso3{i},['FL';'F1';'F2'],years_range,0);"); %silent
-    if cl<0
-        if params.verbose_excluded_countries,fprintf('*** WARNING: changes_list=%i for country %s - skipped\n\n',cl,countries_iso3{i});end
-        countries_keep(i) = false;
-    elseif cl==99
-        fprintf('** ERROR ** country %s cannot be dealt with (cl=99); aborted *****',countries_iso3{i})
-        error('Country cannot be dealt with')
-    elseif em+1 < params.keep_countries_0emdat
-        if params.verbose_excluded_countries,fprintf('*** WARNING: EM-DAT data availability excludes country %s - skipped\n\n',countries_iso3{i});end
-        countries_keep(i) = false;
-    end
+NatID_RegID_flood = NatID_RegID_flood(NatID_RegID_flood.Reg_name == RegionID,:);
+
+% keep two list of countries: one to be used for calibration, the other one for computation thereafter
+% fully excluded countries:
+fully_out = ~NatID_RegID_flood.in_extrap;
+if sum(fully_out)>0
+    fprintf('** WARNING ** these %s countries are entirely excluded: *****\n%s\n\n',num2str(sum(fully_out)),strjoin(NatID_RegID_flood.ISO(fully_out),', '))
 end
-if sum(~countries_keep) > 0
-    fprintf('WARNING: Region %s: Skipping the following %s countries:\n',RegionID, num2str(sum(~countries_keep)));
-    disp(countries_iso3(~countries_keep))
-else
+% countries excluded from calibration but retained for application
+calib_out = (NatID_RegID_flood.in_calib < params.keep_countries_0emdat) & NatID_RegID_flood.in_extrap;
+if sum(calib_out)>0
+    fprintf('** WARNING ** these %s countries are excluded from calibration but are included in application (extrapolation): *****\n%s\n\n',num2str(sum(calib_out)),strjoin(NatID_RegID_flood.ISO(calib_out),' , '))
+end
+% countries retained
+countries_keep = ~fully_out & ~calib_out;
+if sum(~countries_keep)==0
     fprintf('Region %s: No country has to be skipped\n',RegionID);
 end
-countries_iso3=countries_iso3(countries_keep);
-clear countries_keep country_exists;
+if sum(countries_keep) == 0
+    fprintf('ISSUE: Region %s: No country remains\n',RegionID);
+end
+
+countries_iso3_all = NatID_RegID_flood.ISO(~fully_out);
+countries_iso3 = NatID_RegID_flood.ISO(countries_keep)';
+countries_iso3_extrapolation = NatID_RegID_flood.ISO((~fully_out) & calib_out)';
+% [~,countries_calib_inds] = intersect(countries_iso3_all,countries_iso3,'stable');
+% [~,countries_extrap_inds] = intersect(countries_iso3_all,countries_iso3_extrapolation,'stable');
+
+fprintf('Countries selected for calibration:\n%s\n\n',strjoin(countries_iso3,', '))
+fprintf('Additional countries selected for application (extrapolation):\n%s\n\n',strjoin(countries_iso3_extrapolation,', '))
+clear countries_keep calib_out fully_out;
 
 %% 0+) prepare output: fill in params for calibrate_MDR_steps including file name to be saved
 params_step=struct;
@@ -225,6 +242,7 @@ params_calibration.write_outfile=[temp1 filesep temp2 '_steps.dat'];
 fprintf('Results from each optimization steps will be saved in: %s\n', params_calibration.write_outfile);
 output_eval_filename=[temp1 filesep temp2 '_eval.mat'];
 output_eval_filename2=[temp1 filesep temp2 '_eval.csv'];
+
 
 %% 1) load entities - N entities for N countries
 entity_list=cell(length(countries_iso3),1);
