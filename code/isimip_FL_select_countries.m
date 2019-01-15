@@ -36,18 +36,22 @@ function [flag,output_table]=isimip_FL_select_countries(output_file,output_overw
 %      in_extrap: 0 if the country is not recognized, otherwise =1 (only ANT).
 % MODIFICATION HISTORY:
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190114, initial
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190115, better treatment of input parameters and proper initialization of flag
 %-
 
 global climada_global
 
 %% poor man's version to check arguments
 % and to set default value where  appropriate
-if ~exist('years_range','var'),             years_range=    [1992 2010];end
-if ~exist('output_file','var'),output_file=['NatID_RegID_isimip_flood_filtered_' num2str(years_range(1)) '-' num2str(years_range(2)) '.csv'];end
-if ~exist('output_overwrite','var'),output_overwrite=false;end
+if ~exist('years_range','var'),                          years_range=[];end
+if ~exist('output_file','var'),                          output_file='';end
+if ~exist('output_overwrite','var'),                output_overwrite=[];end
+if isempty(years_range),years_range=[1992 2010];end
+if isempty(output_file),output_file=['NatID_RegID_isimip_flood_filtered_' num2str(years_range(1)) '-' num2str(years_range(2)) '.csv'];end
+if isempty(output_overwrite),output_overwrite=false;end
 
 % init output
-flat=0;
+flag=0;
 output_table=table;
 
 %% read country/region data
