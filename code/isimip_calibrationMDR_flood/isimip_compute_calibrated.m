@@ -38,6 +38,7 @@ function [ status, output_table ] = isimip_compute_calibrated(entity_list, hazar
 % MODIFICATION HISTORY:
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181107, initial
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181127, use table
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190116, remove params_MDR in call to climada_damagefunctions_generate_from_fun
 %   
 %-
 
@@ -51,7 +52,7 @@ climada_global.damage_at_centroid = 0;
 country_list=cellfun(@(x) x.assets.admin0_ISO3,entity_list, 'UniformOutput', 0);
 
 % get damage function
-damFun = climada_damagefunctions_generate_from_fun(params_MDR.damFun_xVals, MDR_fun, opt_pars, params_MDR);
+damFun = climada_damagefunctions_generate_from_fun(params_MDR.damFun_xVals, MDR_fun, opt_pars);
 
 % most contain: country, year, data (obs or model name), damage
 output_table_header = {'country', 'year', 'dataset', 'damage', 'used_in_calibration'};
