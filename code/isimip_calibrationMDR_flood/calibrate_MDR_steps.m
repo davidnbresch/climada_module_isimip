@@ -75,7 +75,6 @@ function [ optimal_pars, years_i_in ] = calibrate_MDR_steps(entity_list, hazard_
 %           algorithm. Default=0.001.
 %       write_outfile: name of a file where the result from each step
 %           should be saved.
-%       parallel: =true to use parellelization for the optimization. Default=false.
 % OPTIONAL INPUT PARAMETERS:
 %   params: a structure with fields:
 %     savefile: file where the output should be saved.
@@ -124,7 +123,6 @@ if ~isfield(params_MDR,'damFun_xVals'), warning('** warning ** params_MDR.damFun
 if ~isfield(params_calibration,'type'),error('Input parameter params_calibration.type is missing');end
 if ~isfield(params_calibration,'MM_how'),error('Input parameter params_calibration.MM_how is missing');end
 if ~isfield(params_calibration,'step_tolerance'),params_calibration.step_tolerance=0.001;end
-if ~isfield(params_calibration,'parallel'),params_calibration.parallel=false;end
 
 %% 1) determine useful parameters, formatting
 country_list=cellfun(@(x) x.assets.admin0_ISO3,entity_list, 'UniformOutput', 0);
@@ -198,7 +196,7 @@ fun = @(x)calibrate_params_MDR(x,MDR_fun, params_MDR.years_range, ...
 if full_parameter_search
     
     
-    options = optimoptions('patternsearch','UseParallel',params_calibration.parallel,...
+    options = optimoptions('patternsearch','UseParallel',false,...
         'UseCompletePoll', true, 'UseVectorized', false,...
         'MaxFunctionEvaluations',1200,'Display','iter',...
         'Cache','on','InitialMeshSize',.25,...
