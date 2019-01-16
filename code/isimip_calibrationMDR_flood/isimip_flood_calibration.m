@@ -1,4 +1,4 @@
-function [status,output_filename,output]=isimip_flood_calibration(RegionID,years_range,params,params_MDR,params_calibration)
+function [status,output_eval_filename,output]=isimip_flood_calibration(RegionID,years_range,params,params_MDR,params_calibration,params_computation)
 % climada isimip flood
 % MODULE:
 %   isimip
@@ -11,14 +11,14 @@ function [status,output_filename,output]=isimip_flood_calibration(RegionID,years
 %   parameters, then call 'calibrate_MDR_steps' to do the calibration.
 %
 % CALLING SEQUENCE:
-%   [status,output_filename]=isimip_flood_calibration(RegionID,years_range)
+%   [status,output_eval_filename]=isimip_flood_calibration(RegionID,years_range)
 % EXAMPLE:
 %   RegionID='NAM';
 %   years_range=[1990 2000];
 %   params.entity_folder='/cluster/work/climate/dbresch/climada_data/isimip/entities';
 %   params.entity_prefix='FL1950';
 %   params_MDR.damFun_xVals=0:0.5:15;
-%   [status,output_filename]=isimip_flood_calibration(RegionID,years_range,params,params_MDR)
+%   [status,output_eval_filename]=isimip_flood_calibration(RegionID,years_range,params,params_MDR)
 % INPUTS:
 %   RegionID: Region name (full name)
 % OPTIONAL INPUT PARAMETERS:
@@ -96,10 +96,13 @@ function [status,output_filename,output]=isimip_flood_calibration(RegionID,years
 %           'MMMed':Multi-Model Median damage estimate vs observated damages.
 %       step_tolerance: parameter step tolerance for patternsearch
 %           algorithm. Default=0.001.
-%       parallel: =true to use parellelization for the optimization. Default=false.
+%   params_computation: A structure with fields:
+%       years_range: Range of years to be used for the computation of
+%           damages with the calibrated damage function (using
+%           isimip_compute_calibrated). Default = [1971 2010]
 % OUTPUTS:
-%   status: 1 if successful, 0 if not.
-%   output_filename: a file name for the .mat file generated.
+%   status: 2 if successful, 1 if calibration successful but computation and csv file is not, 0 if even calibration failed.
+%   output_eval_filename: a file name for the .csv file generated in applying the calibrated damage function.
 % MODIFICATION HISTORY:
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180711, initial
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181009, many changes
@@ -112,14 +115,16 @@ function [status,output_filename,output]=isimip_flood_calibration(RegionID,years
 %    direct definition of MDR_fun and adding call to isimip_compute_calibrated
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190103, filter out countries which do not 'exist' as ISO3
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190114, adding params.keep_countries_0emdat as a country filtering criterion.
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190116, many improvements such as treatment of EM-DAT, application of isimip_compute_calibrated for years not used in calibration, removing old/unused code extracts, removing parallelization of optimization
 %-
 
 global climada_global
 if ~climada_init_vars,return;end % init/import global variables
-status=0;
 
+% init output
+status=0;
 output=[];
-output_filename=[];
+output_eval_filename=[];
 
 %% poor man's version to check arguments
 % and to set default value where  appropriate
@@ -128,6 +133,7 @@ if ~exist('years_range','var'),             years_range=    [1992 2010];end
 if ~exist('params','var'),                  params=              struct;end
 if ~exist('params_MDR','var'),              params_MDR=          struct;end
 if ~exist('params_calibration','var'),      params_calibration=  struct;end
+if ~exist('params_computation','var'),      params_computation=  struct;end
 
 
 %% check for some parameter fields we need
@@ -152,8 +158,8 @@ if params_MDR.remove_years_0YDS.do
     if ~isfield(params_MDR.remove_years_0YDS,'threshold')
         error('** ERROR ** Input parameter params_MDR.remove_years_0YDS.threshold required since params_MDR.remove_years_0YDS.do==1 *****')
     end
-    if ~isfield(params_MDR.remove_years_0YDS, 'what') && iscell(hazard_list{1})
-        error('** ERROR ** Input parameter params_MDR.remove_years_0YDS.what required since params_MDR.remove_years_0YDS.do==1 and multiple hazard per country are provided *****')
+    if ~isfield(params_MDR.remove_years_0YDS, 'what')
+        error('** ERROR ** Input parameter params_MDR.remove_years_0YDS.what required since params_MDR.remove_years_0YDS.do==1 and multiple hazard per country are expected *****')
     end
     if ~isfield(params_MDR.remove_years_0YDS, 'min_val'),params_MDR.remove_years_0YDS.min_val=0;end
 end
@@ -166,13 +172,13 @@ if ~isfield(params_MDR,'damFun_xVals'), warning('** warning ** params_MDR.damFun
 % params_calibration
 if ~isfield(params_calibration,'type'),params_calibration.type='R2';end
 if ~isfield(params_calibration,'MM_how'),params_calibration.MM_how='MMM';end
-if ~isfield(params_calibration,'parallel'),params_calibration.parallel=false;end
 if ~isfield(params_calibration,'step_tolerance'),params_calibration.step_tolerance=0.01;end
+% params_computation
+if ~isfield(params_computation,'years_range'),params_computation.years_range=[1971 2010];end
 
 
-%% 0) Get variables and paths
+%% 1) Get variables and paths, check countries
 isimip_simround = '2a';
-all_years = years_range(1):years_range(2);
 % get countries that belong to the region, those used for calibration and
 % those used only for 'extrapolation'
 NatID_RegID_file=[params.RegID_def_folder filesep 'NatID_RegID_isimip_flood_filtered_' num2str(years_range(1)) '-' num2str(years_range(2)) '.csv'];
@@ -214,14 +220,14 @@ end
 countries_iso3_all = NatID_RegID_flood.ISO(~fully_out);
 countries_iso3 = NatID_RegID_flood.ISO(countries_keep)';
 countries_iso3_extrapolation = NatID_RegID_flood.ISO((~fully_out) & calib_out)';
-% [~,countries_calib_inds] = intersect(countries_iso3_all,countries_iso3,'stable');
-% [~,countries_extrap_inds] = intersect(countries_iso3_all,countries_iso3_extrapolation,'stable');
+[~,countries_calib_inds] = intersect(countries_iso3_all,countries_iso3,'stable');
+%[~,countries_extrap_inds] = intersect(countries_iso3_all,countries_iso3_extrapolation,'stable');
 
 fprintf('Countries selected for calibration:\n%s\n\n',strjoin(countries_iso3,', '))
 fprintf('Additional countries selected for application (extrapolation):\n%s\n\n',strjoin(countries_iso3_extrapolation,', '))
 clear countries_keep calib_out fully_out;
 
-%% 0+) prepare output: fill in params for calibrate_MDR_steps including file name to be saved
+%% 2) prepare output: fill in params for calibrate_MDR_steps including file name to be saved
 params_step=struct;
 %define filename
 filename_calib = ['calib_' RegionID '_' num2str(years_range(1)) '-' num2str(years_range(2)) '_' params_calibration.type '-' params_calibration.MM_how '-step' num2str(params_calibration.step_tolerance)];
@@ -235,15 +241,67 @@ filename_pars = ['pars' num2str(params_MDR.pars_range{1}(1)) '-' num2str(params_
 filename = [filename_calib '_' filename_haz '_' filename_ent '_' filename_filter '_' filename_pars '.mat'];
 % add to params_step (params in calibrate_MDR_steps)
 params_step.savefile=[params.output_folder filesep filename];
-output_filename=params_step.savefile;
-fprintf('Output file will be: %s\n', output_filename);
-[temp1,temp2,~]=fileparts(output_filename);
+[temp1,temp2,~]=fileparts(params_step.savefile);
 params_calibration.write_outfile=[temp1 filesep temp2 '_steps.dat'];
 fprintf('Results from each optimization steps will be saved in: %s\n', params_calibration.write_outfile);
-output_eval_filename=[temp1 filesep temp2 '_eval.mat'];
-output_eval_filename2=[temp1 filesep temp2 '_eval.csv'];
+output_eval_filename=[temp1 filesep temp2 '_eval.csv'];
+
+%% 3) load entities , hazards and EM-DAT
+[entity_list,hazard_list,emdat_list] = load_entity_hazard_emdat(countries_iso3,years_range,params,isimip_simround);
 
 
+%% 4) Define MDR function shape and parameters
+MDR_fun=@(x,pars)pars(1)*(1-exp(-pars(2)*x));
+
+
+%% 5) fill in params_MDR including file name to be saved
+params_MDR.years_range = years_range;
+params_MDR.use_YDS = ~params.entity_year;
+
+
+
+%% 6) Call calibrate_MDR_steps (TO DO)
+[ opt_pars, years_i_in] = calibrate_MDR_steps(entity_list, hazard_list, emdat_list, ...
+    MDR_fun, params_step, params_MDR, params_calibration);
+fprintf('best set of parameters identified for region %s: scale=%g , shape=%g\n', RegionID, opt_pars(1), opt_pars(2));
+status=1;
+
+%% 7) Compute damages per country and year for each combination using the identified optimal parameter combination
+
+% first, load data for all years
+fprintf('Loading data for isimip_compute_calibrated...\n')
+[entity_list_comp,hazard_list_comp,emdat_list_comp] = load_entity_hazard_emdat(countries_iso3_all,params_computation.years_range,params,isimip_simround);
+fprintf('Data loading completed for isimip_compute_calibrated\n')
+
+% prepare input
+% get years_i_in (year/country used for calibration)
+all_years_comp = params_computation.years_range(1):params_computation.years_range(2);
+[~,years_comp_intersect] = intersect(all_years_comp,years_range(1):years_range(2));
+years_i_in_comp = false(length(all_years_comp),length(countries_iso3_all));
+years_i_in_comp(years_comp_intersect,countries_calib_inds)=years_i_in;
+damFun = climada_damagefunctions_generate_from_fun(params_MDR.damFun_xVals, MDR_fun, opt_pars);
+
+% computation
+[ status2, output ] = isimip_compute_calibrated(entity_list_comp, ...
+    hazard_list_comp, emdat_list_comp, ...
+    params_computation.years_range, damFun, params_MDR.use_YDS, years_i_in_comp);
+status=status+status2;
+
+% check status, print, write out table
+if status2
+    fprintf('Evaluation of isimip_compute_calibrated will be saved in: %s\n', output_eval_filename);
+    writetable(output,output_eval_filename);
+else
+    fprintf('Evaluation of isimip_compute_calibrated failed\n')
+end
+
+end
+
+
+function [entity_list,hazard_list,emdat_list] = load_entity_hazard_emdat(countries_iso3,years_range,params,isimip_simround)
+% function to load lists of entity,hazard,emdat data for a list of
+% countries over a range of years
+all_years = years_range(1):years_range(2);
 %% 1) load entities - N entities for N countries
 entity_list=cell(length(countries_iso3),1);
 for i=1:length(countries_iso3)
@@ -271,7 +329,11 @@ end
 
 %% 2) load hazards. 46*N hazards, as there are 46 model combinations
 ghms = {'CLM', 'DBH', 'H08', 'JULES-TUC', 'JULES-UoE', 'LPJmL', 'MATSIRO', 'MPI-HM', 'ORCHIDEE', 'PCR-GLOBWB', 'VEGAS', 'VIC', 'WaterGAP'};
-forcings = {'gswp3', 'princeton', 'watch', 'wfdei'};
+if years_range(2)>2001
+    forcings = {'gswp3', 'princeton', 'wfdei'};
+else
+    forcings = {'gswp3', 'princeton', 'watch', 'wfdei'};
+end
 hazard_list=cell(length(countries_iso3),1);
 for i=1:length(countries_iso3)
     hazard_list{i} = {};
@@ -282,9 +344,25 @@ for i=1:length(countries_iso3)
             forcing = forcings{k};
             [flddph_filename,~,fld_path] = isimip_get_flood_filename(isimip_simround, ghm, forcing, params.hazard_protection, 'historical');
             flood_filename=[fld_path filesep flddph_filename];
-            hazard_FL_file=isimip_get_flood_hazard_filename(flood_filename,entity_list{i},isimip_simround,[0 0],params.subtract_matsiro);
-            if exist(hazard_FL_file, 'file')
-                hazard_FL=climada_hazard_load(hazard_FL_file);
+            if ~exist(flood_filename, 'file')
+                % no NetCDF file, warn only on first encounter
+                if i==1
+                    fprintf('     * Warning: FL hazard (netcdf) missing, probably inexistent model combination %s\n',flood_filename);
+                end
+                % skip that ghm/forcing combination
+                continue
+            else
+                % NetCDF file exists, has the hazard file already been created?
+                hazard_FL_file=isimip_get_flood_hazard_filename(flood_filename,entity_list{i},isimip_simround,[0 0],params.subtract_matsiro);
+                if ~exist(hazard_FL_file, 'file')
+                    % no hazard file (ghm-forcing-entity combination), create it
+                    fprintf('     * Warning: hazard file missing, creating now file %s\n',hazard_FL_file);
+                    hazard_FL=isimip_flood_load(flood_filename,hazard_FL_file,entity_list{i},0,isimip_simround,[0 0],'nearest',1,params.subtract_matsiro);
+                else
+                    % hazard file already exists, just load it
+                    hazard_FL=climada_hazard_load(hazard_FL_file);
+                end
+                % post-process hazard
                 hazard_FL.yyyy = double(string(hazard_FL.yyyy));
                 try
                     hazard_FL=climada_subset_years(hazard_FL, 'hazard', all_years);
@@ -300,9 +378,6 @@ for i=1:length(countries_iso3)
                 end
                 ii=ii+1;
                 hazard_list{i}{ii}=hazard_FL;
-            else
-                fprintf('     * Warning: FL hazard missing, probably inexistent model combination %s\n',flood_filename);
-                continue
             end
         end
     end
@@ -312,57 +387,59 @@ end
 %% 3) load EM-DAT
 emdat_list=cell(length(countries_iso3),1);
 for i=1:length(countries_iso3)
-    evalc("country_emdat = emdat_get_country_names(countries_iso3{i},['FL';'F1';'F2'],years_range,0);");%silent
-    % EM-DAT damages corrected by growth exposure only if fixed entities
-    % are used.
-    em_data_i=emdat_read('',country_emdat,['FL';'F1';'F2'],params.entity_year,0);
-    emdat_damage = zeros([length(all_years) 1]);
-    % if EM-DAT data available for this country, use, if not leave zeros
-    if ~isempty(em_data_i)
-        for iy=1:length(all_years)
-            ii=find(all_years(iy) == em_data_i.year);
-            if ~isempty(ii)
-                emdat_damage(iy,1) = sum(em_data_i.damage(ii));
-            end
+    % pre-fill data with NaN. Only country/years with surely 0 damage in
+    %   EM-DAT will be changed
+    emdat_list{i}.year=all_years;
+    emdat_list{i}.values=NaN([length(all_years) 1]);
+    % check changes in countries for the whole time period (using evalc to
+    %   avoid printing message from emdat_get_country_names)
+    evalc("[country_emdat,~,cl,em] = emdat_get_country_names(countries_iso3{i},['FL';'F1';'F2'],years_range,0);");%silent
+    if cl<0
+        % changes_list=-3 or -1 should not happen because these have been filtered out already
+        if ismember(cl, [-3 -1]),fprintf('** WARNING ** changes_list=%s for %s - this should NOT HAPPEN',num2str(cl),countries_iso3{i});end
+        % changes_list=-2 is ok, but in that case leave NaN
+        continue
+    elseif cl == 99
+        % check for each year whether data is ok to be used (cls is changes_list from each individual year)
+        cls = NaN([length(all_years) 1]);
+        for yi=1:length(all_years)
+            evalc("[country_emdat_yi,~,cl_yi,em_yi] = emdat_get_country_names(countries_iso3{i},['FL';'F1';'F2'],repmat(all_years(yi),[1 2]),0);");%silent
+            cls(yi) = cl_yi;
+        end
+        if sum(cls < 0)
+            % there shouldn't be negative changes_list values in any year but just check
+            fprintf('** WARNING ** changes_list=%s for %s on year %s - this should NOT HAPPEN',num2str(cls(cls<0)),countries_iso3{i},num2str(all_years(cls<0)))
+        end
+        if all(cls==99)
+            % there is no valid value so we can leave the NaN
+            continue
+        else
+            % some years with changes_list=99, others not, so read data
+            emdat_list_temp = emdat_load_yearlysum(country_emdat,['FL';'F1';'F2'],params.entity_year,years_range);
+            % use only values where cls is 0,1 or 2
+            emdat_list{i}.values(ismember(cls,[0 1 2])) = emdat_list_temp.values(ismember(cls,[0 1 2]));
+            % other values are 99 and hence NaN should be left in there
+        end
+    else
+        % no changing country issue - simply read in data
+        emdat_list{i} = emdat_load_yearlysum(country_emdat,['FL';'F1';'F2'],params.entity_year,years_range);
+    end
+end
+end
+
+function emdata = emdat_load_yearlysum(country_emdat,peril_ID,exposure_growth,years_range)
+% function to load EM-DAT data and sum damages per year
+all_years=years_range(1):years_range(2);
+emdata.year=all_years;
+emdata.values=zeros([length(all_years) 1]);
+em_data_i=emdat_read('',country_emdat,peril_ID,exposure_growth,0);
+% if EM-DAT data available for this country, use, if not, assume zeros
+if ~isempty(em_data_i)
+    for iy=1:length(all_years)
+        ii=find(all_years(iy) == em_data_i.year);
+        if ~isempty(ii)
+            emdata.values(iy,1) = sum(em_data_i.damage(ii));
         end
     end
-    emdat_list{i}.values=emdat_damage;
-    emdat_list{i}.year=all_years;
 end
-
-
-%% 4) Define MDR function shape and parameters
-MDR_fun=@(x,pars)pars(1)*(1-exp(-pars(2)*x));
-
-
-%% 5) fill in params_MDR including file name to be saved
-params_MDR.years_range = years_range;
-params_MDR.use_YDS = ~params.entity_year;
-
-
-
-%% 6) Call calibrate_MDR_steps (TO DO)
-[ opt_pars, years_i_in] = calibrate_MDR_steps(entity_list, hazard_list, emdat_list, ...
-    MDR_fun, params_step, params_MDR, params_calibration);
-fprintf('best set of parameters identified for region %s: scale=%g , shape=%g\n', RegionID, opt_pars(1), opt_pars(2));
-% save('input_calibrate_MDR_steps.mat','RegionID', 'entity_list', 'hazard_list', 'emdat_list', 'MDR_fun','params_MDR','params_calibration','-v7.3')
-
-status=1;
-
-%% 7) Compute damages per country and year for each combination using the identified optimal parameter combination
-[ status, output ]=...
-    isimip_compute_calibrated(entity_list, hazard_list, emdat_list, ...
-    MDR_fun, opt_pars, params_MDR, years_i_in);
-if status
-%    save(output_eval_filename,'opt_pars','output_table','years_range','years_i_in','countries_iso3','-v7.3');
-    fprintf('Results from each optimization steps will be saved in: %s\n', output_eval_filename2);
-%     output_table(ismissing(output_table))='NA';
-%     output_all2=cellstr(output_table);
-    %     writetable(cell2table(output_all2),output_eval_filename2,'writevariablenames',0);
-    writetable(output,output_eval_filename2);
-    
-else
-    fprintf('Evaluation of isimip_compute_calibrated failed\n')
-end
-
 end
