@@ -141,6 +141,7 @@ function [status,output_eval_filename,output]=isimip_flood_calibration(RegionID,
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190114, adding params.keep_countries_0emdat as a country filtering criterion.
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190116, many improvements such as treatment of EM-DAT, application of isimip_compute_calibrated for years not used in calibration, removing old/unused code extracts, removing parallelization of optimization
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190121, new options params_calibration.calib_options and params_computation.do
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190121, use of strcmp to determine params_computation.do
 %-
 
 global climada_global
@@ -213,7 +214,7 @@ switch params_calibration.calib_options.method
 end
 % params_computation
 if ~isfield(params_computation,'years_range'),params_computation.years_range=[1971 2010];end
-if ~isfield(params_computation,'do'),params_computation.do=(params_calibration.calib_options.method=='patternsearch');end
+if ~isfield(params_computation,'do'),params_computation.do=strcmp(params_calibration.calib_options.method,'patternsearch');end
 
 
 %% 1) Get variables and paths, check countries
