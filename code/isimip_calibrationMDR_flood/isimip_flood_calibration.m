@@ -75,6 +75,26 @@ function [status,output_eval_filename,output]=isimip_flood_calibration(RegionID,
 %        The second last values will be set to the last value in order to
 %        ensure a maximum MDR value.
 %   params_calibration: parameters for the calibration. A structure with fields:
+%       calib_options: options on the calibration method to use, a struct with fields:
+%           method: one of
+%               'patternsearch' (default): use pattern search algorithm
+%               'regular_sampling' : regularly sample the parameter space
+%           params: parameters for the method.
+%               For patternsearch: structure with fields
+%                   random: if =1, starting points are chosen randomly,
+%                       otherwise they are linearly distributed over the
+%                       parameter ranges. Default=0.
+%                   nstart: number of starting points (default=1). 
+%                       If random==1, the total number of starting points;
+%                       if random==0, the number of starting points in each
+%                       parameter dimension.
+%                   InitialMeshSize: parameter in patternsearch (default=.25)
+%                   step_tolerance: parameter step tolerance for patternsearch
+%                       algorithm. Default=0.001.
+%               For regular_sampling: structure with fields
+%                   n_per_dim: number of samples per parameter (total
+%                       number of simulations will then be (n_per_dim)^n
+%                       where n is the number of parameters). Default=5.
 %       type (string): cost function, one of:
 %           'AED2':  "Annual Expected Damage": result is the squared
 %                   difference of mean year damage 
@@ -100,6 +120,10 @@ function [status,output_eval_filename,output]=isimip_flood_calibration(RegionID,
 %       years_range: Range of years to be used for the computation of
 %           damages with the calibrated damage function (using
 %           isimip_compute_calibrated). Default = [1971 2010]
+%       do: if =1, does the computation of damages with calibrated
+%           parameters. Otherwise, does not do it. Default=1 if
+%           params_calibration.calib_options.method=='patternsearch',
+%           otherwise default=0.
 % OUTPUTS:
 %   status: 2 if successful, 1 if calibration successful but computation and csv file is not, 0 if even calibration failed.
 %   output_eval_filename: a file name for the .csv file generated in applying the calibrated damage function.
@@ -116,6 +140,7 @@ function [status,output_eval_filename,output]=isimip_flood_calibration(RegionID,
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190103, filter out countries which do not 'exist' as ISO3
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190114, adding params.keep_countries_0emdat as a country filtering criterion.
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190116, many improvements such as treatment of EM-DAT, application of isimip_compute_calibrated for years not used in calibration, removing old/unused code extracts, removing parallelization of optimization
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190121, new options params_calibration.calib_options and params_computation.do
 %-
 
 global climada_global
@@ -172,9 +197,23 @@ if ~isfield(params_MDR,'damFun_xVals'), warning('** warning ** params_MDR.damFun
 % params_calibration
 if ~isfield(params_calibration,'type'),params_calibration.type='R2';end
 if ~isfield(params_calibration,'MM_how'),params_calibration.MM_how='MMM';end
-if ~isfield(params_calibration,'step_tolerance'),params_calibration.step_tolerance=0.01;end
+if ~isfield(params_calibration,'calib_options'),params_calibration.calib_options=struct;end
+if ~isfield(params_calibration.calib_options,'method'),params_calibration.calib_options.method='patternsearch';end
+if ~isfield(params_calibration.calib_options,'params'),params_calibration.calib_options.params=struct;end
+switch params_calibration.calib_options.method
+    case 'patternsearch'
+        if ~isfield(params_calibration.calib_options.params,'random'),params_calibration.calib_options.params.random=0;end
+        if ~isfield(params_calibration.calib_options.params,'nstart'),params_calibration.calib_options.params.nstart=1;end
+        if ~isfield(params_calibration.calib_options.params,'InitialMeshSize'),params_calibration.calib_options.params.InitialMeshSize=0.25;end
+        if ~isfield(params_calibration.calib_options.params,'step_tolerance'),params_calibration.calib_options.params.step_tolerance=0.01;end
+    case 'regular_sampling'
+        if ~isfield(params_calibration.calib_options.params,'n_per_dim'),params_calibration.calib_options.params.n_per_dim=5;end
+    otherwise
+        error('Input field params_calibration.calib_options.method is not valid')
+end
 % params_computation
 if ~isfield(params_computation,'years_range'),params_computation.years_range=[1971 2010];end
+if ~isfield(params_computation,'do'),params_computation.do=(params_calibration.calib_options.method=='patternsearch');end
 
 
 %% 1) Get variables and paths, check countries
@@ -230,7 +269,22 @@ clear countries_keep calib_out fully_out;
 %% 2) prepare output: fill in params for calibrate_MDR_steps including file name to be saved
 params_step=struct;
 %define filename
-filename_calib = ['calib_' RegionID '_' num2str(years_range(1)) '-' num2str(years_range(2)) '_' params_calibration.type '-' params_calibration.MM_how '-step' num2str(params_calibration.step_tolerance)];
+switch params_calibration.calib_options.method
+    case 'patternsearch'
+        filename_calib_method = [params_calibration.calib_options.method '_'];
+        if params_calibration.calib_options.params.random
+            filename_calib_method=[filename_calib_method 'rand' num2str(params_calibration.calib_options.params.nstart)];
+        else
+            filename_calib_method=[filename_calib_method 'reg' num2str(params_calibration.calib_options.params.nstart)];
+        end
+        filename_calib_method=[filename_calib_method '_mesh' num2str(params_calibration.calib_options.params.InitialMeshSize) '-step' num2str(params_calibration.calib_options.params.step_tolerance)];
+    case 'regular_sampling'
+        filename_calib_method=[params_calibration.calib_options.method '_' num2str(params_calibration.calib_options.params.n_per_dim)];
+    otherwise
+        error('Input field params_calibration.calib_options.method is not valid')
+end
+filename_calib = ['calib_' RegionID '_' num2str(years_range(1)) '-' num2str(years_range(2)) '_' ...
+    params_calibration.type '-' params_calibration.MM_how '-' filename_calib_method];
 filename_haz = ['Haz-Prot' params.hazard_protection '-subMATSIRO' num2str(params.subtract_matsiro)];
 filename_ent = ['Entity-Year' num2str(params.entity_year)];
 filename_filter = ['Filters-Country' num2str(params.keep_countries_0emdat) '-emdat' num2str(params_MDR.remove_years_0emdat) '-YDS' num2str(params_MDR.remove_years_0YDS.do)];
@@ -269,30 +323,34 @@ status=1;
 %% 7) Compute damages per country and year for each combination using the identified optimal parameter combination
 
 % first, load data for all years
-fprintf('Loading data for isimip_compute_calibrated...\n')
-[entity_list_comp,hazard_list_comp,emdat_list_comp] = load_entity_hazard_emdat(countries_iso3_all,params_computation.years_range,params,isimip_simround);
-fprintf('Data loading completed for isimip_compute_calibrated\n')
-
-% prepare input
-% get years_i_in (year/country used for calibration)
-all_years_comp = params_computation.years_range(1):params_computation.years_range(2);
-[~,years_comp_intersect] = intersect(all_years_comp,years_range(1):years_range(2));
-years_i_in_comp = false(length(all_years_comp),length(countries_iso3_all));
-years_i_in_comp(years_comp_intersect,countries_calib_inds)=years_i_in;
-damFun = climada_damagefunctions_generate_from_fun(params_MDR.damFun_xVals, MDR_fun, opt_pars);
-
-% computation
-[ status2, output ] = isimip_compute_calibrated(entity_list_comp, ...
-    hazard_list_comp, emdat_list_comp, ...
-    params_computation.years_range, damFun, params_MDR.use_YDS, years_i_in_comp);
-status=status+status2;
-
-% check status, print, write out table
-if status2
-    fprintf('Evaluation of isimip_compute_calibrated will be saved in: %s\n', output_eval_filename);
-    writetable(output,output_eval_filename);
+if ~params_computation.do
+    fprintf('Evaluation of isimip_compute_calibrated not requested\n')
 else
-    fprintf('Evaluation of isimip_compute_calibrated failed\n')
+    fprintf('Loading data for isimip_compute_calibrated...\n')
+    [entity_list_comp,hazard_list_comp,emdat_list_comp] = load_entity_hazard_emdat(countries_iso3_all,params_computation.years_range,params,isimip_simround);
+    fprintf('Data loading completed for isimip_compute_calibrated\n')
+    
+    % prepare input
+    % get years_i_in (year/country used for calibration)
+    all_years_comp = params_computation.years_range(1):params_computation.years_range(2);
+    [~,years_comp_intersect] = intersect(all_years_comp,years_range(1):years_range(2));
+    years_i_in_comp = false(length(all_years_comp),length(countries_iso3_all));
+    years_i_in_comp(years_comp_intersect,countries_calib_inds)=years_i_in;
+    damFun = climada_damagefunctions_generate_from_fun(params_MDR.damFun_xVals, MDR_fun, opt_pars);
+    
+    % computation
+    [ status2, output ] = isimip_compute_calibrated(entity_list_comp, ...
+        hazard_list_comp, emdat_list_comp, ...
+        params_computation.years_range, damFun, params_MDR.use_YDS, years_i_in_comp);
+    status=status+status2;
+    
+    % check status, print, write out table
+    if status2
+        fprintf('Evaluation of isimip_compute_calibrated will be saved in: %s\n', output_eval_filename);
+        writetable(output,output_eval_filename);
+    else
+        fprintf('Evaluation of isimip_compute_calibrated failed\n')
+    end
 end
 
 end

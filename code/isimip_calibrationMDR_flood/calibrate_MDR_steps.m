@@ -52,6 +52,26 @@ function [ optimal_pars, years_i_in ] = calibrate_MDR_steps(entity_list, hazard_
 %        The second last values will be set to the last value in order to
 %        ensure a maximum MDR value.
 %   params_calibration: parameters for the calibration:
+%       calib_options: options on the calibration method to use, a struct with fields:
+%           method: one of
+%               'patternsearch' (default): use pattern search algorithm
+%               'regular_sampling' : regularly sample the parameter space
+%           params: parameters for the method.
+%               For patternsearch: structure with fields
+%                   random: if =1, starting points are chosen randomly,
+%                       otherwise they are linearly distributed over the
+%                       parameter ranges. Default=0.
+%                   nstart: number of starting points (default=1). 
+%                       If random==1, the total number of starting points;
+%                       if random==0, the number of starting points in each
+%                       parameter dimension.
+%                   InitialMeshSize: parameter in patternsearch (default=.25)
+%                   step_tolerance: parameter step tolerance for patternsearch
+%                       algorithm. Default=0.001.
+%               For regular_sampling: structure with fields
+%                   n_per_dim: number of samples per parameter (total
+%                       number of simulations will then be (n_per_dim)^n
+%                       where n is the number of parameters). Default=5.
 %       type (string): cost function, one of:
 %           'AED2':  "Annual Expected Damage": result is the squared
 %                   difference of mean year damage 
@@ -71,8 +91,6 @@ function [ optimal_pars, years_i_in ] = calibrate_MDR_steps(entity_list, hazard_
 %       MM_how (string): how to deal with Multi-Model hazard sets, one of:
 %           'MMM':  Multi-Model Mean damage estimate vs observated damages.
 %           'MMMed':Multi-Model Median damage estimate vs observated damages.
-%       step_tolerance: parameter step tolerance for patternsearch
-%           algorithm. Default=0.001.
 %       write_outfile: name of a file where the result from each step
 %           should be saved.
 % OPTIONAL INPUT PARAMETERS:
@@ -85,6 +103,8 @@ function [ optimal_pars, years_i_in ] = calibrate_MDR_steps(entity_list, hazard_
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181009, split into
 %    sub-functions and progress in implementation
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181127, added output years_i_in
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190116, removing parallel option for patternsearch
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190121, allowing to use patternsearch or regular sampling of parameters, and several initial points for patternsearch (random or uniformly distributed in the parameter space)
 %-
 
 
@@ -122,7 +142,21 @@ if ~isfield(params_MDR,'damFun_xVals'), warning('** warning ** params_MDR.damFun
 % params_calibration
 if ~isfield(params_calibration,'type'),error('Input parameter params_calibration.type is missing');end
 if ~isfield(params_calibration,'MM_how'),error('Input parameter params_calibration.MM_how is missing');end
-if ~isfield(params_calibration,'step_tolerance'),params_calibration.step_tolerance=0.001;end
+if ~isfield(params_calibration,'calib_options'),params_calibration.calib_options=struct;end
+if ~isfield(params_calibration.calib_options,'method'),params_calibration.calib_options.method='patternsearch';end
+if ~isfield(params_calibration.calib_options,'params'),params_calibration.calib_options.params=struct;end
+switch params_calibration.calib_options.method
+    case 'patternsearch'
+        if ~isfield(params_calibration.calib_options.params,'random'),params_calibration.calib_options.params.random=0;end
+        if ~isfield(params_calibration.calib_options.params,'nstart'),params_calibration.calib_options.params.nstart=1;end
+        if ~isfield(params_calibration.calib_options.params,'InitialMeshSize'),params_calibration.calib_options.params.InitialMeshSize=0.25;end
+        if ~isfield(params_calibration.calib_options.params,'step_tolerance'),params_calibration.calib_options.params.step_tolerance=0.001;end
+    case 'regular_sampling'
+        if ~isfield(params_calibration.calib_options.params,'n_per_dim'),params_calibration.calib_options.params.n_per_dim=5;end
+    otherwise
+        error('Input field params_calibration.calib_options.method is not valid')
+end
+
 
 %% 1) determine useful parameters, formatting
 country_list=cellfun(@(x) x.assets.admin0_ISO3,entity_list, 'UniformOutput', 0);
@@ -137,8 +171,6 @@ if ~iscell(hazard_list{1})
         clear hazard_temp;
     end
 end
-
-full_parameter_search = 1;
 
 
 %% 2) check time period
@@ -160,9 +192,7 @@ end
 
 
 
-%% 4) set boundaries and starting parameter values
-% Choose the middle of the range of values as a starting point
-x0=cellfun(@(x) mean(x),params_MDR.pars_range, 'UniformOutput', 1);
+%% 4) set boundaries
 % retrieve the lower and upper bounds of the parameter
 bounds.lb=cellfun(@(x) x(1),params_MDR.pars_range, 'UniformOutput', 1);
 bounds.ub=cellfun(@(x) x(2),params_MDR.pars_range, 'UniformOutput', 1);
@@ -172,9 +202,6 @@ bounds.ub=cellfun(@(x) x(2),params_MDR.pars_range, 'UniformOutput', 1);
 norm.lb = ones(size(bounds.lb));
 % upper bounds are normalized to 2
 norm.ub = norm.lb+1;
-% normalization of the starting values for initialization pattern search
-norm_x0 = (x0-bounds.lb)./(bounds.ub-bounds.lb) .* (norm.ub-norm.lb) + norm.lb;
-
 
 %% 5) prepare calibration function
 % define anonymous function with input factor x (parameters of the damage
@@ -193,34 +220,95 @@ fun = @(x)calibrate_params_MDR(x,MDR_fun, params_MDR.years_range, ...
 %     params_MDR2,params_calibration);
 
 %% 6) optimization of parameters
-if full_parameter_search
-    
-    
-    options = optimoptions('patternsearch','UseParallel',false,...
-        'UseCompletePoll', true, 'UseVectorized', false,...
-        'MaxFunctionEvaluations',1200,'Display','iter',...
-        'Cache','on','InitialMeshSize',.25,...
-        'PollMethod','GPSPositiveBasis2N','StepTolerance',params_calibration.step_tolerance);
+n_pars = length(params_MDR.pars_range);
+switch params_calibration.calib_options.method
+    % ----------------------
+    case 'patternsearch'
+        
+        options = optimoptions('patternsearch','UseParallel',false,...
+            'UseCompletePoll', true, 'UseVectorized', false,...
+            'MaxFunctionEvaluations',1200,'Display','iter',...
+            'Cache','on','InitialMeshSize',params_calibration.calib_options.params.InitialMeshSize,...
+            'PollMethod','GPSPositiveBasis2N','StepTolerance',params_calibration.calib_options.params.step_tolerance);
+        
+        if isfield(params_calibration, 'write_outfile')
+            fileID=fopen(params_calibration.write_outfile,'w');
+            fprintf(fileID,'%s %s %s\n','x(1)','x(2)','cost_value');
+            fclose(fileID);
+        end
+        
+        % set starting parameter values: cell array norm_x0
+        if params_calibration.calib_options.params.random
+            % random start for each starting point
+            norm_x0 = cellfun(@(~) random('Uniform',1,2,[1 n_pars]),num2cell(1:params_calibration.calib_options.params.nstart),'UniformOutput',false);
+        else
+            % equally spaced start points for each dimension (i.e. parameter)
+            normx0_vals = linspace(1+1/2/(params_calibration.calib_options.params.nstart),2-1/2/(params_calibration.calib_options.params.nstart),params_calibration.calib_options.params.nstart);
+            norm_x0 = cell(repmat(params_calibration.calib_options.params.nstart,[1 length(params_MDR.pars_range)]));
+            if params_calibration.calib_options.params.nstart==1
+                % only one starting point, take it in the middle (1.5 in normalized space)
+                norm_x0{1} = 1.5*ones(size(bounds.lb));
+            else
+                % several starting points in each dimension (not random)
+                for i=1:params_calibration.calib_options.params.nstart
+                    for j=1:params_calibration.calib_options.params.nstart
+                        norm_x0{i,j}=[normx0_vals(i) normx0_vals(j)];
+                    end
+                end
+            end
+        end
+        
+        % test all starting values, always keep the minimum
+        ts=tic;
+        fprintf('** lauching pattern search 1 out of %s, norm_x0=(%s,%s) **\n',num2str(numel(norm_x0)),num2str(norm_x0{1}(1)),num2str(norm_x0{1}(2)))
+        [x_result,fval] = patternsearch(fun,norm_x0{1},[],[],[],[],norm.lb,norm.ub,[],options);
+        for i=2:numel(norm_x0)
+            fprintf('** lauching pattern search %s out of %s, norm_x0=(%s,%s) **\n',num2str(i),num2str(numel(norm_x0)),num2str(norm_x0{i}(1)),num2str(norm_x0{i}(2)))
+            [x_result_i,fval_i] = patternsearch(fun,norm_x0{i},[],[],[],[],norm.lb,norm.ub,[],options);
+            if fval_i < fval
+                x_result = x_result_i;
+                fval = fval_i;
+            end
+        end
+        fprintf('** all pattern searches completed (%s start values) **\n',num2str(numel(norm_x0)))
+        toc(ts)
+        
+    % ----------------------
+    case 'regular_sampling'
+        % manually sample many points, regularly spaced, nice for displaying
+        % those later on
+        % params_calibration.calib_options.n_per_dim values for each parameters
+        normx0_vals = linspace(1+1/2/(params_calibration.calib_options.n_per_dim),2-1/2/(params_calibration.calib_options.n_per_dim),params_calibration.calib_options.n_per_dim);
+        % indices for looping through
+        ndgrid_input = repmat({1:length(normx0_vals)},1,n_pars);
+        ngrid_output = cell(1,n_pars);
+        [ngrid_output{:}] = ndgrid(ndgrid_input{:});
+        for i=1:n_pars,ngrid_output{i}=reshape(ngrid_output{i},1,[]);end
+        ind_array = vertcat(ngrid_output{:});
+        % output array
+        fvals = NaN([1 size(ind_array,2)]);
+        % loop through and evaluate cost function
+        ts=tic;
+        fprintf('looping through %s parameter combinations\n',num2str(size(ind_array,2)))
+        for i=1:size(ind_array,2)
+            fvals(i) = fun(normx0_vals(ind_array(:,i)));
+        end
+        fprintf('** all (%s) parameter combinations completed **\n',num2str(size(ind_array,2)))
+        toc(ts)
+        % pick up the best one
+        [fval,i_lowest] = min(fvals);
+        x_result = normx0_vals(ind_array(:,i_lowest));
+        
+    otherwise
+        error('Input field params_calibration.calib_options.method is not valid')
+end
 
-    if isfield(params_calibration, 'write_outfile')
-        fileID=fopen(params_calibration.write_outfile,'w');
-        fprintf(fileID,'%s %s %s\n','x(1)','x(2)','cost_value');
-        fclose(fileID);
-    end
+% convert normalized value of calibrated parameters to their 'real' values
+optimal_pars=(x_result-norm.lb).*(bounds.ub-bounds.lb)./(norm.ub-norm.lb)+bounds.lb;
 
-    tic
-    [x_result,fval] = patternsearch(fun,norm_x0,[],[],[],[],norm.lb,norm.ub,[],options);
-    toc
-    % convert normalized value of calibrated parameters to their 'real'
-    % values
-    result.region=(x_result-norm.lb).*(bounds.ub-bounds.lb)./(norm.ub-norm.lb)+bounds.lb;
-    optimal_pars=result.region;
-    fval;
-    
-    % computation of damages with the optimal parameter combination
-    if isfield(params,'savefile')
-        save(params.savefile,'result','fval','params_MDR','params_calibration','-v7.3');
-    end
+% computation of damages with the optimal parameter combination
+if isfield(params,'savefile')
+    save(params.savefile,'optimal_pars','fval','params_MDR','params_calibration','-v7.3');
 end
 
 end
@@ -303,7 +391,6 @@ if remove_years_0emdat
         fprintf([list_to_print, '\n'])
     else
         error('** ERROR ** unexpected value in params_MDR.remove_years_0emdat *****')
-        return
     end
 end
 % remove years without simulated damage
