@@ -105,6 +105,7 @@ function [ optimal_pars, years_i_in ] = calibrate_MDR_steps(entity_list, hazard_
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181127, added output years_i_in
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190116, removing parallel option for patternsearch
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190121, allowing to use patternsearch or regular sampling of parameters, and several initial points for patternsearch (random or uniformly distributed in the parameter space)
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190122, initialize file params_calibration.write_outfile in all cases
 %-
 
 
@@ -220,6 +221,14 @@ fun = @(x)calibrate_params_MDR(x,MDR_fun, params_MDR.years_range, ...
 %     params_MDR2,params_calibration);
 
 %% 6) optimization of parameters
+
+% open file for each steps and overwrite if exists ('w')
+if isfield(params_calibration, 'write_outfile')
+    fileID=fopen(params_calibration.write_outfile,'w');
+    fprintf(fileID,'%s %s %s\n','x(1)','x(2)','cost_value');
+    fclose(fileID);
+end
+
 n_pars = length(params_MDR.pars_range);
 switch params_calibration.calib_options.method
     % ----------------------
@@ -230,12 +239,6 @@ switch params_calibration.calib_options.method
             'MaxFunctionEvaluations',1200,'Display','iter',...
             'Cache','on','InitialMeshSize',params_calibration.calib_options.params.InitialMeshSize,...
             'PollMethod','GPSPositiveBasis2N','StepTolerance',params_calibration.calib_options.params.step_tolerance);
-        
-        if isfield(params_calibration, 'write_outfile')
-            fileID=fopen(params_calibration.write_outfile,'w');
-            fprintf(fileID,'%s %s %s\n','x(1)','x(2)','cost_value');
-            fclose(fileID);
-        end
         
         % set starting parameter values: cell array norm_x0
         if params_calibration.calib_options.params.random
