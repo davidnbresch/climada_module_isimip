@@ -49,8 +49,9 @@ function [ optimal_pars, years_i_in ] = calibrate_MDR_steps(entity_list, hazard_
 %        [min_val max_val].
 %     damFun_xVals: vector of value of hazard intensity to be used when
 %        creating the damage function based on MDR_fun (e.g. 0:0.5:10).
-%        The second last values will be set to the last value in order to
-%        ensure a maximum MDR value.
+%        The damage function is capped above/below the range of the
+%        intensity scale given, i.e. using climada_damagefunctions_generate_from_fun
+%        with params.IntensityCap=1
 %   params_calibration: parameters for the calibration:
 %       calib_options: options on the calibration method to use, a struct with fields:
 %           method: one of
@@ -123,6 +124,7 @@ function [ optimal_pars, years_i_in ] = calibrate_MDR_steps(entity_list, hazard_
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190121, allowing to use patternsearch or regular sampling of parameters, and several initial points for patternsearch (random or uniformly distributed in the parameter space)
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190122, initialize file params_calibration.write_outfile in all cases
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, adding RTarea as a possible type of cost function, and adding parameter params_calibration.underestimation_factor
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, update description of params_MDR.damFun_xVals
 %-
 
 

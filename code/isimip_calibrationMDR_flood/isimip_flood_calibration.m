@@ -71,9 +71,10 @@ function [status,output_eval_filename,output]=isimip_flood_calibration(RegionID,
 %     pars_range: range of parameter values (cell array, each element as
 %        [min_val max_val]). Default {[0.0001,1],[0.0001,5]}.
 %     damFun_xVals: vector of value of hazard intensity to be used when
-%        creating the damage function based on MDR_fun (e.g. 0:0.5:10).
-%        The second last values will be set to the last value in order to
-%        ensure a maximum MDR value.
+%        creating the damage function based on MDR_fun (default=0:0.5:15).
+%        The damage function is capped above/below the range of the
+%        intensity scale given, i.e. using climada_damagefunctions_generate_from_fun
+%        with params.IntensityCap=1
 %   params_calibration: parameters for the calibration. A structure with fields:
 %       calib_options: options on the calibration method to use, a struct with fields:
 %           method: one of
@@ -157,6 +158,7 @@ function [status,output_eval_filename,output]=isimip_flood_calibration(RegionID,
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190121, new options params_calibration.calib_options and params_computation.do
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190121, use of strcmp to determine params_computation.do
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, adding RTarea as a possible type of cost function, and adding parameter params_calibration.underestimation_factor
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, set default value of params_MDR.damFun_xVals to 0:0.5:15
 %-
 
 global climada_global
@@ -209,7 +211,7 @@ if ~isfield(params_MDR, 'pars_range')
     params_MDR.pars_range{1} = [0.0001 1];
     params_MDR.pars_range{2} = [0.0001 5];
 end
-if ~isfield(params_MDR,'damFun_xVals'), warning('** warning ** params_MDR.damFun_xVals not set, intensity steps of the default damage function will be used *****');end
+if ~isfield(params_MDR,'damFun_xVals'),params_MDR.damFun_xVals=0:0.5:15;end
 % params_calibration
 if ~isfield(params_calibration,'type'),params_calibration.type='R2';end
 if ~isfield(params_calibration,'MM_how'),params_calibration.MM_how='MMM';end
