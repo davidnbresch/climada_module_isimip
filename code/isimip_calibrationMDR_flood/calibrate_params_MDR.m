@@ -100,6 +100,7 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,...
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181127, use climada_EDS_calc_fast and climada_damagefunctions_generate_from_fun
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181210, use log10 instead of log
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, adding RTarea as a possible type of cost function, and adding parameter params_calibration.underestimation_factor
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, setting cases with 0 to 1 before taking the log (for type dlog2, dabslog)
 %-
 
 % initialization
@@ -227,10 +228,19 @@ switch type
         result = mean(abs(diff_yearly));
     case 'dlog2'
         % mean of the yearly squared difference of the log
-        result = mean((log10(emdat_yearly)-log10(damages_yearly)).^2);
+        damages_yearly(damages_yearly==0)=1;
+        emdat_yearly(emdat_yearly==0)=1;
+        result = log10(damages_yearly)-log10(emdat_yearly);
+        result(result<0) = result(result<0)*underestimation_factor;
+        result = mean(result.^2);
     case 'dabslog'
         % mean of the yearly absolute difference of the log
-        result = mean(abs(log10(emdat_yearly)-log10(damages_yearly)));
+        % need to set 0 to 1
+        damages_yearly(damages_yearly==0)=1;
+        emdat_yearly(emdat_yearly==0)=1;
+        result = log10(damages_yearly)-log10(emdat_yearly);
+        result(result<0) = result(result<0)*underestimation_factor;
+        result = mean(abs(result));
     case 'RTarea'
         % indices to take out to remove 0s (rt_n_out lowest values)
         rt_n_out = max([sum(damages_yearly==0) sum(emdat_yearly==0)]);
