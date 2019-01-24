@@ -85,12 +85,28 @@ function [ optimal_pars, years_i_in ] = calibrate_MDR_steps(entity_list, hazard_
 %                   year log damages of emdat and climada for each specific historical year).
 %           'dabslog':as R but with log (= the mean of the absolute differences of
 %                   yearly log damages of emdat and climada for each specific historical year).
+%           'RTarea': area of the difference between return time curves in
+%                   log10-log10 space, exluding cases with a return value
+%                   of 0 in either observed or modelled damages.
+%                   Area for underestimated damages is scaled according to
+%                   underestimation_factor.
 %           'RP':   "Return Period": as AED but for different return
 %                   periods with weights (not implemented yet) - only makes
 %                   sense for long time series
 %       MM_how (string): how to deal with Multi-Model hazard sets, one of:
 %           'MMM':  Multi-Model Mean damage estimate vs observated damages.
 %           'MMMed':Multi-Model Median damage estimate vs observated damages.
+%       underestimation_factor: factor by which to scale up cases where climada
+%           underestimates damages BEFORE evaluating the cost function
+%           (default =1, i.e. no scaling). This allows to account for fact that
+%           observated damages are usually rather a lower bound of damages. For
+%           instance, a value of 2 means that the contribution of these
+%           cases (where simulated damages < observed damages) to the cost
+%           function will be worth double of the same difference for other
+%           cases. Note that as the factor is applied before evaluating the
+%           cost function, for e.g. cost function type 'R2' underestimates
+%           would be worth 4 times more with a factor of 2 (use sqrt(2) to
+%           actually have an effect of 2).
 %       write_outfile: name of a file where the result from each step
 %           should be saved.
 % OPTIONAL INPUT PARAMETERS:
@@ -106,6 +122,7 @@ function [ optimal_pars, years_i_in ] = calibrate_MDR_steps(entity_list, hazard_
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190116, removing parallel option for patternsearch
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190121, allowing to use patternsearch or regular sampling of parameters, and several initial points for patternsearch (random or uniformly distributed in the parameter space)
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190122, initialize file params_calibration.write_outfile in all cases
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, adding RTarea as a possible type of cost function, and adding parameter params_calibration.underestimation_factor
 %-
 
 
@@ -157,6 +174,7 @@ switch params_calibration.calib_options.method
     otherwise
         error('Input field params_calibration.calib_options.method is not valid')
 end
+if ~isfield(params_calibration,'underestimation_factor'),params_calibration.underestimation_factor=1;end
 
 
 %% 1) determine useful parameters, formatting
@@ -213,7 +231,7 @@ params_MDR2.damFun_xVals = params_MDR.damFun_xVals;
 % sets all inputvar for the function except for x, use normalized x.
 fun = @(x)calibrate_params_MDR(x,MDR_fun, params_MDR.years_range, ...
     entity_list, hazard_list, emdat_list, norm, bounds,...
-    params_MDR2,params_calibration);
+    params_MDR2,rmfield(params_calibration,'calib_options'));
 
 %just for testing
 % test=calibrate_params_MDR(norm_x0,MDR_fun, params_MDR.years_range, ...

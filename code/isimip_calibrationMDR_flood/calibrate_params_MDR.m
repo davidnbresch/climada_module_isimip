@@ -65,14 +65,28 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,...
 %                   year log damages of emdat and climada for each specific historical year).
 %           'dabslog':as R but with log (= the mean of the absolute differences of
 %                   yearly log damages of emdat and climada for each specific historical year).
+%           'RTarea': area of the difference between return time curves in
+%                   log10-log10 space, exluding cases with a return value
+%                   of 0 in either observed or modelled damages.
+%                   Area for underestimated damages is scaled according to
+%                   underestimation_factor.
 %           'RP':   "Return Period": as AED but for different return
 %                   periods with weights (not implemented yet) - only makes
 %                   sense for long time series
 %       MM_how (string): how to deal with Multi-Model hazard sets, one of:
 %           'MMM':  Multi-Model Mean damage estimate vs observated damages.
 %           'MMMed':Multi-Model Median damage estimate vs observated damages.
-%       step_tolerance: parameter step tolerance for patternsearch
-%           algorithm. Default=0.001.
+%       underestimation_factor: factor by which to scale up cases where climada
+%           underestimates damages BEFORE evaluating the cost function
+%           (default =1, i.e. no scaling). This allows to account for fact that
+%           observated damages are usually rather a lower bound of damages. For
+%           instance, a value of 2 means that the contribution of these
+%           cases (where simulated damages < observed damages) to the cost
+%           function will be worth double of the same difference for other
+%           cases. Note that as the factor is applied before evaluating the
+%           cost function, for e.g. cost function type 'R2' underestimates
+%           would be worth 4 times more with a factor of 2 (use sqrt(2) to
+%           actually have an effect of 2).
 %       write_outfile: name of a file where the result from each step
 %           should be saved.
 % OUTPUTS:
@@ -85,6 +99,7 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,...
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181106, fast damage computation
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181127, use climada_EDS_calc_fast and climada_damagefunctions_generate_from_fun
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181210, use log10 instead of log
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, adding RTarea as a possible type of cost function, and adding parameter params_calibration.underestimation_factor
 %-
 
 % initialization
@@ -118,6 +133,7 @@ if ~isfield(params_calibration,'MM_how'),params_calibration.MM_how='MMM';end
 if ~ismember(params_calibration.MM_how, {'MMM', 'MMMed'})
     error('Unexpected input value in params_calibration.MM_how')
 end
+if ~isfield(params_calibration,'underestimation_factor'),params_calibration.underestimation_factor=1;end
 if ~isfield(params_MDR,'damFun_xVals')
     % give intensity scale the one of the existing damage function in the entity
     choose_DF = find(strcmp(entity_list{1}.damagefunctions.peril_ID,peril_ID) .* (entity_list{1}.damagefunctions.DamageFunID==DamFunID(1)));
@@ -176,7 +192,7 @@ damages_yearly=damages_yearly(not_nans);
 
 
 %% (3) provide difference to em_data
-result = cost_function(damages_yearly, emdat_yearly, params_calibration.type);
+result = cost_function(damages_yearly, emdat_yearly, params_calibration.type, params_calibration.underestimation_factor);
 
 % save result to file
 if isfield(params_calibration, 'write_outfile')
@@ -190,13 +206,16 @@ clear EDS YDS em_data LIA LOCB year_i damage_at_centroid_temp
 
 end
 
-function result = cost_function(damages_yearly, emdat_yearly, type)
+function result = cost_function(damages_yearly, emdat_yearly, type, underestimation_factor)
 diff_yearly=damages_yearly-emdat_yearly;
+diff_yearly(diff_yearly<0) = diff_yearly(diff_yearly<0)*underestimation_factor;
 result=nan;
 switch type
     case 'AED2'
         % squared of the difference in yearly mean damage
-        result = (mean(emdat_yearly)-mean(damages_yearly)).^2;
+        result = mean(damages_yearly)-mean(emdat_yearly);
+        if result < 0,result=result*underestimation_factor;end
+        result = result.^2;
     case 'R2'
         % mean of the yearly squared difference
         result = mean(diff_yearly.^2);
@@ -212,6 +231,19 @@ switch type
     case 'dabslog'
         % mean of the yearly absolute difference of the log
         result = mean(abs(log10(emdat_yearly)-log10(damages_yearly)));
+    case 'RTarea'
+        % indices to take out to remove 0s (rt_n_out lowest values)
+        rt_n_out = max([sum(damages_yearly==0) sum(emdat_yearly==0)]);
+        i_in = (rt_n_out+1):length(damages_yearly);
+        % sort values to easily exclude some
+        damages_yearly_sorted=sort(damages_yearly);
+        emdat_yearly_sorted=sort(emdat_yearly);
+        % get return time and difference in log10 of return values
+        rts_in = (length(damages_yearly)+1)./(length(i_in):-1:1);
+        rtvals_diff = log10(damages_yearly_sorted(i_in))-log10(emdat_yearly_sorted(i_in));
+        % multiply by underestimation factor where needed
+        rtvals_diff(rtvals_diff<0) = rtvals_diff(rtvals_diff<0)*underestimation_factor;
+        result = trapz(log10(rts_in),abs(rtvals_diff));
     case 'RP'
         % fit GEV
 %         pd = fitdist(emdat_yearly', 'GeneralizedExtremeValue');

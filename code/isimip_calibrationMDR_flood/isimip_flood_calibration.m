@@ -108,14 +108,28 @@ function [status,output_eval_filename,output]=isimip_flood_calibration(RegionID,
 %                   year log damages of emdat and climada for each specific historical year).
 %           'dabslog':as R but with log (= the mean of the absolute differences of
 %                   yearly log damages of emdat and climada for each specific historical year).
+%           'RTarea': area of the difference between return time curves in
+%                   log10-log10 space, exluding cases with a return value
+%                   of 0 in either observed or modelled damages.
+%                   Area for underestimated damages is scaled according to
+%                   underestimation_factor.
 %           'RP':   "Return Period": as AED but for different return
 %                   periods with weights (not implemented yet) - only makes
 %                   sense for long time series
 %       MM_how (string): how to deal with Multi-Model hazard sets, one of:
 %           'MMM':  Multi-Model Mean damage estimate vs observated damages (default).
 %           'MMMed':Multi-Model Median damage estimate vs observated damages.
-%       step_tolerance: parameter step tolerance for patternsearch
-%           algorithm. Default=0.001.
+%       underestimation_factor: factor by which to scale up cases where climada
+%           underestimates damages BEFORE evaluating the cost function
+%           (default =1, i.e. no scaling). This allows to account for fact that
+%           observated damages are usually rather a lower bound of damages. For
+%           instance, a value of 2 means that the contribution of these
+%           cases (where simulated damages < observed damages) to the cost
+%           function will be worth double of the same difference for other
+%           cases. Note that as the factor is applied before evaluating the
+%           cost function, for e.g. cost function type 'R2' underestimates
+%           would be worth 4 times more with a factor of 2 (use sqrt(2) to
+%           actually have an effect of 2).
 %   params_computation: A structure with fields:
 %       years_range: Range of years to be used for the computation of
 %           damages with the calibrated damage function (using
@@ -142,6 +156,7 @@ function [status,output_eval_filename,output]=isimip_flood_calibration(RegionID,
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190116, many improvements such as treatment of EM-DAT, application of isimip_compute_calibrated for years not used in calibration, removing old/unused code extracts, removing parallelization of optimization
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190121, new options params_calibration.calib_options and params_computation.do
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190121, use of strcmp to determine params_computation.do
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, adding RTarea as a possible type of cost function, and adding parameter params_calibration.underestimation_factor
 %-
 
 global climada_global
@@ -212,6 +227,7 @@ switch params_calibration.calib_options.method
     otherwise
         error('Input field params_calibration.calib_options.method is not valid')
 end
+if ~isfield(params_calibration,'underestimation_factor'),params_calibration.underestimation_factor=1;end
 % params_computation
 if ~isfield(params_computation,'years_range'),params_computation.years_range=[1971 2010];end
 if ~isfield(params_computation,'do'),params_computation.do=strcmp(params_calibration.calib_options.method,'patternsearch');end
@@ -261,7 +277,6 @@ countries_iso3_all = NatID_RegID_flood.ISO(~fully_out);
 countries_iso3 = NatID_RegID_flood.ISO(countries_keep)';
 countries_iso3_extrapolation = NatID_RegID_flood.ISO((~fully_out) & calib_out)';
 [~,countries_calib_inds] = intersect(countries_iso3_all,countries_iso3,'stable');
-%[~,countries_extrap_inds] = intersect(countries_iso3_all,countries_iso3_extrapolation,'stable');
 
 fprintf('Countries selected for calibration:\n%s\n\n',strjoin(countries_iso3,', '))
 fprintf('Additional countries selected for application (extrapolation):\n%s\n\n',strjoin(countries_iso3_extrapolation,', '))
@@ -272,20 +287,19 @@ params_step=struct;
 %define filename
 switch params_calibration.calib_options.method
     case 'patternsearch'
-        filename_calib_method = [params_calibration.calib_options.method '_'];
         if params_calibration.calib_options.params.random
-            filename_calib_method=[filename_calib_method 'rand' num2str(params_calibration.calib_options.params.nstart)];
+            filename_calib_method=[params_calibration.calib_options.method '-rand' num2str(params_calibration.calib_options.params.nstart)];
         else
-            filename_calib_method=[filename_calib_method 'reg' num2str(params_calibration.calib_options.params.nstart)];
+            filename_calib_method=[params_calibration.calib_options.method '-reg' num2str(params_calibration.calib_options.params.nstart)];
         end
-        filename_calib_method=[filename_calib_method '_mesh' num2str(params_calibration.calib_options.params.InitialMeshSize) '-step' num2str(params_calibration.calib_options.params.step_tolerance)];
+        filename_calib_method=[filename_calib_method '-mesh' num2str(params_calibration.calib_options.params.InitialMeshSize) '-step' num2str(params_calibration.calib_options.params.step_tolerance)];
     case 'regular_sampling'
-        filename_calib_method=[params_calibration.calib_options.method '_' num2str(params_calibration.calib_options.params.n_per_dim)];
+        filename_calib_method=[params_calibration.calib_options.method '-' num2str(params_calibration.calib_options.params.n_per_dim)];
     otherwise
         error('Input field params_calibration.calib_options.method is not valid')
 end
 filename_calib = ['calib_' RegionID '_' num2str(years_range(1)) '-' num2str(years_range(2)) '_' ...
-    params_calibration.type '-' params_calibration.MM_how '-' filename_calib_method];
+    params_calibration.type '-uf' num2str(params_calibration.underestimation_factor) '-' params_calibration.MM_how '-' filename_calib_method];
 filename_haz = ['Haz-Prot' params.hazard_protection '-subMATSIRO' num2str(params.subtract_matsiro)];
 filename_ent = ['Entity-Year' num2str(params.entity_year)];
 filename_filter = ['Filters-Country' num2str(params.keep_countries_0emdat) '-emdat' num2str(params_MDR.remove_years_0emdat) '-YDS' num2str(params_MDR.remove_years_0YDS.do)];
