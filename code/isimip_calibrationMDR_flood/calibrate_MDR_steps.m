@@ -301,7 +301,7 @@ switch params_calibration.calib_options.method
         % manually sample many points, regularly spaced, nice for displaying
         % those later on
         % params_calibration.calib_options.n_per_dim values for each parameters
-        normx0_vals = linspace(1+1/2/(params_calibration.calib_options.n_per_dim),2-1/2/(params_calibration.calib_options.n_per_dim),params_calibration.calib_options.n_per_dim);
+        normx0_vals = linspace(1+1/2/(params_calibration.calib_options.params.n_per_dim),2-1/2/(params_calibration.calib_options.params.n_per_dim),params_calibration.calib_options.params.n_per_dim);
         % indices for looping through
         ndgrid_input = repmat({1:length(normx0_vals)},1,n_pars);
         ngrid_output = cell(1,n_pars);
