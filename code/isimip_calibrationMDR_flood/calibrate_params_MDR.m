@@ -91,7 +91,6 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,...
 %           damage (total damage for the whole region) is 0. Does not have
 %           any effect if params_calibration.type is set to 'RTarea' as
 %           those values are not included in the cost function anyway.
-%           Default=0.
 %       write_outfile: name of a file where the result from each step
 %           should be saved.
 % OUTPUTS:
@@ -141,6 +140,7 @@ if ~ismember(params_calibration.MM_how, {'MMM', 'MMMed'})
     error('Unexpected input value in params_calibration.MM_how')
 end
 if ~isfield(params_calibration,'underestimation_factor'),params_calibration.underestimation_factor=1;end
+if ~isfield(params_calibration,'exclude_years_0totals'),error('params_calibration.exclude_years_0totals is not provided');end
 if ~isfield(params_MDR,'damFun_xVals')
     % give intensity scale the one of the existing damage function in the entity
     choose_DF = find(strcmp(entity_list{1}.damagefunctions.peril_ID,peril_ID) .* (entity_list{1}.damagefunctions.DamageFunID==DamFunID(1)));
@@ -199,7 +199,7 @@ damages_yearly=damages_yearly(not_nans);
 
 
 %% (3) provide difference to em_data
-result = cost_function(damages_yearly, emdat_yearly, params_calibration.type, params_calibration.underestimation_factor);
+result = cost_function(damages_yearly, emdat_yearly, params_calibration.type, params_calibration.underestimation_factor, params_calibration.exclude_years_0totals);
 
 % save result to file
 if isfield(params_calibration, 'write_outfile')
@@ -213,7 +213,7 @@ clear EDS YDS em_data LIA LOCB year_i damage_at_centroid_temp
 
 end
 
-function result = cost_function(damages_yearly, emdat_yearly, type, underestimation_factor)
+function result = cost_function(damages_yearly, emdat_yearly, type, underestimation_factor, exclude_years_0totals)
 if ismember(type,{'AED2','R2','R4','R'})
     diff_yearly=damages_yearly-emdat_yearly;
     diff_yearly(diff_yearly<0) = diff_yearly(diff_yearly<0)*underestimation_factor;

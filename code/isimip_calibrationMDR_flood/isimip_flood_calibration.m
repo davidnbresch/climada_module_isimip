@@ -131,6 +131,11 @@ function [status,output_eval_filename,output]=isimip_flood_calibration(RegionID,
 %           cost function, for e.g. cost function type 'R2' underestimates
 %           would be worth 4 times more with a factor of 2 (use sqrt(2) to
 %           actually have an effect of 2).
+%       exclude_years_0totals: =1 to exclude years where observed
+%           damage (total damage for the whole region) is 0. Does not have
+%           any effect if params_calibration.type is set to 'RTarea' as
+%           those values are not included in the cost function anyway.
+%           Default=0.
 %   params_computation: A structure with fields:
 %       years_range: Range of years to be used for the computation of
 %           damages with the calibrated damage function (using
@@ -230,6 +235,7 @@ switch params_calibration.calib_options.method
         error('Input field params_calibration.calib_options.method is not valid')
 end
 if ~isfield(params_calibration,'underestimation_factor'),params_calibration.underestimation_factor=1;end
+if ~isfield(params_calibration,'exclude_years_0totals'),params_calibration.exclude_years_0totals=0;end
 % params_computation
 if ~isfield(params_computation,'years_range'),params_computation.years_range=[1971 2010];end
 if ~isfield(params_computation,'do'),params_computation.do=strcmp(params_calibration.calib_options.method,'patternsearch');end
@@ -307,6 +313,9 @@ filename_ent = ['Entity-Year' num2str(params.entity_year)];
 filename_filter = ['Filters-Country' num2str(params.keep_countries_0emdat) '-emdat' num2str(params_MDR.remove_years_0emdat) '-YDS' num2str(params_MDR.remove_years_0YDS.do)];
 if params_MDR.remove_years_0YDS.do
    filename_filter = [filename_filter '-t' num2str(params_MDR.remove_years_0YDS.threshold) '-w' params_MDR.remove_years_0YDS.what '-m' num2str(params_MDR.remove_years_0YDS.min_val)];
+end
+if params_calibration.exclude_years_0totals
+    filename_filter = [filename_filter '_Filter-RegYears0'];
 end
 filename_pars = ['pars' num2str(params_MDR.pars_range{1}(1)) '-' num2str(params_MDR.pars_range{1}(2)) '-' num2str(params_MDR.pars_range{2}(1)) '-' num2str(params_MDR.pars_range{2}(2))];
 filename = [filename_calib '_' filename_haz '_' filename_ent '_' filename_filter '_' filename_pars '.mat'];
