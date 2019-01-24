@@ -108,6 +108,10 @@ function [ optimal_pars, years_i_in ] = calibrate_MDR_steps(entity_list, hazard_
 %           cost function, for e.g. cost function type 'R2' underestimates
 %           would be worth 4 times more with a factor of 2 (use sqrt(2) to
 %           actually have an effect of 2).
+%       exclude_years_0totals: =1 to exclude years where observed
+%           damage (total damage for the whole region) is 0. Does not have
+%           any effect if params_calibration.type is set to 'RTarea' as
+%           those values are not included in the cost function anyway.
 %       write_outfile: name of a file where the result from each step
 %           should be saved.
 % OPTIONAL INPUT PARAMETERS:
