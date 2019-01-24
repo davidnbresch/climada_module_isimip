@@ -87,6 +87,11 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,...
 %           cost function, for e.g. cost function type 'R2' underestimates
 %           would be worth 4 times more with a factor of 2 (use sqrt(2) to
 %           actually have an effect of 2).
+%       exclude_years_0totals: =1 to exclude years where observed
+%           damage (total damage for the whole region) is 0. Does not have
+%           any effect if params_calibration.type is set to 'RTarea' as
+%           those values are not included in the cost function anyway.
+%           Default=0.
 %       write_outfile: name of a file where the result from each step
 %           should be saved.
 % OUTPUTS:
@@ -101,6 +106,7 @@ function [ result ] = calibrate_params_MDR(x,MDR_fun,years_range,...
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20181210, use log10 instead of log
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, adding RTarea as a possible type of cost function, and adding parameter params_calibration.underestimation_factor
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, setting cases with 0 to 1 before taking the log (for type dlog2, dabslog)
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, adding input argument params_calibration.exclude_years_0totals
 %-
 
 % initialization
@@ -208,8 +214,24 @@ clear EDS YDS em_data LIA LOCB year_i damage_at_centroid_temp
 end
 
 function result = cost_function(damages_yearly, emdat_yearly, type, underestimation_factor)
-diff_yearly=damages_yearly-emdat_yearly;
-diff_yearly(diff_yearly<0) = diff_yearly(diff_yearly<0)*underestimation_factor;
+if ismember(type,{'AED2','R2','R4','R'})
+    diff_yearly=damages_yearly-emdat_yearly;
+    diff_yearly(diff_yearly<0) = diff_yearly(diff_yearly<0)*underestimation_factor;
+    if exclude_years_0totals
+        diff_yearly = diff_yearly((emdat_yearly~=0) & (damages_yearly~=0));
+    end
+elseif ismember(type,{'dlog2','dabslog'})
+    % setting cases with 0 to 1 before taking the log
+    dam_out = damages_yearly==0;
+    em_out = emdat_yearly==0;
+    damages_yearly(dam_out)=1;
+    emdat_yearly(em_out)=1;
+    logdiff_yearly = log10(damages_yearly)-log10(emdat_yearly);
+    logdiff_yearly(logdiff_yearly<0) = logdiff_yearly(logdiff_yearly<0)*underestimation_factor;
+    if exclude_years_0totals
+        logdiff_yearly = logdiff_yearly((~dam_out) & (~em_out));
+    end
+end
 result=nan;
 switch type
     case 'AED2'
@@ -228,19 +250,10 @@ switch type
         result = mean(abs(diff_yearly));
     case 'dlog2'
         % mean of the yearly squared difference of the log
-        damages_yearly(damages_yearly==0)=1;
-        emdat_yearly(emdat_yearly==0)=1;
-        result = log10(damages_yearly)-log10(emdat_yearly);
-        result(result<0) = result(result<0)*underestimation_factor;
-        result = mean(result.^2);
+        result = mean(logdiff_yearly.^2);
     case 'dabslog'
         % mean of the yearly absolute difference of the log
-        % need to set 0 to 1
-        damages_yearly(damages_yearly==0)=1;
-        emdat_yearly(emdat_yearly==0)=1;
-        result = log10(damages_yearly)-log10(emdat_yearly);
-        result(result<0) = result(result<0)*underestimation_factor;
-        result = mean(abs(result));
+        result = mean(abs(logdiff_yearly));
     case 'RTarea'
         % indices to take out to remove 0s (rt_n_out lowest values)
         rt_n_out = max([sum(damages_yearly==0) sum(emdat_yearly==0)]);
