@@ -287,16 +287,20 @@ switch params_calibration.calib_options.method
         
         % test all starting values, always keep the minimum
         ts=tic;
+        fvals = NaN([1 numel(norm_x0)]);
+        x_results = NaN([n_pars numel(norm_x0)]);
         fprintf('** lauching pattern search 1 out of %s, norm_x0=(%s,%s) **\n',num2str(numel(norm_x0)),num2str(norm_x0{1}(1)),num2str(norm_x0{1}(2)))
-        [x_result,fval] = patternsearch(fun,norm_x0{1},[],[],[],[],norm.lb,norm.ub,[],options);
+        [x_result_i,fval_i] = patternsearch(fun,norm_x0{1},[],[],[],[],norm.lb,norm.ub,[],options);
+        fvals(1) = fval_i;
+        x_results(:,1) = x_result_i;
         for i=2:numel(norm_x0)
             fprintf('** lauching pattern search %s out of %s, norm_x0=(%s,%s) **\n',num2str(i),num2str(numel(norm_x0)),num2str(norm_x0{i}(1)),num2str(norm_x0{i}(2)))
             [x_result_i,fval_i] = patternsearch(fun,norm_x0{i},[],[],[],[],norm.lb,norm.ub,[],options);
-            if fval_i < fval
-                x_result = x_result_i;
-                fval = fval_i;
-            end
+            fvals(i) = fval_i;
+            x_results(:,i) = x_result_i;
         end
+        [fval,i_lowest] = min(fvals);
+        x_result = x_results(:,i_lowest);
         fprintf('** all pattern searches completed (%s start values) **\n',num2str(numel(norm_x0)))
         toc(ts)
         
@@ -314,11 +318,13 @@ switch params_calibration.calib_options.method
         ind_array = vertcat(ngrid_output{:});
         % output array
         fvals = NaN([1 size(ind_array,2)]);
+        x_results = NaN([n_pars size(ind_array,2)]);
         % loop through and evaluate cost function
         ts=tic;
         fprintf('looping through %s parameter combinations\n',num2str(size(ind_array,2)))
         for i=1:size(ind_array,2)
             fvals(i) = fun(normx0_vals(ind_array(:,i)));
+            x_results(:,i) = normx0_vals(ind_array(:,i));
         end
         fprintf('** all (%s) parameter combinations completed **\n',num2str(size(ind_array,2)))
         toc(ts)
@@ -333,9 +339,18 @@ end
 % convert normalized value of calibrated parameters to their 'real' values
 optimal_pars=(x_result-norm.lb).*(bounds.ub-bounds.lb)./(norm.ub-norm.lb)+bounds.lb;
 
+
 % computation of damages with the optimal parameter combination
 if isfield(params,'savefile')
-    save(params.savefile,'optimal_pars','fval','params_MDR','params_calibration','-v7.3');
+    if strcmp(params_calibration.calib_options.method,'regular_sampling')
+        save(params.savefile,'optimal_pars','fval','params_MDR','params_calibration','-v7.3');
+    elseif strcmp(params_calibration.calib_options.method,'patternsearch')
+        optimal_pars_each = NaN(size(x_results));
+        for i=length(fval)
+            optimal_pars_each(:,i)=(x_results(:,i)-norm.lb).*(bounds.ub-bounds.lb)./(norm.ub-norm.lb)+bounds.lb;
+        end
+        save(params.savefile,'optimal_pars','fval','optimal_pars_each','fvals','params_MDR','params_calibration','-v7.3');
+    end
 end
 
 end
