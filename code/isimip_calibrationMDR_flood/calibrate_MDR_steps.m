@@ -300,7 +300,7 @@ switch params_calibration.calib_options.method
             x_results(:,i) = x_result_i;
         end
         [fval,i_lowest] = min(fvals);
-        x_result = x_results(:,i_lowest);
+        x_result = x_results(:,i_lowest)';
         fprintf('** all pattern searches completed (%s start values) **\n',num2str(numel(norm_x0)))
         toc(ts)
         
@@ -339,15 +339,14 @@ end
 % convert normalized value of calibrated parameters to their 'real' values
 optimal_pars=(x_result-norm.lb).*(bounds.ub-bounds.lb)./(norm.ub-norm.lb)+bounds.lb;
 
-
 % computation of damages with the optimal parameter combination
 if isfield(params,'savefile')
     if strcmp(params_calibration.calib_options.method,'regular_sampling')
         save(params.savefile,'optimal_pars','fval','params_MDR','params_calibration','-v7.3');
     elseif strcmp(params_calibration.calib_options.method,'patternsearch')
         optimal_pars_each = NaN(size(x_results));
-        for i=length(fval)
-            optimal_pars_each(:,i)=(x_results(:,i)-norm.lb).*(bounds.ub-bounds.lb)./(norm.ub-norm.lb)+bounds.lb;
+        for i=1:length(fvals)
+            optimal_pars_each(:,i)=(x_results(:,i)'-norm.lb).*(bounds.ub-bounds.lb)./(norm.ub-norm.lb)+bounds.lb;
         end
         save(params.savefile,'optimal_pars','fval','optimal_pars_each','fvals','params_MDR','params_calibration','-v7.3');
     end
