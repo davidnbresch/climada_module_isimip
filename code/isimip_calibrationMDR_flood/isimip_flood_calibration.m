@@ -164,6 +164,7 @@ function [status,output_eval_filename,output]=isimip_flood_calibration(RegionID,
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190121, use of strcmp to determine params_computation.do
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, adding RTarea as a possible type of cost function, and adding parameter params_calibration.underestimation_factor
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, set default value of params_MDR.damFun_xVals to 0:0.5:15
+% Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190207, bug fix: set default value of params_calibration.calib_options.params.step_tolerance to 0.001
 %-
 
 global climada_global
@@ -228,7 +229,7 @@ switch params_calibration.calib_options.method
         if ~isfield(params_calibration.calib_options.params,'random'),params_calibration.calib_options.params.random=0;end
         if ~isfield(params_calibration.calib_options.params,'nstart'),params_calibration.calib_options.params.nstart=1;end
         if ~isfield(params_calibration.calib_options.params,'InitialMeshSize'),params_calibration.calib_options.params.InitialMeshSize=0.25;end
-        if ~isfield(params_calibration.calib_options.params,'step_tolerance'),params_calibration.calib_options.params.step_tolerance=0.01;end
+        if ~isfield(params_calibration.calib_options.params,'step_tolerance'),params_calibration.calib_options.params.step_tolerance=0.001;end
     case 'regular_sampling'
         if ~isfield(params_calibration.calib_options.params,'n_per_dim'),params_calibration.calib_options.params.n_per_dim=5;end
     otherwise
