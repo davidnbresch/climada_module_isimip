@@ -196,8 +196,8 @@ if ~exist('params_computation','var'),      params_computation=  struct;end
 if ~isfield(params,'entity_folder'),    params.entity_folder=   [climada_global.data_dir filesep 'isimip' filesep 'entities'];end
 if ~isfield(params,'RegID_def_folder'), params.RegID_def_folder=[climada_global.data_dir filesep 'isimip'];end
 if ~isfield(params,'entity_prefix'),    params.entity_prefix='FL1950';end
-if ~isfield(params,'hazard_folder'),    hazard_folder =     [climada_global.hazards_dir filesep 'isimip'];end
-if ~isfield(params,'hazard_raw_folder'),hazard_raw_folder = [climada_global.data_dir    filesep 'isimip'];end
+if ~isfield(params,'hazard_folder'),    params.hazard_folder =     [climada_global.hazards_dir filesep 'isimip'];end
+if ~isfield(params,'hazard_raw_folder'),params.hazard_raw_folder = [climada_global.data_dir    filesep 'isimip'];end
 if ~isfield(params,'hazard_protection'),params.hazard_protection='flopros';end
 if ~isfield(params,'subtract_matsiro'), params.subtract_matsiro=0;end
 if ~isfield(params,'entity_year'), params.entity_year=0;end
@@ -251,8 +251,8 @@ if ~isfield(params_computation,'do'),params_computation.do=strcmp(params_calibra
 
 % pass hazard folders to climada_global
 % used in isimip_get_flood_filename and isimip_get_flood_hazard_filename
-climada_global.isimip.hazard_folder=hazard_folder;
-climada_global.isimip.hazard_raw_folder=hazard_raw_folder;
+climada_global.isimip.hazard_folder=params.hazard_folder;
+climada_global.isimip.hazard_raw_folder=params.hazard_raw_folder;
 
 %% 1) Get variables and paths, check countries
 isimip_simround = '2a';
