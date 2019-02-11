@@ -204,7 +204,8 @@ if ~isfield(params,'entity_year'), params.entity_year=0;end
 if ~isempty(params.entity_prefix)
     if ~strcmp(params.entity_prefix(end),'_'),params.entity_prefix=[params.entity_prefix '_'];end
 end
-if ~isfield(params, 'output_folder'),params.output_folder=[climada_global.data_dir filesep 'isimip/results/calibration'];end
+if ~isfield(params,'output_folder'),params.output_folder=[climada_global.data_dir filesep 'isimip/results/calibration'];end
+if ~isdir(params.output_folder),mkdir(params.output_folder);end % create it
 if ~isfield(params,'keep_countries_0emdat'), params.keep_countries_0emdat=2;end
 if ~ismember(params.keep_countries_0emdat, 0:2),error('** ERROR ** input parameter params.keep_countries_0emdat should be one of 0,1,2 *****');end
 if ~isfield(params,'verbose_excluded_countries'),params.verbose_excluded_countries=0;end
