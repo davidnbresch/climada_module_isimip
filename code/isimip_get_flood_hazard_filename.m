@@ -48,6 +48,7 @@ function hazard_filename=isimip_get_flood_hazard_filename(flood_filename,entity,
 %   argument 'subtract_matsiro'
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180918, adding argument
 %   silent_mode
+% David N. Bresch, david.bresch@gmail.com, 20190211, climada_global.isimip.*
 %-
 
 global climada_global
@@ -63,9 +64,16 @@ if ~exist('subtract_matsiro','var'),       subtract_matsiro=        0;end
 if ~exist('silent_mode','var'),            silent_mode=             1;end
 
 % define paths
-isimip_data_dir = [climada_global.data_dir filesep 'isimip' filesep isimip_simround];
+isimip_data_dir =   [climada_global.data_dir    filesep 'isimip' filesep isimip_simround];
 isimip_hazard_dir = [climada_global.hazards_dir filesep 'isimip' filesep isimip_simround];
-
+if isfield(climada_global,'isimip')
+    if isfield(climada_global.isimip,'hazard_raw_folder')
+        isimip_data_dir =   [climada_global.isimip.hazard_raw_folder filesep isimip_simround];
+    end
+    if isfield(climada_global.isimip,'hazard_folder')
+        isimip_hazard_dir = [climada_global.isimip.hazard_folder     filesep isimip_simround];
+    end
+end
 
 % check validity of arguments
 if ~isequal(size(years_range), [1 2])
@@ -107,7 +115,11 @@ end
 % fN2 should start with 'flddph', in which case replace with 'FLOOD'
 fN2=strrep(fN2, 'flddph', 'FLOOD');
 fN=strrep(fN,'_entity','');
-if subtract_matsiro fN3='_mFRCmatsiro';, else fN3='';end;
+if subtract_matsiro
+    fN3='_mFRCmatsiro';
+else
+    fN3='';
+end
 if isequal(years_range, [0 0])
     hazard_filename=[isimip_hazard_dir filesep fN2 '_' fN fN3 '_FL.mat'];
 else

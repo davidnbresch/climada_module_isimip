@@ -28,6 +28,10 @@ function [status,output_eval_filename,output]=isimip_flood_calibration(RegionID,
 %        [climada_global.data_dir filesep 'isimip/entities'] ).
 %     entity_prefix: if not ='', pre-pend the entity filename with it, e.g.
 %        entity_prefix='Try1' will result in Try1_DEU_0150as.mat
+%     hazard_folder: the folder where the .mat hazard files are located (default:
+%        [climada_global.hazards_dir filesep 'isimip'] ).
+%     hazard_raw_folder: the folder where the raw .nc hazard files are located (default:
+%        [climada_global.data_dir filesep 'isimip'] ).
 %     hazard_protection: one of 'flopros' (default), '0', '100'
 %     subtract_matsiro: =1 to subtract the 2-yr return value of MATSIRO flood
 %        fraction from the data. Default =0.
@@ -165,6 +169,7 @@ function [status,output_eval_filename,output]=isimip_flood_calibration(RegionID,
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, adding RTarea as a possible type of cost function, and adding parameter params_calibration.underestimation_factor
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190124, set default value of params_MDR.damFun_xVals to 0:0.5:15
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20190207, bug fix: set default value of params_calibration.calib_options.params.step_tolerance to 0.001
+% David N. Bresch, david.bresch@gmail.com, 20190211, climada_global.isimip.*
 %-
 
 global climada_global
@@ -187,9 +192,12 @@ if ~exist('params_computation','var'),      params_computation=  struct;end
 
 %% check for some parameter fields we need
 % params
-if ~isfield(params,'entity_folder'),    params.entity_folder='/cluster/work/climate/dbresch/climada_data/isimip/entities';end
+%if ~isfield(params,'entity_folder'),    params.entity_folder='/cluster/work/climate/dbresch/climada_data/isimip/entities';end
+if ~isfield(params,'entity_folder'),    params.entity_folder=   [climada_global.data_dir filesep 'isimip' filesep 'entities'];end
 if ~isfield(params,'RegID_def_folder'), params.RegID_def_folder=[climada_global.data_dir filesep 'isimip'];end
 if ~isfield(params,'entity_prefix'),    params.entity_prefix='FL1950';end
+if ~isfield(params,'hazard_folder'),    hazard_folder =     [climada_global.hazards_dir filesep 'isimip'];end
+if ~isfield(params,'hazard_raw_folder'),hazard_raw_folder = [climada_global.data_dir    filesep 'isimip'];end
 if ~isfield(params,'hazard_protection'),params.hazard_protection='flopros';end
 if ~isfield(params,'subtract_matsiro'), params.subtract_matsiro=0;end
 if ~isfield(params,'entity_year'), params.entity_year=0;end
@@ -241,6 +249,10 @@ if ~isfield(params_calibration,'exclude_years_0totals'),params_calibration.exclu
 if ~isfield(params_computation,'years_range'),params_computation.years_range=[1971 2010];end
 if ~isfield(params_computation,'do'),params_computation.do=strcmp(params_calibration.calib_options.method,'patternsearch');end
 
+% pass hazard folders to climada_global
+% used in isimip_get_flood_filename and isimip_get_flood_hazard_filename
+climada_global.isimip.hazard_folder=hazard_folder;
+climada_global.isimip.hazard_raw_folder=hazard_raw_folder;
 
 %% 1) Get variables and paths, check countries
 isimip_simround = '2a';
