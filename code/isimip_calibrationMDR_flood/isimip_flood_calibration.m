@@ -483,6 +483,7 @@ end
 
 %% 3) load EM-DAT
 emdat_list=cell(length(countries_iso3),1);
+countries_iso3
 for i=1:length(countries_iso3)
     % pre-fill data with NaN. Only country/years with surely 0 damage in
     %   EM-DAT will be changed
