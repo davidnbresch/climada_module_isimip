@@ -69,6 +69,9 @@ function hazard=isimip_flood_load_orig(flood_filename,hazard_filename,entity,che
 % David N. Bresch, david.bresch@gmail.com, 20180914, ievent_keep_which
 %-
 
+fprintf('>> use isimip_flood_load\n')
+return
+
 hazard=[];
 
 global climada_global

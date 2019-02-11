@@ -81,6 +81,7 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 % ISIMIP-2a (previous version kept as isimip_flood_load_orig.m
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180518, new function
 %   argument 'subtract_matsiro'
+% David N. Bresch, david.bresch@gmail.com, 20190211, subtract_matsiro default set
 %-
 
 hazard=[];
@@ -96,13 +97,14 @@ if ~exist('entity','var'),                 entity=                 '';end
 if ~exist('check_plot','var'),             check_plot=              1;end
 if ~exist('years_range','var'),            years_range=         [0 0];end
 if ~exist('interpn_method','var')          interpn_method=   'linear';end
-if ~exist('isimip_simround','var')      isimip_simround=   '';end
-if ~exist('silent_mode','var')      silent_mode=0;end
+if ~exist('isimip_simround','var')         isimip_simround=   '';end
+if ~exist('silent_mode','var')             silent_mode=0;end
 if isequal(isimip_simround, '')
     isimip_data_dir = [climada_global.data_dir filesep 'isimip'];
 else
     isimip_data_dir = [climada_global.data_dir filesep 'isimip' filesep isimip_simround];
 end
+if ~exist('subtract_matsiro','var')        subtract_matsiro=0;end
 
 % check validity of arguments
 if ~isequal(size(years_range), [1 2])
