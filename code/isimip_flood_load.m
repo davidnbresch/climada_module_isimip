@@ -17,6 +17,9 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 %   depth and fraction values to 'real' asset centroids, not to the grid
 %   'around' (see code)  
 %
+%   See isimip_flood_import to just the country ISO3 code to define the
+%   geographic area of the hazard set. 
+%
 %   Octave: please install the netCDF package first: 
 %   pkg install -forge netcdf -local -auto
 %   or: pkg install -verbose -forge -auto netcdf
@@ -82,6 +85,7 @@ function hazard=isimip_flood_load(flood_filename,hazard_filename,entity,check_pl
 % Benoit P. Guillod, benoit.guillod@env.ethz.ch, 20180518, new function
 %   argument 'subtract_matsiro'
 % David N. Bresch, david.bresch@gmail.com, 20190211, subtract_matsiro default set
+% David N. Bresch, david.bresch@gmail.com, 20190309, hint to isimip_flood_import
 %-
 
 hazard=[];
