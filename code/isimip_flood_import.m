@@ -37,9 +37,9 @@ function hazard=isimip_flood_import(flood_filename,hazard_filename,country_ISO3,
 %       footprints, default folder is ..climada_data/isimip/
 %       If empty, the default (TEST) file USA_UnitedStates_Florida_FL.nc in the data folder
 %       of the isimip module is used. Content of the netCDF file:
-%       fraction (variable name 'fldfrc') is in the range 0..1
-%       depth (variable name 'flddph') in units of meters [m]
-%       there should be one event per year (i.e., yearly maxima)
+%       flood depth (variable name 'flddph') in units of meters [m]
+%       flood fraction (variable name 'fldfrc') is in the range 0..1
+%       there should be one event per year (i.e., yearly maximum)
 %   hazard_filename: the filename (with or without path) the generated
 %       hazard set is stored to. If empty, it is set to isimip_{country_ISO3}_FL.mat
 %   country_ISO3: the ISO3 code of the country to generate the hazard set
@@ -132,6 +132,11 @@ if isempty(flood_filename) % to run TEST without arguments
     end
     fprintf('NOTE: flood_filename is set to %s\n',flood_filename)
 end
+
+% complete path, if missing
+[fP,fN,fE]=fileparts(flood_filename);
+if isempty(fP),fP=[climada_global.data_dir filesep 'isimip'];end
+flood_filename=[fP filesep fN fE];
 
 if isempty(country_ISO3) % to run TEST without arguments
     [~,fN]=fileparts(flood_filename);
