@@ -41,15 +41,16 @@ if ~exist('twoab','var'),    twoab = '2a';   end % default today (2a)
 
 if strcmp(ISO3,'all') % to process all automatically
     [country_name,country_ISO3] = climada_country_name('all');
+    fprintf('processing %i countries:\n',length(country_name))
     for country_i=1:length(country_name)
-        isimip_FL_prob_country_hazard(country_ISO3{country_i});
-        return
+        isimip_FL_prob_country_hazard(country_ISO3{country_i},twoab);
     end % country_i
+    return
 end
 
 % PARAMETERS
 %
-FAST_TEST=1;
+%FAST_TEST=1;
 %
 % the folder with isimip hazard sets on the cluster
 %cluster_data_folder='/cluster/work/climate/dbresch/climada_data/isimip/';
@@ -146,7 +147,7 @@ if exist(hazard_file,'file')
     fprintf('  NOTE: event frequency redefined as 1/%i years (%i models combined)\n',hazard.orig_years,n_models);
     hazard.matrix_density=nnz(hazard.intensity)/numel(hazard.intensity); % update
     hazard.info=info; % add info
-    hazard_filename=[climada_global.hazards_dir filesep ISO3 '_FL'];
+    hazard_filename=[climada_global.hazards_dir filesep ISO3 '_' twoab '_FL'];
     fprintf('saving combined hazard as %s ..',hazard_filename);
     save(hazard_filename,'hazard');
     fprintf(' done\n');
