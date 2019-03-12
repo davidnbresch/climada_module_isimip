@@ -6,23 +6,23 @@
 %   isimip_FL_prob_country_EDS
 % PURPOSE:
 %   batch job to calculate the EDS for each country based on the pragmatic
-%   probabilistic hazard (see isimip_FL_prob_country_hazard)
+%   probabilistic hazard (see isimip_FL_prob_country_hazard) and compare
+%   with EM-DAT (where available)
 %
 %   see PARAMETERS
 %   for speedup, consider climada_global.parfor=1
 %   to run this on the cluster as batch, see batch_job_template
-%   last time run on cluster on command line (not recommended)
 %
 %   some hints to work with the cluster (explicit paths, edit this ;-)
 %
 %   copy job to cluster: scp -r Documents/_GIT/climada_modules/isimip/code/batch/isimip_FL_prob_country_EDS.m dbresch@euler.ethz.ch:/cluster/home/dbresch/euler_jobs/.
-%   copy data from cluster: scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/results/??_FL_test_DFC_combined*.png /Users/bresch/Documents/_GIT/climada_data/results/FL_test/.
+%   copy data from cluster: scp -r dbresch@euler.ethz.ch:/cluster/work/climate/dbresch/climada_data/results/???_FL_test_DFC_combined*.png /Users/bresch/Documents/_GIT/climada_data/results/FL_test/.
 %
 %   for more, see http://www.clusterwiki.ethz.ch/brutus/Parallel_MATLAB_and_Brutus
 % CALLING SEQUENCE:
 %   isimip_FL_prob_country_EDS
 % EXAMPLE:
-%   bsub -W 2:00 -R "rusage[mem=2000]" -n 24 matlab -nodisplay -singleCompThread -r isimip_FL_prob_country_EDS.m
+%   bsub -W 2:00 -R "rusage[mem=2000]" -n 24 matlab -nodisplay -singleCompThread -r isimip_FL_prob_country_EDS
 %   -W: time, here 2 hours
 %   mem: memory, for large jobs, request e.g. 9000
 %   -n: number of cluster workers, here 2
@@ -37,7 +37,6 @@
 %       MATLAB and hence allows to TEST a job on a local desktop. This
 %       allows to TEST a job without editing it.
 %       Default=0 for cluster.
-%   GBR_FL_test
 % INPUTS:
 % OPTIONAL INPUT PARAMETERS:
 % OUTPUTS:
@@ -83,6 +82,7 @@ twoab='2a';
 % the folder with isimip data on the cluster
 cluster_data_folder='/cluster/work/climate/dbresch/climada_data/isimip/';
 
+
 [country_name,country_ISO3] = climada_country_name('all');
 % keep only coutries with a hazard (see isimip_FL_prob_country_hazard)
 n_countries=length(country_name);
@@ -102,10 +102,8 @@ hazard_file=hazard_file(valid_pos);
 n_countries=length(country_name);
 
 entity_temp=climada_entity_load('entity_template'); % load template damage functions
-
-% convert to easy broadcast variables
-temp_damagefunctions=entity_temp.damagefunctions;
-climada_global_results_dir=climada_global.results_dir;
+temp_damagefunctions=entity_temp.damagefunctions; % convert to easy broadcast variables
+climada_global_results_dir=climada_global.results_dir; % dito
 
 fprintf('processing %i countries with FL hazard:\n',n_countries)
 
