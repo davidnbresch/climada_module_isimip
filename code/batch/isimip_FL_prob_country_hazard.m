@@ -150,7 +150,7 @@ if exist(hazard_file,'file')
     save(hazard_filename,'hazard');
     fprintf(' done\n');
 else
-    fprintf('NOTE: for %s no FL hazard exists\n',ISO3);
+    fprintf('NOTE: for %s no FL hazard exists (missing %s)\n',ISO3,hazard_file);
 end
 
 end % isimip_FL_prob_country_hazard
