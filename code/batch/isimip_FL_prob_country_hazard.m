@@ -50,7 +50,7 @@ end
 
 % PARAMETERS
 %
-%FAST_TEST=1;
+FAST_TEST=0;
 %
 % the folder with isimip hazard sets on the cluster
 %cluster_data_folder='/cluster/work/climate/dbresch/climada_data/isimip/';
