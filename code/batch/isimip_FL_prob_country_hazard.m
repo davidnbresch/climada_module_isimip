@@ -30,6 +30,8 @@ function hazard=isimip_FL_prob_country_hazard(ISO3,twoab)
 % David N. Bresch, david.bresch@gmail.com, 20190312, initial from isimip_FL_prob_TEST
 %-
 
+hazard=[];
+
 global climada_global
 if ~climada_init_vars,return;end % init/import global variables
 
@@ -115,7 +117,6 @@ info.ext_mngd=ext_mngd;
 info.model_i=[];
 info.event_ID=[];
 info.frequency=[];
-hazard=[];
 % first, test for country being available
 model_i=1;
 hazard_file=[cluster_data_folder filesep twoab filesep models{model_i} ext_mngd];
@@ -135,7 +136,7 @@ if exist(hazard_file,'file')
         if isempty(hazard)
             hazard=hazard_mngd;
         else
-            hazard=climada_hazard_merge(hazard,hazard_mngd,'events');
+            hazard=climada_hazard_merge(hazard,hazard_mngd,'events','',1);
         end
     end % model_i
     % re-define frequency
