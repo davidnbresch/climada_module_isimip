@@ -117,7 +117,7 @@ parfor country_i=1:n_countries
     hazard=climada_hazard_load(hazard_file{country_i},1); % % load hazard, no-save
     entity=climada_assets_encode(entity,hazard);
     EDS=climada_EDS_calc(entity,hazard);
-    EDS(1).annotation=[country_ISO3{country_i} ' ' country_name{country_i}];
+    EDS(1).annotation_name=[country_ISO3{country_i} ' ' country_name{country_i}];
     
     fig1=figure('Visible','off');
     [~,~,legend_str,legend_handle]=climada_EDS_DFC(EDS);
