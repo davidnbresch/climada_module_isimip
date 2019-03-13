@@ -22,7 +22,7 @@
 % CALLING SEQUENCE:
 %   isimip_FL_prob_country_EDS
 % EXAMPLE:
-%   bsub -W 2:00 -R "rusage[mem=2000]" -n 24 matlab -nodisplay -singleCompThread -r isimip_FL_prob_country_EDS
+%   bsub -W 2:00 -R "rusage[mem=4000]" -n 24 matlab -nodisplay -singleCompThread -r isimip_FL_prob_country_EDS
 %   -W: time, here 2 hours
 %   mem: memory, for large jobs, request e.g. 9000
 %   -n: number of cluster workers, here 2
@@ -108,38 +108,43 @@ climada_global_results_dir=climada_global.results_dir; % dito
 fprintf('processing %i countries with FL hazard:\n',n_countries)
 
 parfor country_i=1:n_countries
-
-    fprintf('\n*** processing %s %s (%i/%i) ***\n',country_ISO3{country_i},country_name{country_i},country_i,n_countries)
-
-    entity=climada_entity_load(entity_file{country_i},1); % no-save
-    entity.assets.Cover=entity.assets.Value;
-    entity.damagefunctions=temp_damagefunctions; % replace to include FL damage function
-    hazard=climada_hazard_load(hazard_file{country_i},1); % % load hazard, no-save
-    entity=climada_assets_encode(entity,hazard);
-    EDS=climada_EDS_calc(entity,hazard);
-    EDS(1).annotation_name=[country_ISO3{country_i} ' ' country_name{country_i}];
     
-    fig1=figure('Visible','off');
-    [~,~,legend_str,legend_handle]=climada_EDS_DFC(EDS);
-    xlim([0 250]);
-    
-    % get EM-DAT for ISO3 FL (and scale to USD bn, as standard in isimip)
-    em_data=emdat_read('',country_ISO3{country_i},'FL',1,0);
-    if isempty(em_data)
-        saveas(fig1,[climada_global_results_dir filesep country_ISO3{country_i} '_FL_test_DFC_combined'],'png'); % in /cluster/work/climate/dbresch/climada_data/results
-    else
-        em_data.damage          = em_data.damage          /entity.assets.currency_unit;
-        em_data.damage_orig     = em_data.damage_orig     /entity.assets.currency_unit;
-        em_data.DFC.damage      = em_data.DFC.damage      /entity.assets.currency_unit;
-        em_data.DFC_orig.damage = em_data.DFC_orig.damage /entity.assets.currency_unit;
+    saveas_filename=[climada_global_results_dir filesep country_ISO3{country_i} '_FL_test_DFC_combined.png'];
+    saveas_filename2=[climada_global_results_dir filesep country_ISO3{country_i} '_FL_test_DFC_combined_emdat.png'];
+    if ~exist(saveas_filename,'file') && ~exist(saveas_filename2,'file')
+        
+        fprintf('\n*** processing %s %s (%i/%i) ***\n',country_ISO3{country_i},country_name{country_i},country_i,n_countries)
+        
+        entity=climada_entity_load(entity_file{country_i},1); % no-save
+        entity.assets.Cover=entity.assets.Value;
+        entity.damagefunctions=temp_damagefunctions; % replace to include FL damage function
+        hazard=climada_hazard_load(hazard_file{country_i},1); % % load hazard, no-save
+        entity=climada_assets_encode(entity,hazard);
+        EDS=climada_EDS_calc(entity,hazard);
+        EDS(1).annotation_name=[country_ISO3{country_i} ' ' country_name{country_i}];
         
         fig1=figure('Visible','off');
         [~,~,legend_str,legend_handle]=climada_EDS_DFC(EDS);
-        [legend_str,legend_handle]=emdat_barplot(em_data,'','','EM-DAT indexed',legend_str,legend_handle,'southeast');
         xlim([0 250]);
-        saveas(fig1,[climada_global_results_dir filesep country_ISO3{country_i} '_FL_test_DFC_combined_emdat'],'png'); % in /cluster/work/climate/dbresch/climada_data/results
-    end
-    delete(fig1)
+        
+        % get EM-DAT for ISO3 FL (and scale to USD bn, as standard in isimip)
+        em_data=emdat_read('',country_ISO3{country_i},'FL',1,0);
+        if isempty(em_data)
+            saveas(fig1,[climada_global_results_dir filesep country_ISO3{country_i} '_FL_test_DFC_combined'],'png'); % in /cluster/work/climate/dbresch/climada_data/results
+        else
+            em_data.damage          = em_data.damage          /entity.assets.currency_unit;
+            em_data.damage_orig     = em_data.damage_orig     /entity.assets.currency_unit;
+            em_data.DFC.damage      = em_data.DFC.damage      /entity.assets.currency_unit;
+            em_data.DFC_orig.damage = em_data.DFC_orig.damage /entity.assets.currency_unit;
+            
+            fig1=figure('Visible','off');
+            [~,~,legend_str,legend_handle]=climada_EDS_DFC(EDS);
+            [legend_str,legend_handle]=emdat_barplot(em_data,'','','EM-DAT indexed',legend_str,legend_handle,'southeast');
+            xlim([0 250]);
+            saveas(fig1,[climada_global_results_dir filesep country_ISO3{country_i} '_FL_test_DFC_combined_emdat'],'png'); % in /cluster/work/climate/dbresch/climada_data/results
+        end
+        delete(fig1)
+    end % ~exist
     
 end % country_i
 
