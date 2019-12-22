@@ -84,11 +84,8 @@ output_table=[];
 
 %% poor man's version to check arguments
 % and to set default value where  appropriate
-if ~exist('RegionID','var'),error('Input parameter RegionID is missing');end %
+if ~exist('country_iso3','var'),error('Input parameter country_iso3 is missing');end %
 if ~exist('params','var'),                  params=              struct;end
-if ~exist('params_MDR','var'),              params_MDR=          struct;end
-if ~exist('params_calibration','var'),      params_calibration=  struct;end
-if ~exist('params_computation','var'),      params_computation=  struct;end
 
 years_range_calib=[1992 2010];
 
@@ -128,10 +125,10 @@ else
 %     end
 end
 NatID_RegID_flood.Reg_name = string(NatID_RegID_flood.Reg_name);
-if sum(NatID_RegID_flood.ISO == country_iso3)==0
+if sum(strcmp(NatID_RegID_flood.ISO,country_iso3))==0
     error('country not found in NatID_RegID_isimip_flood_filtered_1992-2010.csv');
 end
-RegionID = NatID_RegID_flood.RegionID(NatID_RegID_flood.ISO == country_iso3);
+RegionID = NatID_RegID_flood.Reg_name(strcmp(NatID_RegID_flood.ISO, country_iso3));
 clear fully_out;
 
 %% 2) load damage function
@@ -166,8 +163,9 @@ else
     else
         error('unexpected value in damfun_name');
     end
-    calib_file = [calib_params_folder filesep 'calib_' RegionID calib_file_end];
-    opt_pars = load(calib_file).optimal_pars;
+    calib_file = strcat(calib_params_folder, filesep, 'calib_', RegionID, calib_file_end);
+    opt_pars = load(calib_file);
+    opt_pars = opt_pars.optimal_pars;
     MDR_fun=@(x,pars)pars(1)*(1-exp(-pars(2)*x));
     damFun = climada_damagefunctions_generate_from_fun(0:0.5:15, MDR_fun, opt_pars);
     clear calib_file_end calib_file opt_pars MDR_fun;
@@ -188,6 +186,7 @@ end
 damage_at_centroid_temp = climada_global.damage_at_centroid;
 climada_global.damage_at_centroid = 0;
 
+all_years = years_range(1):years_range(2);
 nyears = length(all_years);
 n_rows = length(hazard_list)*nyears;
 output_table_header = {'country', 'year', 'dataset', 'damage'};
@@ -205,7 +204,7 @@ for j = 1:length(hazard_list)
     [~,temp,~]=fileparts(hazard_list{j}.filename);
     temp=strsplit(temp,'_');
     hazard_model_name_j = [temp{2} '_' temp{3}];
-    dataset_col(inds) = repmat(hazard_model_name_j,[length(all_years) 1]);
+    dataset_col(inds) = repmat(string(hazard_model_name_j),[nyears 1]);
     % TODO CLEAN UP THIS MESS
     % columns needed:
     % 1) those given as input (can be created afterwards): country, scenario, damfun_name, entity_year (2005 or transient)
@@ -228,11 +227,11 @@ function [entity,hazard_list] = load_entity_hazard(country_iso3,years_range,para
 all_years = years_range(1):years_range(2);
 %% 1) load entities - N entities for N countries
 if strcmp(scenario, 'historical') || params.entity_year==2005
-    entity_prefix = 'FL1950';
+    entity_prefix = 'FL1950_';
 else
-    entity_prefix = 'FL2006-2099';
+    entity_prefix = 'FL2006-2099_';
 end
-entity_file_isimip=[params.entity_folder filesep entity_prefix strtrim(country_iso3) '_0150as_entity'];
+entity_file_isimip=[params.entity_folder filesep entity_prefix country_iso3 '_0150as_entity'];
 entity_isimip_i=climada_entity_load(entity_file_isimip,1); % try to load, flag to 1 to avoir overwrite
 if isempty(entity_isimip_i)
     error('*** ERROR: entity file not found %s\n\n',entity_file_isimip);
