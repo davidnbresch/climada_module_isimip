@@ -65,8 +65,8 @@ if strcmp(isimip_simround,'2a')
     flddph_filename=['flddph_' ghm '_' forcing '_' protection '_gev_0.1.nc'];
     fldfrc_filename=['fldfrc_' ghm '_' forcing '_' protection '_gev_0.1.nc'];
 elseif strcmp(isimip_simround,'2b')
-    flddph_filename=['flddph_' ghm '_' forcing '_' time_period '_' protection '_gev_0.1.nc'];
-    fldfrc_filename=['fldfrc_' ghm '_' forcing '_' time_period '_' protection '_gev_0.1.nc'];
+    flddph_filename=['flddph_' ghm '_' forcing '_' time_period '_' protection '_gev_picontrol_2006_2300_0.1.nc'];
+    fldfrc_filename=['fldfrc_' ghm '_' forcing '_' time_period '_' protection '_gev_picontrol_2006_2300_0.1.nc'];
 elseif strcmp(isimip_simround,'')
     fprintf('No value in isimip_simround, filename will be unknown');
 else
