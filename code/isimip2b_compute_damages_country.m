@@ -192,7 +192,7 @@ n_rows = length(hazard_list)*nyears;
 output_table_header = {'country', 'year', 'dataset', 'damage'};
 damages_col = NaN([n_rows 1]);
 year_col = NaN([n_rows 1]);
-dataset_col = NaN([n_rows 1]);
+dataset_col = cell([n_rows 1]);%NaN([n_rows 1]);
 country_col=repmat(country_iso3,[n_rows 1]);
 for j = 1:length(hazard_list)
     temp = climada_EDS_calc_fast(entity, hazard_list{j}, damFun, ~params.entity_year,1,'',0,1);
@@ -204,12 +204,7 @@ for j = 1:length(hazard_list)
     [~,temp,~]=fileparts(hazard_list{j}.filename);
     temp=strsplit(temp,'_');
     hazard_model_name_j = [temp{2} '_' temp{3}];
-    dataset_col(inds) = repmat(string(hazard_model_name_j),[nyears 1]);
-    % TODO CLEAN UP THIS MESS
-    % columns needed:
-    % 1) those given as input (can be created afterwards): country, scenario, damfun_name, entity_year (2005 or transient)
-    % 2) others (absolutely needed): year, dataset, damage
-    % in other cases we had: country, year, dataset, damage
+    dataset_col(inds) = repmat({hazard_model_name_j},[nyears 1]);%repmat(string(hazard_model_name_j),[nyears 1]);
 end
 
 % convert to a table containing: country, year, data (obs or model name), damage

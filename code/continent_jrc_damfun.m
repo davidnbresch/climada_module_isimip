@@ -74,13 +74,13 @@ if strcmp(continent, 'North America')
 elseif strcmp(continent, 'Antarctica')
     continent = 'Oceania';
 elseif strcmp(continent, 'Seven seas (open ocean)')
-    if ismember(string(country), ['French Southern and Antarctic Lands', 'Mauritius', 'Saint Helena', 'Seychelles'])
+    if ismember(string(country), ["French Southern and Antarctic Lands" , "Mauritius" , "Saint Helena", "Seychelles"])
         continent = 'Africa';
-    elseif ismember(country, ['Clipperton Island', 'British Indian Ocean Territory', 'South Georgia and South Sandwich Islands'])
+    elseif ismember(country, ["Clipperton Island", "British Indian Ocean Territory", "South Georgia and South Sandwich Islands"])
         continent = 'Europe';
-    elseif ismember(country, ['Heard Island and McDonald Islands'])
+    elseif ismember(country, ["Heard Island and McDonald Islands"])
         continent = 'Oceania';
-    elseif ismember(country, ['Maldives'])
+    elseif ismember(country, ["Maldives"])
         continent = 'Asia';
     else
         fprintf('*** ERROR: continent not found %s\n\n',country);

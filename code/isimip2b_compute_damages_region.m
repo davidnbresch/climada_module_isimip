@@ -49,10 +49,10 @@ output_table = table();
 
 for i=1:length(countries_iso3)
     fprintf('Starting country: %s\n',countries_iso3{i});
-    output_table = isimip2b_compute_damages_country(countries_iso3{i},scenario,damfun_name,params);
+    output_table = [output_table; isimip2b_compute_damages_country(countries_iso3{i},scenario,damfun_name,params)];
 end
 
-output_file = [RegionID '_' scenario '_' damfun_name 'Entity-Year' num2str(params.entity_year) '-subMATSIRO' num2str(params.subtract_matsiro) '.csv'];
+output_file = [params.output_folder filesep RegionID '_' scenario '_' damfun_name '_Entity-Year' num2str(params.entity_year) '-subMATSIRO' num2str(params.subtract_matsiro) '.csv'];
 writetable(output_table,output_file);
 
 end
