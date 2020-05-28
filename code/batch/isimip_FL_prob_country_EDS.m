@@ -137,8 +137,6 @@ parfor country_i=1:n_countries
             em_data.DFC.damage      = em_data.DFC.damage      /entity.assets.currency_unit;
             em_data.DFC_orig.damage = em_data.DFC_orig.damage /entity.assets.currency_unit;
             
-            fig1=figure('Visible','off');
-            [~,~,legend_str,legend_handle]=climada_EDS_DFC(EDS);
             [legend_str,legend_handle]=emdat_barplot(em_data,'','','EM-DAT indexed',legend_str,legend_handle,'southeast');
             xlim([0 250]);
             saveas(fig1,[climada_global_results_dir filesep country_ISO3{country_i} '_FL_test_DFC_combined_emdat'],'png'); % in /cluster/work/climate/dbresch/climada_data/results

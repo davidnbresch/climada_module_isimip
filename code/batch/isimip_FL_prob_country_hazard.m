@@ -8,6 +8,9 @@ function hazard=isimip_FL_prob_country_hazard(ISO3,twoab)
 %   batch job to generate a pragmatically probabilistic hazard set for
 %   country. Construct one hazard set with all isimip simulations
 %
+%   Please note that datenum, yyyy, mm and dd are dummy, just monotinic
+%   daily increasing, nothing real.
+%
 %   see PARAMETERS
 %
 %   some hints to work with the cluster (explicit paths, edit this ;-)
@@ -28,6 +31,7 @@ function hazard=isimip_FL_prob_country_hazard(ISO3,twoab)
 %   a hazard set, also stored as {ISO3}_FL.mat in hazards
 % MODIFICATION HISTORY:
 % David N. Bresch, david.bresch@gmail.com, 20190312, initial from isimip_FL_prob_TEST
+% David N. Bresch, david.bresch@gmail.com, 20200115, datenum, yyyy, mm and dd pragmatic fix
 %-
 
 hazard=[];
@@ -147,9 +151,16 @@ if exist(hazard_file,'file')
     fprintf('  NOTE: event frequency redefined as 1/%i years (%i models combined)\n',hazard.orig_years,n_models);
     hazard.matrix_density=nnz(hazard.intensity)/numel(hazard.intensity); % update
     hazard.info=info; % add info
+    
+    % fix date (to be monotonic, needed if imported into Python)
+    hazard.datenum=datenum(2000,1,1)+(1:length(hazard.event_ID));
+    hazard.yyyy=str2num(datestr(hazard.datenum,'yyyy'))';
+    hazard.mm=str2num(datestr(hazard.datenum,'mm'))';
+    hazard.dd=str2num(datestr(hazard.datenum,'dd'))';
+    fprintf('  NOTE: datenum, yyyy, mm and dd fixed (silly dates, but monotonic)\n');
     hazard_filename=[climada_global.hazards_dir filesep ISO3 '_' twoab '_FL'];
     fprintf('saving combined hazard as %s ..',hazard_filename);
-    save(hazard_filename,'hazard');
+    save(hazard_filename,'hazard',climada_global.save_file_version);
     fprintf(' done\n');
 else
     fprintf('SKIP: for %s no FL hazard exists (missing %s)\n',ISO3,hazard_file);
